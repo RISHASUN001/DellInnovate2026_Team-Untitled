@@ -454,15 +454,6 @@ export default function App() {
             </div>
           </div>
         )}
-        {!selectedCase && activeTab === "all" && (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}>
-            <div style={{ textAlign: "center", maxWidth: 380 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>📋</div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#64748b" }}>All Cases — Summary View</div>
-              <div style={{ fontSize: 13, marginTop: 6, lineHeight: 1.5 }}>You can view summaries of all cases here. Full details are only accessible for cases <strong>assigned to you</strong>. Click a case with the <span style={{ background: "#6366f1", color: "#fff", borderRadius: 8, padding: "1px 6px", fontSize: 11 }}>MINE</span> badge to open it.</div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── CHATBOT TOGGLE ── */}
