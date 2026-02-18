@@ -106,6 +106,54 @@ class ScrapeJobModel(BaseModel):
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
 
+class CommentUserModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    username: str  # Instagram username of the commenter
+    user_id: Optional[str] = None  # Instagram user ID
+    comments: List[Dict[str, Any]] = []  # List of comments by this user
+    total_comments: int = 0
+    posts_commented_on: List[str] = []  # List of post shortcodes they commented on
+    first_seen: datetime = Field(default_factory=datetime.utcnow)
+    last_seen: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class BioLinkModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    username: str  # The Instagram user whose bio this link is from
+    url: str  # The original URL from bio
+    scraped_url: Optional[str] = None  # Final URL after redirects
+    title: Optional[str] = None
+    description: Optional[str] = None
+    image: Optional[str] = None
+    site_name: Optional[str] = None
+    status_code: Optional[int] = None
+    content_type: Optional[str] = None
+    error: Optional[str] = None
+    scraped_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+class SocialCloudModel(BaseModel):
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    username: str  # The Instagram user
+    platform: str  # e.g., "twitter", "facebook", "linkedin", "tiktok", "youtube", "snapchat"
+    profile_url: str  # The social media profile URL
+    profile_username: Optional[str] = None  # Username on that platform
+    extracted_from: str = "bio_links"  # Where we found this link
+    added_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
 class ScrapeRequest(BaseModel):
     usernames: List[str]
     scrape_posts: bool = True

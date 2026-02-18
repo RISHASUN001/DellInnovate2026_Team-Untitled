@@ -27,13 +27,17 @@ class ScraperService:
             existing = await users_collection.find_one({"username": username})
             if existing:
                 user_model.last_updated = datetime.utcnow()
+                # Exclude both 'id' and '_id' fields from update to prevent immutability errors
+                update_data = user_model.dict(by_alias=True, exclude={"id", "_id"})
                 await users_collection.update_one(
                     {"username": username},
-                    {"$set": user_model.dict(by_alias=True, exclude={"_id"})}
+                    {"$set": update_data}
                 )
                 logger.info(f"Updated user {username} in database")
             else:
-                result = await users_collection.insert_one(user_model.dict(by_alias=True, exclude={"id"}))
+                # For insert, exclude the 'id' field but let MongoDB generate _id
+                insert_data = user_model.dict(by_alias=True, exclude={"id", "_id"})
+                result = await users_collection.insert_one(insert_data)
                 logger.info(f"Inserted user {username} with id {result.inserted_id}")
             
             return user_model.dict(by_alias=True)
@@ -57,13 +61,15 @@ class ScraperService:
             # Check if post exists and update or insert
             existing = await posts_collection.find_one({"shortcode": post_data["shortcode"]})
             if existing:
+                update_data = post_model.dict(by_alias=True, exclude={"id", "_id"})
                 await posts_collection.update_one(
                     {"shortcode": post_data["shortcode"]},
-                    {"$set": post_model.dict(by_alias=True, exclude={"_id"})}
+                    {"$set": update_data}
                 )
                 logger.info(f"Updated post {post_data['shortcode']} in database")
             else:
-                result = await posts_collection.insert_one(post_model.dict(by_alias=True, exclude={"id"}))
+                insert_data = post_model.dict(by_alias=True, exclude={"id", "_id"})
+                result = await posts_collection.insert_one(insert_data)
                 logger.info(f"Inserted post {post_data['shortcode']} with id {result.inserted_id}")
             
             return post_model.dict(by_alias=True)
@@ -87,12 +93,14 @@ class ScraperService:
                 # Check if post exists
                 existing = await posts_collection.find_one({"shortcode": post_data.get("shortcode")})
                 if existing:
+                    update_data = post_model.dict(by_alias=True, exclude={"id", "_id"})
                     await posts_collection.update_one(
                         {"shortcode": post_data["shortcode"]},
-                        {"$set": post_model.dict(by_alias=True, exclude={"_id"})}
+                        {"$set": update_data}
                     )
                 else:
-                    await posts_collection.insert_one(post_model.dict(by_alias=True, exclude={"id"}))
+                    insert_data = post_model.dict(by_alias=True, exclude={"id", "_id"})
+                    await posts_collection.insert_one(insert_data)
                 
                 posts.append(post_model.dict(by_alias=True))
             
@@ -202,3 +210,161 @@ class ScraperService:
             user["_id"] = str(user["_id"])
             users.append(user)
         return users
+    
+    async def scrape_and_store_bio_links(self, username: str) -> Dict[str, Any]:
+        """Scrape bio links for a user and store in database"""
+        from services.link_scraper import LinkScraperService
+        from config.database import get_bio_links_collection, get_social_cloud_collection
+        from models.instagram_models import BioLinkModel, SocialCloudModel
+        
+        try:
+            # Get user data from database
+            user_data = await self.get_user_from_db(username)
+            if not user_data:
+                raise ValueError(f"User {username} not found in database. Scrape user first.")
+            
+            # Scrape bio links
+            link_scraper = LinkScraperService()
+            results = await link_scraper.scrape_bio_links_from_user_data(user_data)
+            
+            bio_links_collection = await get_bio_links_collection()
+            social_cloud_collection = await get_social_cloud_collection()
+            
+            # Store regular bio links
+            bio_links_stored = 0
+            for link_data in results['scraped_links']:
+                link_model = BioLinkModel(
+                    username=username,
+                    url=link_data['url'],
+                    scraped_url=link_data['scraped_url'],
+                    title=link_data['title'],
+                    description=link_data['description'],
+                    image=link_data['image'],
+                    site_name=link_data['site_name'],
+                    status_code=link_data['status_code'],
+                    content_type=link_data['content_type'],
+                    error=link_data['error']
+                )
+                
+                # Check if link already exists
+                existing = await bio_links_collection.find_one({
+                    "username": username,
+                    "url": link_data['url']
+                })
+                
+                if existing:
+                    await bio_links_collection.update_one(
+                        {"username": username, "url": link_data['url']},
+                        {"$set": link_model.dict(by_alias=True, exclude={"id", "_id"})}
+                    )
+                else:
+                    await bio_links_collection.insert_one(
+                        link_model.dict(by_alias=True, exclude={"id", "_id"})
+                    )
+                bio_links_stored += 1
+            
+            # Store social media links
+            social_links_stored = 0
+            for social_data in results['social_media_links']:
+                social_model = SocialCloudModel(
+                    username=username,
+                    platform=social_data['platform'],
+                    profile_url=social_data['profile_url'],
+                    profile_username=social_data.get('profile_username')
+                )
+                
+                # Check if social link already exists
+                existing = await social_cloud_collection.find_one({
+                    "username": username,
+                    "profile_url": social_data['profile_url']
+                })
+                
+                if not existing:
+                    await social_cloud_collection.insert_one(
+                        social_model.dict(by_alias=True, exclude={"id", "_id"})
+                    )
+                    social_links_stored += 1
+            
+            logger.info(f"Stored {bio_links_stored} bio links and {social_links_stored} social links for {username}")
+            
+            return {
+                "username": username,
+                "bio_links_stored": bio_links_stored,
+                "social_links_stored": social_links_stored,
+                "failed_links": len(results['failed_links']),
+                "results": results
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to scrape bio links for {username}: {e}")
+            raise
+    
+    async def extract_and_store_comment_users(self, posts_data: List[Dict]) -> Dict[str, Any]:
+        """Extract comment users from posts and store them"""
+        from services.comment_service import CommentUserService
+        
+        try:
+            comment_service = CommentUserService()
+            result = await comment_service.extract_comment_users_from_multiple_posts(posts_data)
+            stored_count = await comment_service.store_comment_users(result['comment_users'])
+            
+            return {
+                "total_unique_comment_users": result['total_unique_users'],
+                "total_posts_processed": result['total_posts_processed'],
+                "stored_count": stored_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to extract comment users: {e}")
+            raise
+    
+    async def process_all_comments_from_db(self) -> Dict[str, Any]:
+        """Process all posts in database to extract comment users"""
+        from services.comment_service import CommentUserService
+        
+        try:
+            comment_service = CommentUserService()
+            result = await comment_service.process_all_posts_for_comments()
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to process comments: {e}")
+            raise
+    
+    async def get_user_social_cloud(self, username: str) -> List[Dict]:
+        """Get social cloud for a user"""
+        from config.database import get_social_cloud_collection
+        
+        try:
+            collection = await get_social_cloud_collection()
+            cursor = collection.find({"username": username})
+            
+            social_links = []
+            async for link in cursor:
+                link["_id"] = str(link["_id"])
+                social_links.append(link)
+            
+            return social_links
+            
+        except Exception as e:
+            logger.error(f"Failed to get social cloud for {username}: {e}")
+            raise
+    
+    async def get_user_bio_links(self, username: str) -> List[Dict]:
+        """Get bio links for a user"""
+        from config.database import get_bio_links_collection
+        
+        try:
+            collection = await get_bio_links_collection()
+            cursor = collection.find({"username": username})
+            
+            bio_links = []
+            async for link in cursor:
+                link["_id"] = str(link["_id"])
+                bio_links.append(link)
+            
+            return bio_links
+            
+        except Exception as e:
+            logger.error(f"Failed to get bio links for {username}: {e}")
+            raise
