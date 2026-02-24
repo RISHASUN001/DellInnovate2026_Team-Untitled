@@ -1,0 +1,121 @@
+[
+  {
+    "user": "alex_troubled",
+    "comment_text": "I always mess everything up. Nothing ever goes right for me.",
+    "post_shortcode": "ABC123",
+    "created_at": "2024-01-15T10:00:00Z",
+    "likes": 2
+  },
+  {
+    "user": "alex_troubled",
+    "comment_text": "Everyone thinks I'm a complete failure. They're probably right.",
+    "post_shortcode": "ABC123",
+    "created_at": "2024-01-15T10:30:00Z",
+    "likes": 1
+  },
+  {
+    "user": "alex_troubled",
+    "comment_text": "This is a disaster. My whole life is falling apart and there's nothing I can do.",
+    "post_shortcode": "DEF456",
+    "created_at": "2024-01-15T11:00:00Z",
+    "likes": 0
+  },
+  {
+    "user": "alex_troubled",
+    "comment_text": "I should have known better. It's all my fault everything is terrible.",
+    "post_shortcode": "DEF456",
+    "created_at": "2024-01-15T11:12:00Z",
+    "likes": 3
+  },
+  {
+    "user": "sarah_volatile",
+    "comment_text": "This is the worst thing I've ever seen! Absolutely horrible!",
+    "post_shortcode": "GHI789",
+    "created_at": "2024-01-15T12:00:00Z",
+    "likes": 5
+  },
+  {
+    "user": "sarah_volatile",
+    "comment_text": "Wait, actually this is amazing! I love it so much!",
+    "post_shortcode": "GHI789",
+    "created_at": "2024-01-15T13:00:00Z",
+    "likes": 10
+  },
+  {
+    "user": "sarah_volatile",
+    "comment_text": "Never mind, I hate this. Everything about it is terrible.",
+    "post_shortcode": "JKL012",
+    "created_at": "2024-01-15T14:00:00Z",
+    "likes": 2
+  },
+  {
+    "user": "sarah_volatile",
+    "comment_text": "Actually you know what, this is perfect! Best thing ever!",
+    "post_shortcode": "JKL012",
+    "created_at": "2024-01-15T15:00:00Z",
+    "likes": 8
+  },
+  {
+    "user": "mike_healthy",
+    "comment_text": "Nice work! I really appreciate the effort you put into this.",
+    "post_shortcode": "MNO345",
+    "created_at": "2024-01-15T16:00:00Z",
+    "likes": 15
+  },
+  {
+    "user": "mike_healthy",
+    "comment_text": "Great point here. I'll have to think more about this.",
+    "post_shortcode": "PQR678",
+    "created_at": "2024-01-15T22:00:00Z",
+    "likes": 12
+  },
+  {
+    "user": "mike_healthy",
+    "comment_text": "Thanks for sharing this perspective!",
+    "post_shortcode": "STU901",
+    "created_at": "2024-01-16T04:00:00Z",
+    "likes": 18
+  },
+  {
+    "user": "emma_catastrophizing",
+    "comment_text": "This is going to be a complete catastrophe. Everything will be ruined forever.",
+    "post_shortcode": "VWX234",
+    "created_at": "2024-01-15T18:00:00Z",
+    "likes": 1
+  },
+  {
+    "user": "emma_catastrophizing",
+    "comment_text": "I must be perfect or else everything will be a total disaster. No other option.",
+    "post_shortcode": "VWX234",
+    "created_at": "2024-01-15T19:00:00Z",
+    "likes": 2
+  },
+  {
+    "user": "emma_catastrophizing",
+    "comment_text": "What if everything goes wrong? This will be the end of everything.",
+    "post_shortcode": "YZA567",
+    "created_at": "2024-01-15T20:00:00Z",
+    "likes": 0
+  },
+  {
+    "user": "jack_declining",
+    "comment_text": "Hey this is cool!",
+    "post_shortcode": "BCD890",
+    "created_at": "2024-01-15T10:00:00Z",
+    "likes": 8
+  },
+  {
+    "user": "jack_declining",
+    "comment_text": "Not sure about this anymore...",
+    "post_shortcode": "BCD890",
+    "created_at": "2024-01-17T10:00:00Z",
+    "likes": 3
+  },
+  {
+    "user": "jack_declining",
+    "comment_text": "I don't know. Nothing seems worth it.",
+    "post_shortcode": "EFG123",
+    "created_at": "2024-01-19T10:00:00Z",
+    "likes": 1
+  }
+]
