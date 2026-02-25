@@ -26,14 +26,18 @@ class ScraperService:
             # Check if user exists and update or insert
             existing = await users_collection.find_one({"username": username})
             if existing:
+                # Update existing user - IMPORTANT: exclude _id from update
                 user_model.last_updated = datetime.utcnow()
+                update_data = user_model.dict(by_alias=True, exclude={"_id", "id"})
                 await users_collection.update_one(
                     {"username": username},
-                    {"$set": user_model.dict(by_alias=True, exclude={"_id"})}
+                    {"$set": update_data}
                 )
                 logger.info(f"Updated user {username} in database")
             else:
-                result = await users_collection.insert_one(user_model.dict(by_alias=True, exclude={"id"}))
+                # Insert new user
+                insert_data = user_model.dict(by_alias=True, exclude={"id"})
+                result = await users_collection.insert_one(insert_data)
                 logger.info(f"Inserted user {username} with id {result.inserted_id}")
             
             return user_model.dict(by_alias=True)
@@ -57,13 +61,17 @@ class ScraperService:
             # Check if post exists and update or insert
             existing = await posts_collection.find_one({"shortcode": post_data["shortcode"]})
             if existing:
+                # Update existing post - IMPORTANT: exclude _id from update
+                update_data = post_model.dict(by_alias=True, exclude={"_id", "id"})
                 await posts_collection.update_one(
                     {"shortcode": post_data["shortcode"]},
-                    {"$set": post_model.dict(by_alias=True, exclude={"_id"})}
+                    {"$set": update_data}
                 )
                 logger.info(f"Updated post {post_data['shortcode']} in database")
             else:
-                result = await posts_collection.insert_one(post_model.dict(by_alias=True, exclude={"id"}))
+                # Insert new post
+                insert_data = post_model.dict(by_alias=True, exclude={"id"})
+                result = await posts_collection.insert_one(insert_data)
                 logger.info(f"Inserted post {post_data['shortcode']} with id {result.inserted_id}")
             
             return post_model.dict(by_alias=True)
@@ -72,12 +80,37 @@ class ScraperService:
             logger.error(f"Failed to scrape post {url_or_shortcode}: {e}")
             raise
     
-    async def scrape_user_posts(self, username: str, max_pages: Optional[int] = None) -> List[Dict[str, Any]]:
-        """Scrape all posts for a user and store in MongoDB"""
+    async def scrape_user_posts(self, username: str, max_posts: Optional[int] = None) -> List[Dict[str, Any]]:
+        """Scrape posts for a user and store in MongoDB, with limit on number of posts"""
         posts = []
+        post_count = 0
+        
         try:
-            # Scrape posts
-            async for post_data in self.scraper.scrape_user_posts(username, max_pages=max_pages):
+            # Scrape posts with limit on number of posts
+            async for post_data in self.scraper.scrape_user_posts(username, max_pages=None):  # We'll control by post count, not pages
+                # Check if we've reached the maximum posts limit
+                if max_posts and post_count >= max_posts:
+                    logger.info(f"Reached maximum posts limit ({max_posts}) for user {username}")
+                    break
+                
+                # Ensure comments field exists and is a list
+                if "comments" not in post_data:
+                    post_data["comments"] = []
+                elif post_data["comments"] is None:
+                    post_data["comments"] = []
+                
+                # Ensure comments_count matches actual comments length
+                if post_data.get("comments"):
+                    post_data["comments_count"] = len(post_data["comments"])
+                
+                # Ensure tagged_users exists
+                if "tagged_users" not in post_data:
+                    post_data["tagged_users"] = []
+                
+                # Ensure captions exists
+                if "captions" not in post_data:
+                    post_data["captions"] = []
+                
                 # Create model instance
                 post_model = InstagramPostModel(**post_data)
                 
@@ -87,16 +120,23 @@ class ScraperService:
                 # Check if post exists
                 existing = await posts_collection.find_one({"shortcode": post_data.get("shortcode")})
                 if existing:
+                    # Update existing post - IMPORTANT: exclude _id from update
+                    update_data = post_model.dict(by_alias=True, exclude={"_id", "id"})
                     await posts_collection.update_one(
                         {"shortcode": post_data["shortcode"]},
-                        {"$set": post_model.dict(by_alias=True, exclude={"_id"})}
+                        {"$set": update_data}
                     )
+                    logger.debug(f"Updated post {post_data['shortcode']}")
                 else:
-                    await posts_collection.insert_one(post_model.dict(by_alias=True, exclude={"id"}))
+                    # Insert new post
+                    insert_data = post_model.dict(by_alias=True, exclude={"id"})
+                    await posts_collection.insert_one(insert_data)
+                    logger.debug(f"Inserted post {post_data['shortcode']}")
                 
                 posts.append(post_model.dict(by_alias=True))
+                post_count += 1
             
-            logger.info(f"Scraped and stored {len(posts)} posts for user {username}")
+            logger.info(f"Scraped and stored {len(posts)} posts for user {username} (requested max: {max_posts if max_posts else 'unlimited'})")
             return posts
             
         except Exception as e:
@@ -105,7 +145,7 @@ class ScraperService:
     
     async def scrape_multiple_users(self, usernames: List[str], scrape_posts: bool = True, 
                                    max_posts_per_user: Optional[int] = None) -> Dict[str, Any]:
-        """Scrape multiple users and their posts"""
+        """Scrape multiple users and their posts with post limit per user"""
         # Create a scrape job record
         scrapes_collection = await get_scrapes_collection()
         job = ScrapeJobModel(
@@ -129,9 +169,9 @@ class ScraperService:
                     user_data = await self.scrape_user_profile(username)
                     results["users"].append(user_data)
                     
-                    # Scrape posts if requested
+                    # Scrape posts if requested, with post limit
                     if scrape_posts:
-                        posts = await self.scrape_user_posts(username, max_pages=max_posts_per_user)
+                        posts = await self.scrape_user_posts(username, max_posts=max_posts_per_user)
                         results["posts"].extend(posts)
                         
                 except Exception as e:

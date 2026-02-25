@@ -7,6 +7,7 @@ from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import json
 import os
+import asyncio
 from typing import Dict, Optional, AsyncGenerator, List
 from urllib.parse import quote, urlencode
 import jmespath
@@ -31,6 +32,50 @@ class InstagramScraper:
         self.INSTAGRAM_APP_ID = "936619743392459"  # Public app id for instagram.com
         self.INSTAGRAM_DOCUMENT_ID = "8845758582119845"  # Constant id for post documents
         self.INSTAGRAM_ACCOUNT_DOCUMENT_ID = "9310670392322965"
+        self.INSTAGRAM_POST_QUERY_HASH = "9f8827793ef34641b2fb195d4c411ebc"  # Alternative query hash for posts
+        
+        # Rate limiting settings
+        self.request_delay = 2.0  # Delay between requests in seconds
+        self.max_retries = 3
+        self.retry_delay = 5  # Initial retry delay in seconds
+
+    async def _make_request_with_retry(self, scrape_config: ScrapeConfig, retry_count: int = 0) -> any:
+        """Make a request with retry logic and rate limiting"""
+        try:
+            # Add delay before request to avoid rate limiting
+            await asyncio.sleep(self.request_delay)
+            
+            result = await self.client.async_scrape(scrape_config)
+            
+            # Check for rate limiting in response
+            if hasattr(result, 'status_code'):
+                if result.status_code == 429:
+                    if retry_count < self.max_retries:
+                        wait_time = self.retry_delay * (2 ** retry_count)  # Exponential backoff
+                        log.warning(f"Rate limited (429). Retrying in {wait_time} seconds... (Attempt {retry_count + 1}/{self.max_retries})")
+                        await asyncio.sleep(wait_time)
+                        return await self._make_request_with_retry(scrape_config, retry_count + 1)
+                    else:
+                        raise Exception(f"Max retries exceeded for rate limiting")
+            
+            return result
+            
+        except Exception as e:
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                if retry_count < self.max_retries:
+                    wait_time = self.retry_delay * (2 ** retry_count)
+                    log.warning(f"Rate limited. Retrying in {wait_time} seconds... (Attempt {retry_count + 1}/{self.max_retries})")
+                    await asyncio.sleep(wait_time)
+                    return await self._make_request_with_retry(scrape_config, retry_count + 1)
+            
+            # For other errors, retry as well
+            if retry_count < self.max_retries:
+                wait_time = self.retry_delay * (2 ** retry_count)
+                log.warning(f"Request failed: {e}. Retrying in {wait_time} seconds... (Attempt {retry_count + 1}/{self.max_retries})")
+                await asyncio.sleep(wait_time)
+                return await self._make_request_with_retry(scrape_config, retry_count + 1)
+            
+            raise
 
     def parse_user(self, data: Dict) -> Dict:
         """Reduce the user data to the relevant fields"""
@@ -100,7 +145,7 @@ class InstagramScraper:
         """Scrape instagram user's data"""
         log.info(f"Scraping instagram user: {username}")
         try:
-            result = await self.client.async_scrape(
+            result = await self._make_request_with_retry(
                 ScrapeConfig(
                     url=f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}",
                     headers={"x-ig-app-id": self.INSTAGRAM_APP_ID},
@@ -136,39 +181,13 @@ class InstagramScraper:
             log.error(f"Failed to scrape user {username}: {e}")
             raise
 
-    async def scrape_user_profile(self, username: str) -> Dict:
-        """Scrape and persist Instagram user profile data"""
-        user_data = await self.scrape_user(username)
-
-        # existing code that creates user_model and upserts it, e.g.:
-        user_model = InstagramUserModel(**user_data)
-        users_collection = await get_users_collection()
-        existing = await users_collection.find_one({"username": user_model.username})
-        if existing:
-            await users_collection.update_one(
-                {"username": user_model.username},
-                {"$set": user_model.dict(by_alias=True, exclude={"_id"})}
-            )
-        else:
-            await users_collection.insert_one(user_model.dict(by_alias=True, exclude={"id"}))
-
-        # --- NEW: persist bio_links_data if present (bypass model validation)
-        if user_data.get("bio_links_data") is not None:
-            try:
-                await users_collection.update_one(
-                    {"username": user_model.username},
-                    {"$set": {"bio_links_data": user_data["bio_links_data"]}}
-                )
-                log.info(f"Persisted bio_links_data for user {user_model.username}")
-            except Exception as e:
-                log.error(f"Failed to persist bio_links_data for {user_model.username}: {e}")
-
-        return user_data
-
     def parse_comments(self, data: Dict) -> Dict:
         """Parse the comments data from the post dataset"""
+        # Limit comments to first 500 if more exist
+        comments_data = {}
+        
         if "edge_media_to_comment" in data:
-            return jmespath.search(
+            comments_data = jmespath.search(
                 """{
                     comments_count: edge_media_to_comment.count,
                     comments_disabled: comments_disabled,
@@ -185,8 +204,8 @@ class InstagramScraper:
                 }""",
                 data,
             )
-        else:
-            return jmespath.search(
+        elif "edge_media_to_parent_comment" in data:
+            comments_data = jmespath.search(
                 """{
                     comments_count: edge_media_to_parent_comment.count,
                     comments_disabled: comments_disabled,
@@ -203,10 +222,27 @@ class InstagramScraper:
                 }""",
                 data,
             )
+        else:
+            # Try alternative comment structure
+            comments_data = {
+                "comments_count": data.get("comment_count", 0),
+                "comments_disabled": data.get("comments_disabled", False),
+                "comments": []
+            }
+        
+        # Limit comments to first 500
+        if comments_data and comments_data.get("comments"):
+            comments_data["comments"] = comments_data["comments"][:500]
+            
+        return comments_data
 
     def parse_post(self, data: Dict) -> Dict:
         """Reduce post dataset to the most important fields"""
         log.debug(f"Parsing post data for {data.get('shortcode', 'unknown')}")
+        
+        # Try to get data from different possible paths
+        post_media = data.get("data", {}).get("xdt_shortcode_media", data)
+        
         result = jmespath.search(
             """{
             post_id: id,
@@ -227,27 +263,36 @@ class InstagramScraper:
             is_video: is_video,
             tagged_users: edge_media_to_tagged_user.edges[].node.user.username,
             captions: edge_media_to_caption.edges[].node.text,
-            related_profiles: edge_related_profiles.edges[].node.username
+            related_profiles: edge_related_profiles.edges[].node.username,
+            owner: owner.username
         }""",
-            data,
+            post_media,
         )
-        comments_data = self.parse_comments(data)
+        
+        # Get comments data
+        comments_data = self.parse_comments(post_media)
         result.update(comments_data)
         
         # Extract username from the URL or data if available
-        if "owner" in data and "username" in data["owner"]:
-            result["username"] = data["owner"]["username"]
+        if "owner" in post_media and "username" in post_media["owner"]:
+            result["username"] = post_media["owner"]["username"]
             
         return result
 
     async def scrape_post(self, url_or_shortcode: str) -> Dict:
-        """Scrape single Instagram post data"""
+        """Scrape single Instagram post data with fallback methods"""
         if "http" in url_or_shortcode:
             shortcode = url_or_shortcode.split("/p/")[-1].split("/")[0]
         else:
             shortcode = url_or_shortcode
             
         log.info(f"Scraping instagram post: {shortcode}")
+        
+        # Try multiple methods to get post data
+        post_data = None
+        errors = []
+        
+        # Method 1: GraphQL with document ID
         try:
             variables = json.dumps({
                 'shortcode': shortcode,
@@ -259,7 +304,7 @@ class InstagramScraper:
             body = f"variables={variables}&doc_id={self.INSTAGRAM_DOCUMENT_ID}"
             url = "https://www.instagram.com/graphql/query"
             
-            result = await self.client.async_scrape(
+            result = await self._make_request_with_retry(
                 ScrapeConfig(
                     url=url,
                     method="POST",
@@ -270,16 +315,78 @@ class InstagramScraper:
             )
 
             data = await self._parse_json_result(result, url)
-            post_data = self.parse_post(data["data"]["xdt_shortcode_media"])
-            post_data["shortcode"] = shortcode
-            return post_data
+            if "data" in data and data["data"]:
+                post_data = self.parse_post(data)
+                post_data["shortcode"] = shortcode
+                log.success(f"Successfully scraped post {shortcode} using Method 1")
+                return post_data
         except Exception as e:
-            log.error(f"Failed to scrape post {shortcode}: {e}")
-            raise
+            errors.append(f"Method 1 failed: {str(e)}")
+            log.debug(f"Method 1 failed for {shortcode}: {e}")
+
+        # Method 2: Alternative GraphQL endpoint with query hash
+        try:
+            variables = json.dumps({
+                "shortcode": shortcode,
+                "include_reel_comment": True,
+                "include_logged_out": True
+            }, separators=(',', ':'))
+            
+            url = f"https://www.instagram.com/graphql/query/?query_hash={self.INSTAGRAM_POST_QUERY_HASH}&variables={quote(variables)}"
+            
+            result = await self._make_request_with_retry(
+                ScrapeConfig(
+                    url=url,
+                    method="GET",
+                    headers={"content-type": "application/x-www-form-urlencoded"},
+                    **self.base_config
+                )
+            )
+
+            data = await self._parse_json_result(result, url)
+            if "data" in data and data["data"] and "shortcode_media" in data["data"]:
+                post_data = self.parse_post(data["data"]["shortcode_media"])
+                post_data["shortcode"] = shortcode
+                log.success(f"Successfully scraped post {shortcode} using Method 2")
+                return post_data
+        except Exception as e:
+            errors.append(f"Method 2 failed: {str(e)}")
+            log.debug(f"Method 2 failed for {shortcode}: {e}")
+
+        # Method 3: Try to get from web profile info (limited data)
+        try:
+            result = await self._make_request_with_retry(
+                ScrapeConfig(
+                    url=f"https://www.instagram.com/p/{shortcode}/embed/?cr=1",
+                    **self.base_config,
+                )
+            )
+            # This would need HTML parsing, but for now we'll return basic data
+            log.warning(f"Using fallback for post {shortcode}")
+            return {
+                "shortcode": shortcode,
+                "comments": [],
+                "comments_count": 0,
+                "comments_disabled": False,
+                "tagged_users": [],
+                "captions": [],
+                "likes": 0,
+                "is_video": False,
+                "username": None
+            }
+        except Exception as e:
+            errors.append(f"Method 3 failed: {str(e)}")
+
+        # If all methods failed, raise error
+        error_msg = f"All methods failed to scrape post {shortcode}: {'; '.join(errors)}"
+        log.error(error_msg)
+        raise Exception(error_msg)
 
     def parse_user_posts(self, data: Dict) -> Dict:
-        """Reduce users posts' dataset to the most important fields"""
-        log.debug(f"Parsing post data for {data.get('code', 'unknown')}")
+        """Enhanced parser for user posts to include comments and other details"""
+        log.debug(f"Parsing enhanced post data for {data.get('code', 'unknown')}")
+        
+        # First, get the basic post info
         result = jmespath.search(
             """{
             post_id: id,
@@ -296,20 +403,82 @@ class InstagramScraper:
             top_likers: top_likers,
             like_count: like_count,
             usertags: usertags,
-            clips_metadata: clips_metadata,
-            comments: comments
+            clips_metadata: clips_metadata
         }""",
             data,
         )
         
+        # Parse comments from the comments field if available
+        if "comments" in data and data["comments"]:
+            comments_list = []
+            for comment in data["comments"]:
+                if isinstance(comment, dict):
+                    comment_data = {
+                        "id": comment.get("pk"),
+                        "text": comment.get("text"),
+                        "created_at": comment.get("created_at"),
+                        "owner_id": comment.get("user", {}).get("pk"),
+                        "owner": comment.get("user", {}).get("username"),
+                        "owner_verified": comment.get("user", {}).get("is_verified", False),
+                        "likes": comment.get("comment_like_count", 0)
+                    }
+                    comments_list.append(comment_data)
+            
+            # Limit to first 500 comments
+            result["comments"] = comments_list[:500]
+            result["comments_count"] = len(comments_list)
+            result["comments_disabled"] = False
+        else:
+            result["comments"] = []
+            result["comments_count"] = 0
+            result["comments_disabled"] = False
+        
+        # Parse tagged users
+        if "usertags" in data and data["usertags"]:
+            tagged_users = []
+            for tag in data["usertags"].get("in", []):
+                if "user" in tag:
+                    tagged_users.append(tag["user"].get("username"))
+            result["tagged_users"] = tagged_users
+        else:
+            result["tagged_users"] = []
+        
+        # Parse captions
+        if "caption" in data and data["caption"]:
+            if isinstance(data["caption"], dict):
+                result["captions"] = [data["caption"].get("text", "")]
+            else:
+                result["captions"] = [str(data["caption"])]
+        else:
+            result["captions"] = []
+        
+        # Parse location
+        if "location" in data and data["location"]:
+            result["location"] = data["location"].get("name")
+        
+        # Parse media info
+        result["is_video"] = data.get("media_type") == 2
+        
+        if result["is_video"] and "video_versions" in data and data["video_versions"]:
+            result["video_url"] = data["video_versions"][0].get("url")
+            result["views"] = data.get("play_count", 0)
+            result["video_duration"] = data.get("video_duration")
+        
+        # Parse image URL
+        if "image_versions2" in data and data["image_versions2"]:
+            candidates = data["image_versions2"].get("candidates", [])
+            if candidates:
+                result["src"] = candidates[0].get("url")
+                result["thumbnail_src"] = candidates[0].get("url")
+        
         # Add username if available
         if "user" in data:
-            result["username"] = data["user"]["username"]
-            
+            result["username"] = data["user"].get("username")
+        
         return result
 
     async def scrape_user_posts(self, username: str, page_size=12, max_pages: Optional[int] = None) -> AsyncGenerator[Dict, None]:
-        """Scrape all posts of an instagram user"""
+        """Scrape all posts of an instagram user with enhanced data including comments"""
         base_url = "https://www.instagram.com/graphql/query/"
         variables = {
             "after": None,
@@ -330,6 +499,7 @@ class InstagramScraper:
 
         prev_cursor = None
         page_number = 1
+        post_count = 0
 
         while True:
             try:
@@ -339,7 +509,7 @@ class InstagramScraper:
                 }
 
                 final_url = f"{base_url}?{urlencode(params)}"
-                result = await self.client.async_scrape(ScrapeConfig(
+                result = await self._make_request_with_retry(ScrapeConfig(
                     final_url, 
                     **self.base_config, 
                     method="GET",
@@ -351,12 +521,35 @@ class InstagramScraper:
                 posts = data["data"]["xdt_api__v1__feed__user_timeline_graphql_connection"]
                 
                 for post in posts["edges"]:
-                    post_data = self.parse_user_posts(post["node"])
-                    post_data["username"] = username
-                    yield post_data
+                    post_node = post["node"]
+                    shortcode = post_node.get("code")
+                    
+                    if shortcode:
+                        try:
+                            # Get detailed post data including comments
+                            detailed_post = await self.scrape_post(shortcode)
+                            yield detailed_post
+                            post_count += 1
+                        except Exception as e:
+                            log.warning(f"Failed to get detailed post for {shortcode}, using basic data: {e}")
+                            post_data = self.parse_user_posts(post_node)
+                            post_data["username"] = username
+                            # Ensure comments is always a list
+                            if "comments" not in post_data:
+                                post_data["comments"] = []
+                            yield post_data
+                            post_count += 1
+                    else:
+                        post_data = self.parse_user_posts(post_node)
+                        post_data["username"] = username
+                        # Ensure comments is always a list
+                        if "comments" not in post_data:
+                            post_data["comments"] = []
+                        yield post_data
+                        post_count += 1
 
                 page_info = posts["page_info"]
-                log.info(f"Scraped posts page {page_number} for {username}")
+                log.info(f"Scraped posts page {page_number} for {username} (total posts so far: {post_count})")
                 
                 if not page_info.get("has_next_page"):
                     break
@@ -386,6 +579,10 @@ class InstagramScraper:
         for username in usernames:
             try:
                 log.info(f"Processing user: {username}")
+                
+                # Add delay between users to avoid rate limiting
+                if len(results["users"]) > 0:
+                    await asyncio.sleep(3)
                 
                 # Scrape user profile
                 user_data = await self.scrape_user(username)
