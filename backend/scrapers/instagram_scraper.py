@@ -2,6 +2,9 @@
 Instagram scraper using Scrapfly API
 Based on: https://scrapfly.io/blog/how-to-scrape-instagram/
 """
+import httpx
+from bs4 import BeautifulSoup
+from urllib.parse import urljoin, urlparse
 import json
 import os
 from typing import Dict, Optional, AsyncGenerator, List
@@ -104,13 +107,63 @@ class InstagramScraper:
                     **self.base_config,
                 )
             )
-            data = json.loads(result.content)
+            data = await self._parse_json_result(result, f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}")
             user_data = self.parse_user(data["data"]["user"])
-            user_data["username"] = username  # Ensure username is set
+
+            # ensure username present
+            user_data["username"] = username
+
+            # normalize and scrape bio links (non-scrapfly)
+            bio_links = user_data.get("bio_links") or []
+            bio_links_data = []
+            for raw_link in bio_links:
+                try:
+                    link = raw_link or ""
+                    # normalize scheme
+                    if link and not urlparse(link).scheme:
+                        link = "http://" + link
+                    meta = await self.scrape_external_link(link)
+                    bio_links_data.append(meta)
+                except Exception as e:
+                    log.warning("error scraping bio link %s: %s", raw_link, e)
+                    bio_links_data.append({"url": raw_link, "error": str(e)})
+
+            # always attach (even if empty) so downstream can persist it
+            user_data["bio_links_data"] = bio_links_data
+
             return user_data
         except Exception as e:
             log.error(f"Failed to scrape user {username}: {e}")
             raise
+
+    async def scrape_user_profile(self, username: str) -> Dict:
+        """Scrape and persist Instagram user profile data"""
+        user_data = await self.scrape_user(username)
+
+        # existing code that creates user_model and upserts it, e.g.:
+        user_model = InstagramUserModel(**user_data)
+        users_collection = await get_users_collection()
+        existing = await users_collection.find_one({"username": user_model.username})
+        if existing:
+            await users_collection.update_one(
+                {"username": user_model.username},
+                {"$set": user_model.dict(by_alias=True, exclude={"_id"})}
+            )
+        else:
+            await users_collection.insert_one(user_model.dict(by_alias=True, exclude={"id"}))
+
+        # --- NEW: persist bio_links_data if present (bypass model validation)
+        if user_data.get("bio_links_data") is not None:
+            try:
+                await users_collection.update_one(
+                    {"username": user_model.username},
+                    {"$set": {"bio_links_data": user_data["bio_links_data"]}}
+                )
+                log.info(f"Persisted bio_links_data for user {user_model.username}")
+            except Exception as e:
+                log.error(f"Failed to persist bio_links_data for {user_model.username}: {e}")
+
+        return user_data
 
     def parse_comments(self, data: Dict) -> Dict:
         """Parse the comments data from the post dataset"""
@@ -216,7 +269,7 @@ class InstagramScraper:
                 )
             )
 
-            data = json.loads(result.content)
+            data = await self._parse_json_result(result, url)
             post_data = self.parse_post(data["data"]["xdt_shortcode_media"])
             post_data["shortcode"] = shortcode
             return post_data
@@ -293,7 +346,7 @@ class InstagramScraper:
                     headers={"content-type": "application/x-www-form-urlencoded"},
                 ))
 
-                data = json.loads(result.content)
+                data = await self._parse_json_result(result, final_url)
                 
                 posts = data["data"]["xdt_api__v1__feed__user_timeline_graphql_connection"]
                 
@@ -354,3 +407,53 @@ class InstagramScraper:
                 })
         
         return results
+
+    async def scrape_external_link(self, url: str) -> Dict:
+        """Fetch simple metadata (title, description, image) for an external URL using httpx + bs4."""
+        try:
+            async with httpx.AsyncClient(timeout=10.0, headers={"User-Agent": "Mozilla/5.0"}) as client:
+                resp = await client.get(url, follow_redirects=True)
+            if resp.status_code != 200:
+                return {"url": url, "status": resp.status_code}
+            content_type = resp.headers.get("content-type", "")
+            if "html" not in content_type:
+                return {"url": url, "status": resp.status_code, "content_type": content_type}
+            soup = BeautifulSoup(resp.text, "html.parser")
+            title = None
+            if soup.title and soup.title.string:
+                title = soup.title.string.strip()
+            desc_tag = soup.find("meta", attrs={"name": "description"}) or soup.find("meta", attrs={"property": "og:description"})
+            description = desc_tag.get("content").strip() if desc_tag and desc_tag.get("content") else None
+            img_tag = soup.find("meta", attrs={"property": "og:image"}) or soup.find("img")
+            image = None
+            if img_tag:
+                if img_tag.name == "meta":
+                    image = img_tag.get("content")
+                else:
+                    image = img_tag.get("src")
+            if image and image.startswith("/"):
+                image = urljoin(url, image)
+            return {"url": url, "status": 200, "title": title, "description": description, "image": image}
+        except Exception as e:
+            log.warning("failed to scrape external link %s: %s", url, e)
+            return {"url": url, "error": str(e)}
+
+    async def _parse_json_result(self, result, url: str | None = None) -> Dict:
+        """Safely parse result.content as JSON; log helpful debug on failure."""
+        status = getattr(result, "status_code", None)
+        body = getattr(result, "content", None)
+        text = None
+        if body is None:
+            log.error("Empty response from Scrapfly for %s (status=%s)", url or "<unknown>", status)
+            raise ValueError(f"Empty response from scraper (status={status})")
+        try:
+            if isinstance(body, (bytes, bytearray)):
+                text = body.decode("utf-8", errors="replace")
+            else:
+                text = str(body)
+            return json.loads(text)
+        except Exception as e:
+            # log first chunk of body to help debugging (avoid huge dumps)
+            preview = text[:1000] if text else "<no-text>"
+            log.error("Failed to parse JSON from %s (status=%s): %s\nBody preview: %s", url or "<unknown>", status, e, preview)
+            raise ValueError(f"Failed to parse JSON from scraper (status={status}): {e}")
