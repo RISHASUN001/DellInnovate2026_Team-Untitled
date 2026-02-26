@@ -10,6 +10,7 @@ import os
 from datetime import datetime
 
 from services.nlp_service import get_nlp_service
+from services.pattern_analysis_service import get_pattern_service
 
 
 router = APIRouter(
@@ -38,6 +39,17 @@ class AnalyzeCommentsRequest(BaseModel):
     usernames: Optional[List[str]] = None
     limit: Optional[int] = None
     source: str = "posts"  # "posts" or "comment_users"
+
+
+class AnalyzeUserRequest(BaseModel):
+    username: str
+    limit: Optional[int] = None
+    include_pattern_analysis: Optional[bool] = True
+
+
+class PatternAnalysisRequest(BaseModel):
+    username: str
+    comments: List[dict]  # Pre-analyzed comment data
 
 
 class ExportSignalCSVRequest(BaseModel):
@@ -232,3 +244,133 @@ async def nlp_health_check():
             "status": "unhealthy",
             "error": str(e)
         }
+
+
+@router.post("/analyze/user")
+async def analyze_user_comprehensive(request: AnalyzeUserRequest):
+    """
+    Comprehensive analysis for a single user including pattern analysis
+    
+    - **username**: Instagram username to analyze
+    - **limit**: Optional limit on number of comments to analyze
+    - **include_pattern_analysis**: Whether to include comprehensive pattern analysis
+    """
+    try:
+        nlp = get_nlp_service()
+        result = await nlp.analyze_user_comments(
+            username=request.username,
+            limit=request.limit,
+            include_pattern_analysis=request.include_pattern_analysis
+        )
+        
+        return {
+            "status": "success",
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in comprehensive user analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pattern-analysis/cognitive-distortions")
+async def analyze_cognitive_distortions(request: dict):
+    """
+    Analyze text for cognitive distortion patterns
+    
+    Body:
+        {
+            "text": "Text to analyze for cognitive distortions"
+        }
+    """
+    try:
+        text = request.get("text")
+        if not text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        
+        pattern_service = get_pattern_service()
+        result = pattern_service.detect_cognitive_distortions(text)
+        
+        return {
+            "status": "success",
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing cognitive distortions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pattern-analysis/sentiment-volatility")
+async def analyze_sentiment_volatility(request: PatternAnalysisRequest):
+    """
+    Analyze sentiment volatility patterns for a user
+    
+    - **username**: Username for identification
+    - **comments**: List of analyzed comment data with sentiment scores
+    """
+    try:
+        pattern_service = get_pattern_service()
+        result = pattern_service.analyze_sentiment_volatility(
+            user_comments=request.comments
+        )
+        
+        return {
+            "status": "success",
+            "username": request.username,
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing sentiment volatility: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pattern-analysis/engagement-patterns")
+async def analyze_engagement_patterns(request: PatternAnalysisRequest):
+    """
+    Analyze user engagement and behavioral patterns
+    
+    - **username**: Username for identification
+    - **comments**: List of analyzed comment data with timestamps
+    """
+    try:
+        pattern_service = get_pattern_service()
+        result = pattern_service.analyze_engagement_patterns(
+            user_comments=request.comments
+        )
+        
+        return {
+            "status": "success", 
+            "username": request.username,
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error analyzing engagement patterns: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/pattern-analysis/comprehensive")
+async def analyze_user_patterns_comprehensive(request: PatternAnalysisRequest):
+    """
+    Comprehensive pattern analysis combining all methods
+    
+    - **username**: Username for identification
+    - **comments**: List of analyzed comment data
+    """
+    try:
+        pattern_service = get_pattern_service()
+        result = pattern_service.analyze_user_comprehensive(
+            user_comments=request.comments,
+            username=request.username
+        )
+        
+        return {
+            "status": "success",
+            "data": result
+        }
+        
+    except Exception as e:
+        logger.error(f"Error in comprehensive pattern analysis: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

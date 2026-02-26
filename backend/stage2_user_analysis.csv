@@ -1,6 +1,0 @@
-Username,Total_Comments,Distortion_Count,Distortion_Ratio,Volatility_Score,Rapid_Shifts,Volatility_Risk,Engagement_Pattern,Distortion_Rate,Comment_Bursts,Long_Gaps,Overall_Risk_Level,Risk_Score,Requires_Attention
-alex_troubled,4,16,35.13257575757576,0.08195241292317708,0,stable,crisis_burst,1.0,3,0,high,55,True
-sarah_volatile,4,9,22.5,1.925142268339793,3,high,normal,0.5,0,0,medium,45,True
-jack_declining,3,1,4.761904761904762,0.916534811258316,1,medium,concerning_content,0.6666666666666666,0,0,medium,40,True
-emma_catastrophizing,3,12,30.25641025641026,0.2644813358783722,0,stable,concerning_content,1.0,0,0,low,25,False
-mike_healthy,3,1,3.3333333333333335,0.03550556302070618,0,stable,normal,0.0,0,0,minimal,0,False

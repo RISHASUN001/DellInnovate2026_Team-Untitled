@@ -10,10 +10,18 @@ from transformers import pipeline
 import torch
 
 from config.database import get_posts_collection, get_comment_users_collection
+from services.pattern_analysis_service import get_pattern_service
 
 
 class NLPService:
-    """Service for emotion and sentiment analysis using Hugging Face models"""
+    """
+    Service for emotion and sentiment analysis using Hugging Face models
+    
+    Models:
+    - Emotion Analysis: English-only (CardiffNLP RoBERTa)
+    - Sentiment Analysis: Multilingual (CardiffNLP XLM-RoBERTa)
+      Supports: English, Spanish, French, German, Italian, Portuguese, Dutch, and more
+    """
     
     def __init__(self):
         """Initialize NLP models"""
@@ -38,16 +46,17 @@ class NLPService:
                 top_k=None  # Return all emotion scores
             )
             
-            # Load sentiment analysis model (CardiffNLP RoBERTa)
+            # Load sentiment analysis model (CardiffNLP XLM-RoBERTa - Multilingual)
             # This model classifies sentiment into: negative, neutral, positive
-            logger.info("Loading sentiment analyzer...")
+            # Supports multiple languages including English, Spanish, French, German, etc.
+            logger.info("Loading multilingual sentiment analyzer...")
             self.sentiment_analyzer = pipeline(
                 "sentiment-analysis",
-                model="cardiffnlp/twitter-roberta-base-sentiment-latest",
+                model="cardiffnlp/twitter-xlm-roberta-base-sentiment",
                 device=device
             )
             
-            logger.success("NLP models loaded successfully")
+            logger.success("NLP models loaded successfully (Emotion: English-only, Sentiment: Multilingual)")
             
         except Exception as e:
             logger.error(f"Failed to load NLP models: {e}")
@@ -91,13 +100,21 @@ class NLPService:
             # Get sentiment analysis
             sentiment_result = self.sentiment_analyzer(text)[0]
             
-            # Calculate distortion indicator
-            # Distortion is high when negative emotions (sadness, anger, fear) are high
+            # Advanced cognitive distortion analysis
+            cognitive_analysis = self.pattern_service.detect_cognitive_distortions(text)
+            
+            # Calculate distortion indicator (use advanced analysis + basic emotion scoring)
             distortion_emotions = ['sadness', 'anger', 'fear']
-            distortion_score = sum(
+            emotion_distortion_score = sum(
                 emotions.get(emotion, 0) for emotion in distortion_emotions
             )
-            distortion_indicator = distortion_score > 0.5  # Threshold for distortion
+            
+            # Combine cognitive distortions with emotional indicators
+            combined_distortion = max(
+                cognitive_analysis['distortion_ratio'] / 20,  # Normalize to 0-1 scale
+                emotion_distortion_score
+            )
+            distortion_indicator = combined_distortion > 0.5 or cognitive_analysis['has_distortions']
             
             return {
                 'text': text,
@@ -107,7 +124,13 @@ class NLPService:
                 'sentiment': sentiment_result['label'],
                 'sentiment_score': sentiment_result['score'],
                 'distortion_indicator': distortion_indicator,
-                'distortion_score': distortion_score
+                'distortion_score': float(combined_distortion),
+                'cognitive_distortions': cognitive_analysis,
+                'risk_indicators': {
+                    'high_negative_emotions': emotion_distortion_score > 0.7,
+                    'cognitive_distortions_present': cognitive_analysis['has_distortions'],
+                    'distortion_ratio': cognitive_analysis['distortion_ratio']
+                }
             }
             
         except Exception as e:

@@ -1,5 +1,4 @@
 """
-Pattern Analysis Service - Stage 2 of NLP Pipeline
 Analyzes cognitive distortions, sentiment volatility, and engagement patterns
 """
 from typing import Dict, List, Optional

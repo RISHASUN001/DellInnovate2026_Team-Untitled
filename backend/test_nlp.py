@@ -65,11 +65,50 @@ async def analyze_all_comments():
     await MongoDB.close_db()
 
 
+async def test_multilingual_sentiment():
+    """Test the new multilingual sentiment analysis capability"""
+    from services.nlp_service import NLPService
+    logger.info("Testing multilingual sentiment analysis...")
+    
+    nlp = NLPService()
+    
+    # Test comments in different languages
+    test_comments = [
+        ("English", "I'm so happy today! This is amazing!"),
+        ("Spanish", "Estoy muy triste y deprimido hoy."),
+        ("French", "Je suis tellement heureux de vous voir!"),
+        ("German", "Das macht mich wirklich wütend!"),
+        ("Italian", "Sono molto arrabbiato per questa situazione."),
+        ("Portuguese", "Estou me sentindo muito ansioso ultimamente.")
+    ]
+    
+    logger.info(f"Testing {len(test_comments)} comments in different languages:\n")
+    
+    for language, text in test_comments:
+        try:
+            result = nlp.analyze_text(text)
+            sentiment = result.get('sentiment', 'unknown')
+            sentiment_score = result.get('sentiment_score', 0.0)
+            emotion = result.get('primary_emotion', 'unknown')
+            
+            logger.info(f"[{language:10}] Text: {text[:50]}...")
+            logger.info(f"{'':13} → Sentiment: {sentiment} ({sentiment_score:.3f})")
+            logger.info(f"{'':13} → Emotion: {emotion}")
+            logger.info("")
+            
+        except Exception as e:
+            logger.error(f"Error analyzing {language} text: {e}")
+
+
 if __name__ == "__main__":
     # First check data
     print("\n=== Checking Data ===")
     asyncio.run(check_data())
     
-    # Then analyze
+    # Test multilingual capability
+    print("\n=== Testing Multilingual Sentiment ===")
+    asyncio.run(test_multilingual_sentiment())
+    
+    # Then analyze existing comments
     print("\n=== Analyzing Comments ===")
     asyncio.run(analyze_all_comments())
