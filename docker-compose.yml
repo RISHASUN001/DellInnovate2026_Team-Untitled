@@ -1,0 +1,81 @@
+version: "3.9"
+
+services:
+  # ── Case Service (SQLite core API) ──────────────────────────────────────────
+  case-service:
+    build:
+      context: ./case-service
+      dockerfile: Dockerfile
+    container_name: scs-case-service
+    ports:
+      - "${CASE_SERVICE_PORT:-8001}:8001"
+    volumes:
+      - scs-data:/data
+    environment:
+      - CASE_DB_PATH=${CASE_DB_PATH:-/data/cases.db}
+      - DEFAULT_USER_ID=${DEFAULT_USER_ID:-sarah_l}
+      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-Admin}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ── Chatbot Service (RAG + NetworkX) ────────────────────────────────────────
+  chatbot-service:
+    build:
+      context: ./chatbot-service
+      dockerfile: Dockerfile
+    container_name: scs-chatbot-service
+    ports:
+      - "${CHATBOT_SERVICE_PORT:-8002}:8002"
+    volumes:
+      - scs-data:/data
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
+      - CHROMA_PERSIST_DIR=${CHROMA_PERSIST_DIR:-/data/chromadb}
+      - DOCS_DIR=${DOCS_DIR:-/app/docs}
+      - CASE_SERVICE_URL=${CASE_SERVICE_URL:-http://case-service:8001}
+      - MCP_SERVICE_URL=${MCP_SERVICE_URL:-http://mcp-service:8003}
+      - DEFAULT_USER_ID=${DEFAULT_USER_ID:-sarah_l}
+      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-Admin}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+    depends_on:
+      case-service:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── MCP Service (Tool Gateway) ───────────────────────────────────────────────
+  mcp-service:
+    build:
+      context: ./mcp-service
+      dockerfile: Dockerfile
+    container_name: scs-mcp-service
+    ports:
+      - "${MCP_SERVICE_PORT:-8003}:8003"
+    volumes:
+      - scs-data:/data
+    environment:
+      - CASE_DB_PATH=${CASE_DB_PATH:-/data/cases.db}
+      - CHATBOT_SERVICE_URL=${CHATBOT_SERVICE_URL:-http://chatbot-service:8002}
+      - DEFAULT_USER_ID=${DEFAULT_USER_ID:-sarah_l}
+      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-Admin}
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+    depends_on:
+      case-service:
+        condition: service_healthy
+      chatbot-service:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  scs-data:
+    driver: local
+
+networks:
+  default:
+    name: scs-network

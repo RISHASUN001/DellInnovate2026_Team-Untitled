@@ -1,0 +1,14 @@
+INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/case-service']
+INFO:     Uvicorn running on http://0.0.0.0:8001 (Press CTRL+C to quit)
+INFO:     Started reloader process [26278] using WatchFiles
+INFO:     Started server process [26286]
+INFO:     Waiting for application startup.
+2026-02-28 01:37:16.720 | INFO     | app.main:lifespan:15 - case-service starting up...
+2026-02-28 01:37:16.735 | INFO     | app.seed:seed:536 - Seeding mock risk-assessment data...
+2026-02-28 01:37:16.759 | INFO     | app.seed:seed:617 - Seeded 22 cases with history and checklists.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:56942 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57025 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57055 - "OPTIONS /cases/summary HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57056 - "OPTIONS /cases/summary HTTP/1.1" 400 Bad Request
+INFO:     127.0.0.1:57382 - "POST /run HTTP/1.1" 404 Not Found

@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
+// ─── SERVICE URLS (proxied via Vite dev server in dev; adjust for prod) ───────
+const CASE_SERVICE_URL   = "http://localhost:8001";
+const CHATBOT_SERVICE_URL = "http://localhost:8002";
+const MCP_SERVICE_URL     = "http://localhost:8003";
+
+// ─── CURRENT USER (replace with proper auth context later) ────────────────────
+const CURRENT_USER = { id: "sarah_l", name: "Sarah L.", role: "Admin" };
+
 // ─── DATA ────────────────────────────────────────────────────────────
 const MOCK_CASES = [
   { id: 1, code: "YD-2026-0412", riskLevel: 3, category: "Bullying", platform: "Instagram", lastSignal: "2026-02-03 06:12 AM", status: "Active", assignedTo: "Sarah L.", assignedToMe: true, youth: { name: "Emma Chen", age: 15, avatar: "🧑‍🦱", handle: "@emma_chen_15", instagramUrl: "https://instagram.com/emma_chen_15" }, signals: ["Repeated negative comments in DMs detected", "Sentiment shift: positive → negative over 72h", "Keyword cluster: isolation, worthless, alone"], summary: "Adolescent showing linguistic markers consistent with peer-directed harassment. Sentiment analysis flagged a sharp downward shift over three days." },
@@ -129,12 +137,35 @@ export default function App() {
   const [showChatbot, setShowChatbot] = useState(false);
   const [showHelpMenu, setShowHelpMenu] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
-  const [assignedCasesOrder, setAssignedCasesOrder] = useState(MOCK_CASES.filter(c => c.assignedToMe).map(c => c.id));
 
-  const myAssignedCases = assignedCasesOrder.map(id => MOCK_CASES.find(c => c.id === id)).filter(Boolean);
-  
+  // ── Live case data (falls back to mock while API is unavailable) ──
+  const [cases, setCases] = useState(MOCK_CASES);
+  useEffect(() => {
+    fetch(`${CASE_SERVICE_URL}/cases/summary`, {
+      headers: { "X-User-Id": CURRENT_USER.id, "X-User-Role": CURRENT_USER.role },
+    })
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => { if (Array.isArray(data) && data.length) setCases(data); })
+      .catch(() => { /* keep MOCK_CASES */ });
+  }, []);
+
+  const [assignedCasesOrder, setAssignedCasesOrder] = useState(
+    MOCK_CASES.filter(c => c.assignedToMe).map(c => c.id)
+  );
+  // Keep order in sync when cases update
+  useEffect(() => {
+    const assignedIds = cases.filter(c => c.assignedToMe).map(c => c.id);
+    setAssignedCasesOrder(prev => {
+      const merged = [...new Set([...prev, ...assignedIds])].filter(id => assignedIds.includes(id));
+      return merged;
+    });
+  }, [cases]);
+
+  const myAssignedCases = assignedCasesOrder.map(id => cases.find(c => c.id === id)).filter(Boolean);
+  const needsReviewCases = cases.filter(c => c.needs_review || c.needsReview);
+
   // Group cases by category for All Cases view
-  const casesByCategory = MOCK_CASES.reduce((acc, c) => {
+  const casesByCategory = cases.reduce((acc, c) => {
     if (!acc[c.category]) acc[c.category] = [];
     acc[c.category].push(c);
     return acc;
@@ -313,13 +344,18 @@ export default function App() {
         {/* ── LEFT: TAB NAVIGATION + CASE LIST ── */}
         <div id="workspace-panel" style={{ width: selectedCase ? 380 : "100%", minWidth: selectedCase ? 340 : undefined, maxWidth: selectedCase ? 420 : undefined, background: "#fff", borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflow: "hidden", transition: "width 0.3s ease" }}>
           {/* Tabs */}
-          <div id="tab-all" style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "#eef2ff" : "#fff", transition: "background 0.3s", border: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "2px solid #6366f1" : "none", borderBottom: "1px solid #e2e8f0", borderRadius: "0 0 0 0" }}>
+          <div id="tab-all" style={{ display: "flex", background: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "#eef2ff" : "#fff", transition: "background 0.3s", border: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "2px solid #6366f1" : "none", borderBottom: "1px solid #e2e8f0", borderRadius: "0 0 0 0" }}>
             <button onClick={() => { setActiveTab("all"); setSelectedCase(null); }} style={{ flex: 1, padding: "13px 0", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeTab === "all" ? 700 : 500, color: activeTab === "all" ? "#6366f1" : "#64748b", borderBottom: activeTab === "all" ? "3px solid #6366f1" : "3px solid transparent", transition: "all 0.2s" }}>
-              📋 All Cases <span style={{ background: "#e0e7ff", color: "#4338ca", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{MOCK_CASES.length}</span>
+              📋 All Cases <span style={{ background: "#e0e7ff", color: "#4338ca", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{cases.length}</span>
             </button>
             <button id="tab-assigned" onClick={() => { setActiveTab("assigned"); setSelectedCase(null); }} style={{ flex: 1, padding: "13px 0", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeTab === "assigned" ? 700 : 500, color: activeTab === "assigned" ? "#6366f1" : "#64748b", borderBottom: activeTab === "assigned" ? "3px solid #6366f1" : "3px solid transparent", transition: "all 0.2s" }}>
               👤 Assigned to Me <span style={{ background: "#ddd6fe", color: "#5b21b6", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{myAssignedCases.length}</span>
             </button>
+            {CURRENT_USER.role === "Admin" && (
+              <button onClick={() => { setActiveTab("review"); setSelectedCase(null); }} style={{ flex: 1, padding: "13px 0", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeTab === "review" ? 700 : 500, color: activeTab === "review" ? "#dc2626" : "#64748b", borderBottom: activeTab === "review" ? "3px solid #dc2626" : "3px solid transparent", transition: "all 0.2s" }}>
+                🔍 Needs Review {needsReviewCases.length > 0 && <span style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{needsReviewCases.length}</span>}
+              </button>
+            )}
           </div>
           {/* Case list */}
           {activeTab === "all" ? (
@@ -332,12 +368,12 @@ export default function App() {
                     <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "2px 8px", fontSize: 11 }}>{casesByCategory[category].length}</span>
                   </div>
                   {casesByCategory[category].map(c => (
-                    <CaseCard key={c.id} c={c} isAssignedView={false} highlight={highlightTarget === "workspace-panel" && c.id === myAssignedCases[0]?.id} onClick={c => { if (!c.assignedToMe) return alert("📌 This case is not assigned to you. Only summary view is available.\\n\\nTo access full details, the case must be assigned to you."); setSelectedCase(c); }} />
+                    <CaseCard key={c.id} c={c} isAssignedView={false} highlight={highlightTarget === "workspace-panel" && c.id === myAssignedCases[0]?.id} onClick={c => { if (!c.assignedToMe) return alert("📌 This case is not assigned to you. Only summary view is available.\n\nTo access full details, the case must be assigned to you."); setSelectedCase(c); }} />
                   ))}
                 </div>
               ))}
             </div>
-          ) : (
+          ) : activeTab === "assigned" ? (
             // List view with drag-and-drop for Assigned to Me
             <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
               {myAssignedCases.map((c, index) => (
@@ -355,6 +391,18 @@ export default function App() {
                 >
                   <CaseCard c={c} isAssignedView={true} highlight={highlightTarget === "workspace-panel" && c.id === myAssignedCases[0]?.id} onClick={c => setSelectedCase(c)} />
                 </div>
+              ))}
+            </div>
+          ) : (
+            // Needs Review list (admin only)
+            <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              {needsReviewCases.length === 0 ? (
+                <div style={{ textAlign: "center", marginTop: 40, color: "#94a3b8" }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>✅</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>No cases need review</div>
+                </div>
+              ) : needsReviewCases.map(c => (
+                <CaseCard key={c.id} c={c} isAssignedView={false} highlight={false} onClick={c => setSelectedCase(c)} />
               ))}
             </div>
           )}
@@ -457,217 +505,476 @@ export default function App() {
       </div>
 
       {/* ── CHATBOT TOGGLE ── */}
-      <button onClick={() => setShowChatbot(s => !s)} style={{ position: "fixed", bottom: 24, right: 24, width: 56, height: 56, borderRadius: "50%", background: showChatbot ? "#dc2626" : "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", color: "#fff", cursor: "pointer", fontSize: 24, boxShadow: "0 4px 18px rgba(99,102,241,0.45)", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }} id="chatbot-area">
+      <button onClick={() => setShowChatbot(s => !s)} style={{ position: "fixed", bottom: 24, right: showChatbot ? 404 : 24, width: 56, height: 56, borderRadius: "50%", background: showChatbot ? "#dc2626" : "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", color: "#fff", cursor: "pointer", fontSize: 22, boxShadow: "0 4px 18px rgba(99,102,241,0.45)", zIndex: 160, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s" }} id="chatbot-area">
         {showChatbot ? "✕" : "💬"}
       </button>
 
-      {/* ── CHATBOT PANEL ── */}
-      {showChatbot && <ChatbotPanel assignedCases={myAssignedCases} highlight={highlightTarget === "chatbot-area"} />}
+      {/* ── CHATBOT SLIDE-OUT PANEL ── */}
+      <ChatbotPanel
+        assignedCases={myAssignedCases}
+        highlight={highlightTarget === "chatbot-area"}
+        open={showChatbot}
+        onClose={() => setShowChatbot(false)}
+        selectedCase={selectedCase}
+      />
     </div>
   );
 }
 
 // ─── CHECKLIST PANEL ─────────────────────────────────────────────────
+const ITEM_STATUSES = ["Not Started", "In Progress", "Completed", "Needs Review"];
+const STATUS_STYLES = {
+  "Not Started":  { bg: "#f1f5f9", text: "#64748b" },
+  "In Progress":  { bg: "#dbeafe", text: "#1e40af" },
+  "Completed":    { bg: "#d1fae5", text: "#065f46" },
+  "Needs Review": { bg: "#fee2e2", text: "#991b1b" },
+};
+
 function ChecklistPanel({ caseId, highlight }) {
   const [items, setItems] = useState([
-    { id: 1, label: "Outreach attempted", done: false, mandatory: true },
-    { id: 2, label: "Response received", done: false, mandatory: true },
-    { id: 3, label: "Follow-up scheduled", done: false, mandatory: true },
-    { id: 4, label: "Escalation considered", done: false, mandatory: true },
-    { id: 5, label: "Case closed", done: false, mandatory: true },
+    { id: 1, label: "Outreach attempted",    status: "Not Started", mandatory: true,  parent_id: null },
+    { id: 2, label: "Response received",     status: "Not Started", mandatory: true,  parent_id: null },
+    { id: 3, label: "Follow-up scheduled",   status: "Not Started", mandatory: true,  parent_id: null },
+    { id: 4, label: "Escalation considered", status: "Not Started", mandatory: true,  parent_id: null },
+    { id: 5, label: "Case closed",           status: "Not Started", mandatory: true,  parent_id: null },
   ]);
   const [comments, setComments] = useState([]);
   const [newItem, setNewItem] = useState("");
   const [newComment, setNewComment] = useState("");
   const [addingItem, setAddingItem] = useState(false);
 
-  const toggle = id => setItems(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i));
-  const addItem = () => { if (newItem.trim()) { setItems(prev => [...prev, { id: Date.now(), label: newItem.trim(), done: false, mandatory: false }]); setNewItem(""); setAddingItem(false); } };
+  // Status popup state
+  const [popup, setPopup] = useState(null); // { item } | null
+  const [popupStatus, setPopupStatus] = useState("Completed");
+  const [popupComment, setPopupComment] = useState("");
+
+  const openPopup = (item) => {
+    setPopup(item);
+    setPopupStatus(item.status === "Not Started" ? "Completed" : item.status);
+    setPopupComment("");
+  };
+
+  const confirmStatusChange = () => {
+    if (!popupComment.trim()) return;
+    setItems(prev => prev.map(i => i.id === popup.id ? { ...i, status: popupStatus } : i));
+    setComments(prev => [...prev, {
+      id: Date.now(),
+      text: `[${popup.label}] → ${popupStatus}: ${popupComment.trim()}`,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }]);
+    setPopup(null);
+    setPopupComment("");
+  };
+
+  const addItem = () => { if (newItem.trim()) { setItems(prev => [...prev, { id: Date.now(), label: newItem.trim(), status: "Not Started", mandatory: false, parent_id: null }]); setNewItem(""); setAddingItem(false); } };
   const addComment = () => { if (newComment.trim()) { setComments(prev => [...prev, { id: Date.now(), text: newComment.trim(), time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]); setNewComment(""); } };
 
-  const mandatoryDone = items.filter(i => i.mandatory).every(i => i.done);
-  const progress = Math.round((items.filter(i => i.done).length / items.length) * 100);
+  const mandatoryDone = items.filter(i => i.mandatory).every(i => i.status === "Completed");
+  const completedCount = items.filter(i => i.status === "Completed").length;
+  const progress = items.length ? Math.round((completedCount / items.length) * 100) : 0;
+
+  const renderItem = (item, accent = "#6366f1") => {
+    const s = STATUS_STYLES[item.status] || STATUS_STYLES["Not Started"];
+    const done = item.status === "Completed";
+    return (
+      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid #f8fafc" }}>
+        <div
+          onClick={() => openPopup(item)}
+          style={{ width: 20, height: 20, borderRadius: 5, border: done ? "none" : "2px solid #d1d5db", background: done ? accent : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}
+        >
+          {done && <span style={{ color: "#fff", fontSize: 12 }}>✓</span>}
+        </div>
+        <span style={{ flex: 1, fontSize: 13, color: done ? "#94a3b8" : "#1e293b", textDecoration: done ? "line-through" : "none" }}>{item.label}</span>
+        <button onClick={() => openPopup(item)} style={{ background: s.bg, color: s.text, border: "none", borderRadius: 10, padding: "2px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>{item.status}</button>
+      </div>
+    );
+  };
 
   return (
-    <div id="checklist-panel" style={{ width: 320, background: "#fff", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0, border: highlight ? "2px solid #6366f1" : undefined, boxShadow: highlight ? "0 0 0 3px rgba(99,102,241,0.2)" : undefined, transition: "all 0.3s" }}>
-      {/* Header */}
-      <div style={{ padding: "14px 18px", borderBottom: "1px solid #e2e8f0", background: "#fafafa" }}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>✅ Case Checklist</div>
-        {/* Progress bar */}
-        <div style={{ background: "#e2e8f0", borderRadius: 4, height: 6, overflow: "hidden" }}>
-          <div style={{ width: `${progress}%`, height: "100%", background: mandatoryDone ? "#10b981" : "#6366f1", borderRadius: 4, transition: "width 0.4s" }}></div>
-        </div>
-        <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{items.filter(i => i.done).length}/{items.length} complete {mandatoryDone && "· ✓ All mandatory items done"}</div>
-      </div>
+    <>
+      {/* ── Status-change popup modal ── */}
+      {popup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 16, width: 360, padding: 24, boxShadow: "0 16px 48px rgba(0,0,0,0.25)" }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Update checklist status</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>"{popup.label}"</div>
 
-      {/* Mandatory items */}
-      <div style={{ padding: "12px 18px 0" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>🔹 Mandatory Steps</div>
-        {items.filter(i => i.mandatory).map(item => (
-          <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
-            <div onClick={() => toggle(item.id)} style={{ width: 20, height: 20, borderRadius: 5, border: item.done ? "none" : "2px solid #d1d5db", background: item.done ? "#6366f1" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
-              {item.done && <span style={{ color: "#fff", fontSize: 13 }}>✓</span>}
-            </div>
-            <span style={{ fontSize: 13, color: item.done ? "#94a3b8" : "#1e293b", textDecoration: item.done ? "line-through" : "none", flex: 1 }}>{item.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Custom items */}
-      {items.filter(i => !i.mandatory).length > 0 && (
-        <div style={{ padding: "12px 18px 0" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>📌 Custom Items</div>
-          {items.filter(i => !i.mandatory).map(item => (
-            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0" }}>
-              <div onClick={() => toggle(item.id)} style={{ width: 20, height: 20, borderRadius: 5, border: item.done ? "none" : "2px solid #d1d5db", background: item.done ? "#8b5cf6" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {item.done && <span style={{ color: "#fff", fontSize: 13 }}>✓</span>}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.6px" }}>New Status</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {ITEM_STATUSES.map(s => (
+                  <button key={s} onClick={() => setPopupStatus(s)} style={{ background: popupStatus === s ? STATUS_STYLES[s].bg : "#f1f5f9", color: popupStatus === s ? STATUS_STYLES[s].text : "#64748b", border: popupStatus === s ? `2px solid ${STATUS_STYLES[s].text}40` : "2px solid transparent", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>{s}</button>
+                ))}
               </div>
-              <span style={{ fontSize: 13, color: item.done ? "#94a3b8" : "#1e293b", textDecoration: item.done ? "line-through" : "none" }}>{item.label}</span>
             </div>
-          ))}
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.6px" }}>Comment <span style={{ color: "#dc2626" }}>*</span> (required)</div>
+              <textarea
+                autoFocus
+                value={popupComment}
+                onChange={e => setPopupComment(e.target.value)}
+                placeholder="Describe what happened or why this status changed…"
+                rows={3}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setPopup(null)} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, color: "#64748b" }}>Cancel</button>
+              <button onClick={confirmStatusChange} disabled={!popupComment.trim()} style={{ background: popupComment.trim() ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#e2e8f0", color: popupComment.trim() ? "#fff" : "#94a3b8", border: "none", borderRadius: 8, padding: "8px 20px", cursor: popupComment.trim() ? "pointer" : "default", fontSize: 13, fontWeight: 600, transition: "all 0.2s" }}>Save Status</button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Add custom item */}
-      <div style={{ padding: "10px 18px" }}>
-        {addingItem ? (
-          <div style={{ display: "flex", gap: 6 }}>
-            <input autoFocus value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder="New checklist item..." style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
-            <button onClick={addItem} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}>+</button>
-            <button onClick={() => { setAddingItem(false); setNewItem(""); }} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "4px 8px", cursor: "pointer", color: "#64748b" }}>✕</button>
+      <div id="checklist-panel" style={{ width: 320, background: "#fff", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0, border: highlight ? "2px solid #6366f1" : "1px solid #e2e8f0", boxShadow: highlight ? "0 0 0 3px rgba(99,102,241,0.2)" : undefined, transition: "all 0.3s" }}>
+        {/* Header */}
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #e2e8f0", background: "#fafafa", flexShrink: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>✅ Case Checklist</div>
+          <div style={{ background: "#e2e8f0", borderRadius: 4, height: 6, overflow: "hidden" }}>
+            <div style={{ width: `${progress}%`, height: "100%", background: mandatoryDone ? "#10b981" : "#6366f1", borderRadius: 4, transition: "width 0.4s" }} />
           </div>
-        ) : (
-          <button onClick={() => setAddingItem(true)} style={{ width: "100%", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "7px", cursor: "pointer", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>+ Add custom item</button>
-        )}
-      </div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{completedCount}/{items.length} complete{mandatoryDone && " · ✓ All mandatory done"}</div>
+        </div>
 
-      {/* Comments */}
-      <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 18px", flex: 1 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>💬 Comments</div>
-        <div style={{ maxHeight: 120, overflowY: "auto", marginBottom: 8 }}>
-          {comments.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>No comments yet.</div>}
-          {comments.map(c => (
-            <div key={c.id} style={{ background: "#f8fafc", borderRadius: 8, padding: "8px 10px", marginBottom: 6, border: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 12, color: "#475569" }}>{c.text}</div>
-              <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{c.time} · Sarah L.</div>
-            </div>
-          ))}
+        {/* Mandatory items */}
+        <div style={{ padding: "10px 18px 0" }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>🔹 Mandatory Steps</div>
+          {items.filter(i => i.mandatory && !i.parent_id).map(item => renderItem(item, "#6366f1"))}
         </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && addComment()} placeholder="Add a comment..." style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 12, outline: "none" }} />
-          <button onClick={addComment} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}>→</button>
+
+        {/* Custom items */}
+        {items.filter(i => !i.mandatory).length > 0 && (
+          <div style={{ padding: "10px 18px 0" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>📌 Custom Items</div>
+            {items.filter(i => !i.mandatory && !i.parent_id).map(item => (
+              <div key={item.id}>
+                {renderItem(item, "#8b5cf6")}
+                {items.filter(s => s.parent_id === item.id).map(sub => (
+                  <div key={sub.id} style={{ paddingLeft: 24 }}>{renderItem(sub, "#a78bfa")}</div>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Add custom item */}
+        <div style={{ padding: "10px 18px" }}>
+          {addingItem ? (
+            <div style={{ display: "flex", gap: 6 }}>
+              <input autoFocus value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder="New checklist item…" style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
+              <button onClick={addItem} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}>+</button>
+              <button onClick={() => { setAddingItem(false); setNewItem(""); }} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "4px 8px", cursor: "pointer", color: "#64748b" }}>✕</button>
+            </div>
+          ) : (
+            <button onClick={() => setAddingItem(true)} style={{ width: "100%", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "7px", cursor: "pointer", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>+ Add custom item</button>
+          )}
+        </div>
+
+        {/* Comments */}
+        <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 18px", flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>💬 Comments</div>
+          <div style={{ maxHeight: 150, overflowY: "auto", marginBottom: 8 }}>
+            {comments.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>No comments yet.</div>}
+            {comments.map(c => (
+              <div key={c.id} style={{ background: "#f8fafc", borderRadius: 8, padding: "7px 10px", marginBottom: 6, border: "1px solid #f1f5f9" }}>
+                <div style={{ fontSize: 12, color: "#475569" }}>{c.text}</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{c.time} · Sarah L.</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && addComment()} placeholder="Add a comment…" style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 12, outline: "none" }} />
+            <button onClick={addComment} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}>→</button>
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
-// ─── CHATBOT PANEL ───────────────────────────────────────────────────
-function ChatbotPanel({ assignedCases, highlight }) {
-  const [messages, setMessages] = useState([{ role: "bot", text: "👋 Hello! I'm the SCS Recommendation Assistant. I can help you with case guidance based on SCS protocols.\n\nUse the 📎 icon to attach one of your cases, or try a quick-action question below.\n\n⚠️ *I assist with guidance only. All outreach decisions are yours.*" }]);
+// ─── CHATBOT PANEL (right-side slide-out) ────────────────────────────
+function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: ctxCase }) {
+  const [messages, setMessages] = useState([{
+    role: "bot",
+    text: "👋 Hello! I'm the SCS Recommendation Assistant.\n\nUse the 📎 icon to attach one of your cases, or try a quick-action question below.\n\n⚠️ *I assist with guidance only. All outreach decisions are yours.*",
+    actions: [],
+  }]);
   const [input, setInput] = useState("");
   const [attachedCase, setAttachedCase] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Auto-attach the case currently open in the detail panel
+  useEffect(() => {
+    if (ctxCase && assignedCases.some(c => c.id === ctxCase.id)) {
+      setAttachedCase(ctxCase);
+    }
+  }, [ctxCase]);
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const send = (text) => {
+  const send = async (text) => {
     const t = text || input;
-    if (!t.trim()) return;
+    if (!t.trim() || loading) return;
     setMessages(prev => [...prev, { role: "user", text: t, attached: attachedCase }]);
     setInput("");
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: "bot", text: getChatbotResponse(t, attachedCase) }]);
-    }, 600);
+    setLoading(true);
+    try {
+      const res = await fetch(`${CHATBOT_SERVICE_URL}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": CURRENT_USER.id,
+          "X-User-Role": CURRENT_USER.role,
+        },
+        body: JSON.stringify({
+          message: t,
+          case_id: attachedCase?.code || null,
+          conversation_history: messages.slice(-6).map(m => ({ role: m.role, content: m.text })),
+        }),
+      });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      setMessages(prev => [...prev, {
+        role: "bot",
+        text: data.response_text || data.message || "Done.",
+        actions: data.proposed_actions || [],
+        similar: data.similar_cases || [],
+      }]);
+    } catch {
+      // Fallback: static response
+      setMessages(prev => [...prev, {
+        role: "bot",
+        text: getChatbotResponse(t, attachedCase),
+        actions: [],
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeAction = async (action) => {
+    const toolMap = {
+      add_checklist_item: "add_subtask",
+      update_checklist_item_status: "update_checklist_item_status",
+      add_case_note: "add_case_note",
+      schedule_followup: "schedule_followup",
+      update_case_status: "update_case_status",
+      update_priority: "update_priority",
+      request_reassignment: "request_reassignment",
+      assign_case: "assign_case",
+    };
+    const tool = toolMap[action.action_type] || action.action_type;
+    try {
+      const res = await fetch(`${MCP_SERVICE_URL}/tools/${tool}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": CURRENT_USER.id,
+          "X-User-Role": CURRENT_USER.role,
+        },
+        body: JSON.stringify(action.payload || {}),
+      });
+      const data = await res.json();
+      return { ok: res.ok, data };
+    } catch (e) {
+      return { ok: false, data: { error: String(e) } };
+    }
   };
 
   const renderText = (text) => {
     return text.split("\n").map((line, i) => {
       let rendered = line
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.+?)\*/g, '<em style="color:#94a3b8">$1</em>');
       if (line.startsWith("| ")) {
-        // Table row
         const cells = line.split("|").filter(c => c.trim());
-        if (i > 0 && text.split("\n")[i - 1]?.startsWith("|---")) return null;
         if (line.includes("---")) return null;
-        const isHeader = i === 0 || (text.split("\n").indexOf(line) === 0);
         return (
-          <div key={i} style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: isHeader ? "#f1f5f9" : "transparent" }}>
-            {cells.map((c, j) => <div key={j} style={{ flex: 1, padding: "4px 6px", fontSize: 11, fontWeight: isHeader ? 600 : 400, color: "#475569" }}>{c.trim()}</div>)}
+          <div key={i} style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: i === 1 ? "#f1f5f9" : "transparent" }}>
+            {cells.map((c, j) => <div key={j} style={{ flex: 1, padding: "4px 6px", fontSize: 11, color: "#475569" }}>{c.trim()}</div>)}
           </div>
         );
       }
-      return <div key={i} style={{ fontSize: 13, color: "#475569", lineHeight: 1.55, minHeight: line === "" ? 10 : "auto" }} dangerouslySetInnerHTML={{ __html: rendered }}></div>;
+      return <div key={i} style={{ fontSize: 13, color: "#475569", lineHeight: 1.55, minHeight: line === "" ? 10 : "auto" }} dangerouslySetInnerHTML={{ __html: rendered }} />;
     });
   };
 
   return (
-    <div id="chatbot-area" style={{ position: "fixed", bottom: 80, right: 24, width: 400, height: 520, background: "#fff", borderRadius: 18, boxShadow: "0 12px 48px rgba(0,0,0,0.2)", border: highlight ? "2px solid #6366f1" : "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 150, transition: "border 0.3s" }}>
-      {/* Header */}
-      <div style={{ background: "linear-gradient(135deg, #1e293b, #0f172a)", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🤖</div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>SCS Recommendation Assistant</div>
-            <div style={{ fontSize: 10, color: "#94a3b8" }}>Guidance based on SCS Protocols</div>
-          </div>
-        </div>
-      </div>
+    <>
+      {/* Backdrop */}
+      {open && <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.3)", zIndex: 155, transition: "opacity 0.3s" }} />}
 
-      {/* Attached case badge */}
-      {attachedCase && (
-        <div style={{ background: "#eef2ff", padding: "6px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #c7d2fe" }}>
-          <div style={{ fontSize: 12, color: "#4338ca" }}>📎 <strong>{attachedCase.code}</strong> — {attachedCase.category} (Risk {attachedCase.riskLevel})</div>
-          <button onClick={() => setAttachedCase(null)} style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 13 }}>✕</button>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "85%", background: m.role === "user" ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#f8fafc", color: m.role === "user" ? "#fff" : "#1e293b", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 14px", border: m.role === "bot" ? "1px solid #e2e8f0" : "none" }}>
-              {m.attached && m.role === "user" && <div style={{ fontSize: 10, color: m.role === "user" ? "rgba(255,255,255,0.7)" : "#94a3b8", marginBottom: 3 }}>📎 {m.attached.code}</div>}
-              {m.role === "user" ? <div style={{ fontSize: 13 }}>{m.text}</div> : <div>{renderText(m.text)}</div>}
+      {/* Slide-out panel */}
+      <div id="chatbot-area" style={{
+        position: "fixed", top: 0, right: 0, height: "100vh", width: 390,
+        background: "#fff", boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
+        border: highlight ? "2px solid #6366f1" : "none",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+        zIndex: 156, transition: "transform 0.35s cubic-bezier(0.4,0,0.2,1)",
+        transform: open ? "translateX(0)" : "translateX(100%)",
+      }}>
+        {/* Header */}
+        <div style={{ background: "linear-gradient(135deg, #1e293b, #0f172a)", color: "#fff", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>💬</div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>SCS Recommendation Assistant</div>
+              <div style={{ fontSize: 10, color: "#94a3b8" }}>Advisory + Agentic · RAG-backed</div>
             </div>
           </div>
-        ))}
-        <div ref={bottomRef}></div>
-      </div>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", borderRadius: 8, width: 30, height: 30, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+        </div>
 
-      {/* Quick actions */}
-      <div style={{ padding: "8px 12px 0", borderTop: "1px solid #f1f5f9", display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
-        {PRESET_QUESTIONS.map((p, i) => (
-          <button key={i} onClick={() => send(p.q)} style={{ whiteSpace: "nowrap", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 12px", fontSize: 11, cursor: "pointer", color: "#475569", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.background = "#e0e7ff"} onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}>
-            {p.icon} {p.label}
-          </button>
-        ))}
-      </div>
+        {/* Attached case badge */}
+        {attachedCase && (
+          <div style={{ background: "#eef2ff", padding: "6px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #c7d2fe", flexShrink: 0 }}>
+            <div style={{ fontSize: 12, color: "#4338ca" }}>📎 <strong>{attachedCase.code}</strong> — {attachedCase.category} (Risk {attachedCase.riskLevel})</div>
+            <button onClick={() => setAttachedCase(null)} style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 13 }}>✕</button>
+          </div>
+        )}
 
-      {/* Input */}
-      <div style={{ padding: "8px 12px 12px", display: "flex", gap: 8, alignItems: "center" }}>
-        {/* Paperclip */}
-        <div style={{ position: "relative" }}>
-          <button onClick={() => setShowAttachMenu(!showAttachMenu)} style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: attachedCase ? "#6366f1" : "#94a3b8" }} title="Attach a case">📎</button>
-          {showAttachMenu && (
-            <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "#fff", borderRadius: 12, boxShadow: "0 8px 30px rgba(0,0,0,0.18)", width: 240, zIndex: 10, overflow: "hidden" }}>
-              <div style={{ padding: "8px 12px 4px", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.8px" }}>Attach a case</div>
-              {assignedCases.map(c => (
-                <button key={c.id} onClick={() => { setAttachedCase(c); setShowAttachMenu(false); }} style={{ width: "100%", textAlign: "left", background: attachedCase?.id === c.id ? "#eef2ff" : "none", border: "none", padding: "8px 12px", cursor: "pointer", fontSize: 12, color: "#1e293b", display: "flex", alignItems: "center", gap: 8 }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = attachedCase?.id === c.id ? "#eef2ff" : "none"}>
-                  <RiskBadge level={c.riskLevel} />
-                  <span style={{ fontWeight: 600 }}>{c.code}</span>
-                  <span style={{ color: "#94a3b8" }}>{c.category}</span>
-                </button>
-              ))}
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", gap: 8 }}>
+              <div style={{ maxWidth: "90%", background: m.role === "user" ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#f8fafc", color: m.role === "user" ? "#fff" : "#1e293b", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 14px", border: m.role === "bot" ? "1px solid #e2e8f0" : "none" }}>
+                {m.attached && m.role === "user" && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginBottom: 3 }}>📎 {m.attached.code}</div>}
+                {m.role === "user" ? <div style={{ fontSize: 13 }}>{m.text}</div> : <div>{renderText(m.text)}</div>}
+              </div>
+
+              {/* Proposed action cards */}
+              {m.role === "bot" && m.actions?.length > 0 && (
+                <div style={{ maxWidth: "95%", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                    ⚡ Proposed Actions — review before approving
+                  </div>
+                  {m.actions.map((action, ai) => (
+                    <ActionCard key={ai} action={action} onApprove={executeAction} />
+                  ))}
+                </div>
+              )}
+
+              {/* Similar cases */}
+              {m.role === "bot" && m.similar?.length > 0 && (
+                <div style={{ maxWidth: "95%", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: "8px 12px" }}>
+                  <div style={{ fontSize: 11, color: "#15803d", fontWeight: 600, marginBottom: 4 }}>🔗 Similar Cases</div>
+                  {m.similar.map((s, si) => (
+                    <div key={si} style={{ fontSize: 12, color: "#475569", padding: "2px 0" }}>
+                      <strong>{s.case_id}</strong> — {s.category} (Risk {s.risk_level}) · {s.reason || ""}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#94a3b8", fontSize: 13 }}>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: `bounce ${0.6 + i * 0.15}s infinite alternate`, opacity: 0.7 }} />)}
+              </div>
+              Assistant is thinking…
             </div>
           )}
+          <div ref={bottomRef} />
         </div>
-        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask for guidance..." style={{ flex: 1, padding: "8px 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
-        <button onClick={() => send()} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>→</button>
+
+        {/* Quick actions */}
+        <div style={{ padding: "6px 12px 0", borderTop: "1px solid #f1f5f9", display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, flexShrink: 0 }}>
+          {PRESET_QUESTIONS.map((p, i) => (
+            <button key={i} onClick={() => send(p.q)} style={{ whiteSpace: "nowrap", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 10px", fontSize: 11, cursor: "pointer", color: "#475569", display: "flex", alignItems: "center", gap: 3, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.background = "#e0e7ff"} onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}>
+              {p.icon} {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Input row */}
+        <div style={{ padding: "8px 12px 16px", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setShowAttachMenu(!showAttachMenu)} title="Attach case" style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, color: attachedCase ? "#6366f1" : "#94a3b8" }}>📎</button>
+            {showAttachMenu && (
+              <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "#fff", borderRadius: 12, boxShadow: "0 8px 30px rgba(0,0,0,0.18)", width: 250, zIndex: 10, overflow: "hidden" }}>
+                <div style={{ padding: "8px 12px 4px", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.8px" }}>Attach a case</div>
+                {assignedCases.map(c => (
+                  <button key={c.id} onClick={() => { setAttachedCase(c); setShowAttachMenu(false); }} style={{ width: "100%", textAlign: "left", background: attachedCase?.id === c.id ? "#eef2ff" : "none", border: "none", padding: "8px 12px", cursor: "pointer", fontSize: 12, color: "#1e293b", display: "flex", alignItems: "center", gap: 8 }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = attachedCase?.id === c.id ? "#eef2ff" : "none"}>
+                    <RiskBadge level={c.riskLevel} />
+                    <span style={{ fontWeight: 600 }}>{c.code}</span>
+                    <span style={{ color: "#94a3b8", fontSize: 11 }}>{c.category}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask for guidance…" style={{ flex: 1, padding: "8px 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
+          <button onClick={() => send()} disabled={loading} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", opacity: loading ? 0.6 : 1 }}>→</button>
+        </div>
       </div>
+    </>
+  );
+}
+
+// ─── ACTION CARD (approve / edit / cancel a proposed action) ──────────────────
+function ActionCard({ action, onApprove }) {
+  const [status, setStatus] = useState("pending"); // pending | approving | approved | rejected | editing
+  const [editPayload, setEditPayload] = useState(JSON.stringify(action.payload || {}, null, 2));
+  const [resultMsg, setResultMsg] = useState("");
+
+  const approve = async (overridePayload) => {
+    setStatus("approving");
+    const actionToRun = overridePayload
+      ? { ...action, payload: JSON.parse(overridePayload) }
+      : action;
+    const { ok, data } = await onApprove(actionToRun);
+    if (ok) {
+      setResultMsg("✅ Executed successfully");
+      setStatus("approved");
+    } else {
+      setResultMsg(`❌ ${data?.detail || data?.error || "Failed"}`);
+      setStatus("rejected");
+    }
+  };
+
+  const typeLabel = {
+    add_checklist_item: "Add Checklist Item",
+    update_checklist_item_status: "Update Checklist Status",
+    add_case_note: "Add Case Note",
+    schedule_followup: "Schedule Follow-up",
+    update_case_status: "Update Case Status",
+    update_priority: "Update Priority",
+    request_reassignment: "Request Reassignment",
+    assign_case: "Assign Case",
+  }[action.action_type] || action.action_type;
+
+  const accentColor = status === "approved" ? "#10b981" : status === "rejected" ? "#dc2626" : "#6366f1";
+
+  return (
+    <div style={{ background: "#fff", border: `1.5px solid ${accentColor}20`, borderLeft: `4px solid ${accentColor}`, borderRadius: 10, padding: "10px 12px", fontSize: 12 }}>
+      <div style={{ fontWeight: 700, color: accentColor, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 4 }}>{typeLabel}</div>
+      <div style={{ color: "#475569", marginBottom: 8, lineHeight: 1.5 }}>{action.description}</div>
+
+      {status === "editing" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <textarea value={editPayload} onChange={e => setEditPayload(e.target.value)} rows={4} style={{ width: "100%", fontFamily: "monospace", fontSize: 11, borderRadius: 6, border: "1px solid #d1d5db", padding: 6, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => approve(editPayload)} style={{ flex: 1, background: "#6366f1", color: "#fff", border: "none", borderRadius: 7, padding: "6px 0", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Approve Edited</button>
+            <button onClick={() => setStatus("pending")} style={{ flex: 1, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 7, padding: "6px 0", cursor: "pointer", fontSize: 12 }}>Cancel</button>
+          </div>
+        </div>
+      ) : status === "approving" ? (
+        <div style={{ color: "#6366f1", fontStyle: "italic", fontSize: 12 }}>Executing…</div>
+      ) : status === "approved" || status === "rejected" ? (
+        <div style={{ color: accentColor, fontWeight: 600, fontSize: 12 }}>{resultMsg}</div>
+      ) : (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button onClick={() => approve()} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✓ Approve</button>
+          <button onClick={() => setStatus("editing")} style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✏ Edit</button>
+          <button onClick={() => setStatus("rejected")} style={{ background: "#f1f5f9", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>✕ Cancel</button>
+        </div>
+      )}
     </div>
   );
 }
