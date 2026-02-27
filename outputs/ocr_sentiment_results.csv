@@ -1,0 +1,1 @@
+image_path,ig_handle,post_date,image_index,ocr_text_raw,ocr_text_clean,sentiment_label,sentiment_score,ocr_char_count,ocr_word_count,ocr_detected_bool,processed_at

@@ -1,0 +1,33 @@
+# Python runtime artefacts
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Model cache (HuggingFace, EasyOCR)
+.cache/
+~/.cache/
+
+# Image data (large binaries) — keep folder skeleton
+data/post_images/*.jpg
+data/post_images/*.jpeg
+data/post_images/*.png
+data/post_images/*.webp
+
+# Generated outputs
+outputs/*.csv
+
+# Environment
+.env
+*.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
