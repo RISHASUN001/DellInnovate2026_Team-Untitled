@@ -1,5 +1,0 @@
-Comment_ID,Username,Text,Sentiment,Sentiment_Score,Primary_Emotion,Primary_Emotion_Score,Joy_Score,Sadness_Score,Anger_Score,Fear_Score,Love_Score,Surprise_Score,Distortion_Indicator,Distortion_Score,Total_Cognitive_Distortions,Has_Cognitive_Distortions,All_or_Nothing_Count,Overgeneralization_Count,Catastrophizing_Count,Risk_Level,Timestamp
-sample_1,user_123,I love this post! So inspiring! 😍,positive,0.92,joy,0.85,0.85,0.01,0.0,0.0,0.12,0.02,False,0.1,0,False,0,0,0,low,2026-02-28T10:30:00Z
-sample_2,user_456,I'm feeling really sad and hopeless today 😢,negative,0.88,sadness,0.79,0.01,0.79,0.04,0.15,0.005,0.005,True,0.7,2,True,1,1,0,high,2026-02-28T10:35:00Z
-sample_3,user_456,"Everything always goes wrong for me, I'm such a failure",negative,0.95,sadness,0.82,0.005,0.82,0.12,0.05,0.0,0.005,True,0.9,4,True,2,2,0,high,2026-02-28T10:40:00Z
-sample_4,user_789,This is amazing! Best day ever!,positive,0.94,joy,0.91,0.91,0.005,0.0,0.005,0.02,0.06,False,0.1,1,True,1,0,0,low,2026-02-28T10:45:00Z

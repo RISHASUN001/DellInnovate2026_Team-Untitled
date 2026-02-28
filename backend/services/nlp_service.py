@@ -100,21 +100,14 @@ class NLPService:
             # Get sentiment analysis
             sentiment_result = self.sentiment_analyzer(text)[0]
             
-            # Advanced cognitive distortion analysis
-            cognitive_analysis = self.pattern_service.detect_cognitive_distortions(text)
-            
-            # Calculate distortion indicator (use advanced analysis + basic emotion scoring)
+            # Basic distortion indicator using emotion analysis only
             distortion_emotions = ['sadness', 'anger', 'fear']
             emotion_distortion_score = sum(
                 emotions.get(emotion, 0) for emotion in distortion_emotions
             )
             
-            # Combine cognitive distortions with emotional indicators
-            combined_distortion = max(
-                cognitive_analysis['distortion_ratio'] / 20,  # Normalize to 0-1 scale
-                emotion_distortion_score
-            )
-            distortion_indicator = combined_distortion > 0.5 or cognitive_analysis['has_distortions']
+            # Simple distortion detection based on negative emotions
+            distortion_indicator = emotion_distortion_score > 0.5
             
             return {
                 'text': text,
@@ -124,12 +117,10 @@ class NLPService:
                 'sentiment': sentiment_result['label'],
                 'sentiment_score': sentiment_result['score'],
                 'distortion_indicator': distortion_indicator,
-                'distortion_score': float(combined_distortion),
-                'cognitive_distortions': cognitive_analysis,
+                'distortion_score': float(emotion_distortion_score),
                 'risk_indicators': {
                     'high_negative_emotions': emotion_distortion_score > 0.7,
-                    'cognitive_distortions_present': cognitive_analysis['has_distortions'],
-                    'distortion_ratio': cognitive_analysis['distortion_ratio']
+                    'distortion_ratio': 0  # Placeholder for external pattern analysis
                 }
             }
             
