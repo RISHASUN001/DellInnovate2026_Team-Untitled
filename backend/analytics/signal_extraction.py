@@ -166,6 +166,21 @@ class NLPSignalExtractor:
         emotion = nlp.get('emotion', {})
         distortion = nlp.get('distortion', {})
         
+        # Extract emotion probabilities for distress_emotion calculation
+        emotion_probs = emotion.get('probabilities', {})
+        p_anger = emotion_probs.get('anger', 0.0)
+        p_sadness = emotion_probs.get('sadness', 0.0)
+        p_fear = emotion_probs.get('fear', 0.0)
+        
+        # Calculate distress_emotion as max of distress emotion probabilities
+        distress_emotion = max(p_anger, p_sadness, p_fear)
+        
+        # Calculate is_negative flag
+        is_negative = 1 if sentiment.get('label', 'neutral') == 'negative' else 0
+        
+        # Calculate distortion_flag
+        distortion_flag = distortion.get('distortion_indicator', 0)
+        
         document = {
             'case_user': text_unit['case_user'],
             'text_type': text_unit['text_type'],
@@ -174,18 +189,22 @@ class NLPSignalExtractor:
             'comment_id': text_unit.get('comment_id'),
             'author': text_unit.get('author'),
             'timestamp': text_unit.get('timestamp'),
+            'created_at': text_unit.get('timestamp'),  # Alias for windowing
             
             'sentiment_label': sentiment.get('label', 'neutral'),
             'sentiment_score': sentiment.get('sentiment_score', 0.0),
             'sentiment_probabilities': sentiment.get('probabilities', {}),
+            'is_negative': is_negative,  # NEW: binary flag
             
             'emotion_label': emotion.get('label', 'neutral'),
             'emotion_score': emotion.get('score', 0.0),
-            'emotion_probabilities': emotion.get('probabilities', {}),
+            'emotion_probabilities': emotion_probs,
             'is_distress': emotion.get('is_distress', False),
             'distress_score': emotion.get('distress_score', 0.0),
+            'distress_emotion': distress_emotion,  # NEW: numeric 0-1
             
             'distortion_indicator': distortion.get('distortion_indicator', 0),
+            'distortion_flag': distortion_flag,  # NEW: alias for indicator
             'distortion_score': distortion.get('distortion_score', 0.0),
             'distortion_category': distortion.get('distortion_category'),
             'distortion_all_scores': distortion.get('all_scores'),

@@ -12,6 +12,7 @@ from loguru import logger
 
 from analytics.signal_extraction import run_nlp_extraction
 from analytics.feature_engineering import run_feature_engineering
+from analytics.stage2_pca_llm import run_case_scoring
 from config.database import MongoDB
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -24,7 +25,20 @@ class PipelineRequest(BaseModel):
     case_users: Optional[List[str]] = Field(None, description="Specific users to process (None = all)")
     window_days: Optional[int] = Field(7, description="Time window for feature engineering (days)")
     limit_posts: Optional[int] = Field(None, description="Maximum posts to process in Stage 1")
+    use_pca: Optional[bool] = Field(False, description="Use PCA-based scoring instead of legacy")
+    use_llm: Optional[bool] = Field(True, description="Use LLM calibration (PCA mode only)")
+    llm_model: Optional[str] = Field("llama2", description="Ollama model name (PCA mode only)")
+    ollama_url: Optional[str] = Field("http://localhost:11434", description="Ollama endpoint (PCA mode only)")
     
+
+class PCAScoringRequest(BaseModel):
+    """Request model for PCA-based scoring pipeline"""
+    window_days: Optional[int] = Field(30, description="Time window for signal aggregation (days)")
+    limit_users: Optional[int] = Field(None, description="Limit number of users (for testing)")
+    use_llm: Optional[bool] = Field(True, description="Whether to use LLM calibration")
+    llm_model: Optional[str] = Field("llama2", description="Ollama model name")
+    ollama_url: Optional[str] = Field("http://localhost:11434", description="Ollama API endpoint")
+
 
 class PipelineResponse(BaseModel):
     """Response model for pipeline execution"""
@@ -82,7 +96,7 @@ async def extract_nlp_signals(request: PipelineRequest):
 @router.post("/compute-risk-profiles", response_model=PipelineResponse)
 async def compute_risk_profiles(request: PipelineRequest):
     """
-    Run Stage 2: Behavioral Feature Engineering Pipeline
+    Run Stage 2: Behavioral Feature Engineering Pipeline (LEGACY)
     
     Aggregates NLP signals and computes:
     - Distortion metrics
@@ -91,9 +105,12 @@ async def compute_risk_profiles(request: PipelineRequest):
     - Risk scores and priorities
     
     Stores results in case_risk_profiles collection.
+    
+    NOTE: This is the legacy hand-coded feature engineering.
+    Consider using /compute-risk-profiles-pca for PCA-based scoring.
     """
     try:
-        logger.info(f"Starting feature engineering: {request.dict()}")
+        logger.info(f"Starting feature engineering (legacy): {request.dict()}")
         started_at = datetime.utcnow()
         
         results = await run_feature_engineering(
@@ -113,6 +130,49 @@ async def compute_risk_profiles(request: PipelineRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/compute-risk-profiles-pca", response_model=PipelineResponse)
+async def compute_risk_profiles_pca(request: PCAScoringRequest):
+    """
+    Run Stage 2: PCA-based Risk Profiling with LLM Calibration (NEW)
+    
+    Computes risk profiles using:
+    1. Mean + p90 aggregation for emotion/sentiment/harm scores
+    2. Low-data damping (sigmoid function)
+    3. PCA weight learning across users
+    4. Guardrail to prevent harm_score underweighting
+    5. LLM calibration with bounded delta (±0.10)
+    
+    Produces final_score (0-1) with priority levels: low, medium, high, critical.
+    
+    Stores results in case_risk_profiles collection with PCA fields.
+    """
+    try:
+        logger.info(f"Starting PCA-based scoring: {request.dict()}")
+        started_at = datetime.utcnow()
+        
+        db = MongoDB.get_db()
+        
+        results = await run_case_scoring(
+            db=db,
+            window_days=request.window_days or 30,
+            limit_users=request.limit_users,
+            use_llm=request.use_llm if request.use_llm is not None else True,
+            llm_model=request.llm_model or "llama2",
+            ollama_url=request.ollama_url or "http://localhost:11434"
+        )
+        
+        return PipelineResponse(
+            status="success" if results['success'] else "failed",
+            message=results.get('message', 'PCA-based risk profiling completed'),
+            results=results,
+            started_at=started_at
+        )
+    
+    except Exception as e:
+        logger.error(f"PCA scoring failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # ========== Full Pipeline ==========
 
 @router.post("/run-full-pipeline", response_model=PipelineResponse)
@@ -123,6 +183,8 @@ async def run_full_pipeline(request: PipelineRequest):
     Executes both:
     1. NLP signal extraction from Instagram posts
     2. Behavioral feature engineering and risk scoring
+       - Legacy: Hand-coded weights (use_pca=False)
+       - PCA: Learned weights + LLM calibration (use_pca=True)
     
     This is a comprehensive analysis that may take several minutes.
     """
@@ -138,15 +200,28 @@ async def run_full_pipeline(request: PipelineRequest):
         )
         
         # Stage 2: Compute risk profiles
-        logger.info("Running Stage 2: Feature Engineering...")
-        stage2_results = await run_feature_engineering(
-            case_users=request.case_users,
-            window_days=request.window_days or 7
-        )
+        if request.use_pca:
+            logger.info("Running Stage 2: PCA-based Risk Profiling...")
+            db = MongoDB.get_db()
+            stage2_results = await run_case_scoring(
+                db=db,
+                window_days=request.window_days or 30,
+                limit_users=None,
+                use_llm=request.use_llm if request.use_llm is not None else True,
+                llm_model=request.llm_model or "llama2",
+                ollama_url=request.ollama_url or "http://localhost:11434"
+            )
+        else:
+            logger.info("Running Stage 2: Feature Engineering (legacy)...")
+            stage2_results = await run_feature_engineering(
+                case_users=request.case_users,
+                window_days=request.window_days or 7
+            )
         
         combined_results = {
             'stage1_nlp_extraction': stage1_results,
             'stage2_feature_engineering': stage2_results,
+            'scoring_method': 'pca' if request.use_pca else 'legacy',
             'total_duration_seconds': (
                 stage1_results.get('duration_seconds', 0) +
                 stage2_results.get('duration_seconds', 0)
@@ -172,12 +247,15 @@ async def get_risk_profiles(
     min_risk_score: Optional[float] = None,
     risk_level: Optional[str] = None,
     priority: Optional[int] = None,
+    priority_level: Optional[str] = None,
     limit: int = 50
 ):
     """
     Query risk profiles with optional filters
     
     Returns ranked list of case risk profiles for dashboard display.
+    Supports both legacy (risk_score, risk_level, priority) and 
+    PCA-based (final_score, priority_level) fields.
     """
     try:
         db = MongoDB.get_db()
@@ -186,15 +264,21 @@ async def get_risk_profiles(
         # Build query
         query = {}
         if min_risk_score is not None:
-            query['risk_score'] = {'$gte': min_risk_score}
+            # Try both legacy and new fields
+            query['$or'] = [
+                {'risk_score': {'$gte': min_risk_score}},
+                {'final_score': {'$gte': min_risk_score / 100.0}}  # Convert if needed
+            ]
         if risk_level:
             query['risk_level'] = risk_level
         if priority is not None:
             query['priority'] = priority
+        if priority_level:
+            query['priority_level'] = priority_level
         
-        # Fetch profiles sorted by risk score (descending)
+        # Fetch profiles sorted by final_score (if available) or risk_score
         profiles = await profiles_collection.find(query) \
-            .sort('risk_score', -1) \
+            .sort([('final_score', -1), ('risk_score', -1)]) \
             .limit(limit) \
             .to_list(length=None)
         

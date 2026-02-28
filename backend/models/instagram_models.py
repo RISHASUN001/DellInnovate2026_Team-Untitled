@@ -134,6 +134,7 @@ class TextUnitSignalModel(BaseModel):
     comment_id: Optional[str] = None  # Comment ID if text_type is "comment"
     author: Optional[str] = None  # Username of text author (commenter or post owner)
     timestamp: Optional[datetime] = None
+    created_at: Optional[datetime] = None  # Alias for timestamp, used for time windowing
     
     # NLP Analysis Results
     sentiment_label: str  # "negative", "neutral", "positive"
@@ -151,6 +152,11 @@ class TextUnitSignalModel(BaseModel):
     distortion_category: Optional[str] = None  # Type of distortion detected
     distortion_all_scores: Optional[Dict[str, float]] = None  # All distortion type scores
     
+    # ========== NEW FIELDS FOR PCA SCORING ==========
+    distress_emotion: Optional[float] = None  # max(p_anger, p_sadness, p_fear) from emotion_probabilities
+    is_negative: Optional[int] = None  # 1 if sentiment_label == 'negative', else 0
+    distortion_flag: Optional[int] = None  # Alias for distortion_indicator (for clarity)
+    
     # Metadata
     processed_at: datetime = Field(default_factory=datetime.utcnow)
     preprocessed_text: Optional[str] = None  # Cleaned text used for analysis
@@ -166,58 +172,92 @@ class CaseRiskProfileModel(BaseModel):
     """
     Model for storing aggregated risk profiles per case user
     Collection: case_risk_profiles
+    
+    NOTE: This model supports both legacy (hand-coded) and new (PCA+LLM) scoring systems
     """
     id: Optional[PyObjectId] = Field(alias="_id", default=None)
     
     # Case identification
     case_user: str  # Instagram username
+    timestamp: datetime = Field(default_factory=datetime.utcnow)  # When profile was computed
+    window_days: Optional[int] = None  # Time window for signal aggregation
     
+    # ========== NEW PCA + LLM SCORING FIELDS ==========
+    # Aggregated component scores (0-1 scale)
+    emotion_score: Optional[float] = None  # Distress emotion score (0.7*mean + 0.3*p90)
+    sentiment_score: Optional[float] = None  # Negativity score (0.7*mean + 0.3*p90)
+    harm_score: Optional[float] = None  # Distortion/harm score (0.7*mean + 0.3*p90)
+    
+    # Sample size and damping
+    n_units: Optional[int] = None  # Number of text units analyzed
+    damp: Optional[float] = None  # Damping factor for low sample sizes (sigmoid)
+    
+    # PCA-derived risk score
+    risk_score_math: Optional[float] = None  # PCA PC1 score normalized to [0,1]
+    pc1_loadings: Optional[Dict[str, float]] = None  # {"emotion": ..., "sentiment": ..., "harm": ...}
+    pca_run_id: Optional[str] = None  # Identifier for this PCA run
+    
+    # Guardrailed and calibrated scores
+    base_score: Optional[float] = None  # max(risk_score_math, 0.40 * harm_score)
+    llm_delta: Optional[float] = None  # LLM adjustment (±0.10)
+    llm_delta1: Optional[float] = None  # First LLM run delta
+    llm_delta2: Optional[float] = None  # Second LLM run delta
+    final_score: Optional[float] = None  # base_score + llm_delta, clamped [0,1]
+    
+    # Priority level
+    priority_level: Optional[str] = None  # "low", "medium", "high", "critical"
+    
+    # Evidence traceability
+    evidence_unit_ids: Optional[List[str]] = []  # IDs of key text units for explainability
+    
+    # ========== LEGACY FIELDS (for backward compatibility) ==========
     # Time windows
-    analysis_window_days: int  # e.g., 7, 30
-    window_start: datetime
-    window_end: datetime
+    analysis_window_days: Optional[int] = None  # e.g., 7, 30
+    window_start: Optional[datetime] = None
+    window_end: Optional[datetime] = None
     
     # Signal counts
-    total_comments_received: int
-    total_captions: int
-    total_text_units: int
+    total_comments_received: Optional[int] = None
+    total_captions: Optional[int] = None
+    total_text_units: Optional[int] = None
     
     # Distortion metrics
-    distortion_count: int
-    distortion_rate: float  # distorted_comments / total_comments
+    distortion_count: Optional[int] = None
+    distortion_rate: Optional[float] = None  # distorted_comments / total_comments
     distortion_trend: Optional[float] = None  # Change in distortion rate
-    distortion_categories: Dict[str, int]  # Count by distortion type
+    distortion_categories: Optional[Dict[str, int]] = None  # Count by distortion type
     
     # Sentiment metrics
-    avg_sentiment_score: float
-    sentiment_std: float  # Volatility measure
-    negative_sentiment_rate: float
-    positive_sentiment_rate: float
+    avg_sentiment_score: Optional[float] = None
+    sentiment_std: Optional[float] = None  # Volatility measure
+    negative_sentiment_rate: Optional[float] = None
+    positive_sentiment_rate: Optional[float] = None
     sentiment_shift_rate: Optional[float] = None  # Rapid polarity changes
     
     # Emotion metrics
-    distress_emotion_count: int  # sadness/anger/fear
-    distress_emotion_rate: float
-    emotion_distribution: Dict[str, int]  # Count by emotion type
-    avg_distress_score: float
+    distress_emotion_count: Optional[int] = None  # sadness/anger/fear
+    distress_emotion_rate: Optional[float] = None
+    emotion_distribution: Optional[Dict[str, int]] = None  # Count by emotion type
+    avg_distress_score: Optional[float] = None
     
     # Engagement metrics
     comment_volume_change: Optional[float] = None  # Compared to previous period
-    abnormal_activity: bool  # Flag for unusual patterns
+    abnormal_activity: Optional[bool] = None  # Flag for unusual patterns
     late_night_activity_rate: Optional[float] = None  # 11 PM - 2 AM posts
     
-    # Risk scoring
-    risk_score: float  # 0-100 composite risk score
-    risk_level: str  # "Low", "Medium", "High"
-    priority: int  # 1 (High), 2 (Medium), 3 (Low)
+    # Risk scoring (legacy 0-100 scale)
+    risk_score: Optional[float] = None  # 0-100 composite risk score
+    risk_level: Optional[str] = None  # "Low", "Medium", "High"
+    priority: Optional[int] = None  # 1 (High), 2 (Medium), 3 (Low)
     
     # Supporting evidence
-    top_distress_comments: List[str] = []  # Sample concerning comments
-    key_signals: List[str] = []  # Human-readable signal descriptions
+    top_distress_comments: Optional[List[str]] = []  # Sample concerning comments
+    key_signals: Optional[List[str]] = []  # Human-readable signal descriptions
+    metrics: Optional[Dict[str, Any]] = None  # Additional metrics
     
     # Metadata
-    computed_at: datetime = Field(default_factory=datetime.utcnow)
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    computed_at: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    last_updated: Optional[datetime] = Field(default_factory=datetime.utcnow)
     
     class Config:
         populate_by_name = True

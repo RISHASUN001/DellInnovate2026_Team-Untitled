@@ -208,7 +208,7 @@ def extract_text_units_from_post(post_data: dict) -> List[dict]:
             })
     
     # Extract comments
-    comments = post_data.get('comments', [])
+    comments = post_data.get('comments', []) or []  # Handle None values
     for comment in comments:
         if isinstance(comment, dict):
             comment_text = comment.get('text', '')
