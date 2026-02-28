@@ -1,0 +1,31 @@
+📊 Instagram Comment Analysis Summary Report
+Generated: 2026-02-28 16:33:19
+
+🔍 Analysis Overview:
+   - Total comments analyzed: 4
+   - Unique users: 3
+   - Time span: 2026-02-28T08:30:00Z to 2026-02-28T11:30:00Z
+
+⚠️ Risk Assessment:
+   - High risk comments: 3 (75.0%)
+   - Medium risk comments: 0 (0.0%)
+   - Low risk comments: 1 (25.0%)
+
+🧠 Sentiment & Emotion Analysis:
+   - Negative sentiment: 3 (75.0%)
+   - Primary emotions detected: sadness, joy, fear
+
+🔄 Cognitive Distortion Analysis:
+   - Comments with distortions: 3 (75.0%)
+   - Most common distortion: All-or-nothing thinking
+   - Average distortion ratio: 18.1%
+
+🎯 Recommendations:
+   - 3 comments require immediate attention
+   - Monitor users with high cognitive distortion rates
+   - Follow up on negative sentiment trends
+
+📁 Generated Files:
+   - CSV: analysis_output/comprehensive_analysis_20260228_163319.csv
+   - JSON: analysis_output/comprehensive_analysis_20260228_163319.json  
+   - Summary: analysis_output/analysis_summary_20260228_163319.txt

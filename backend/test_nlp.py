@@ -54,8 +54,13 @@ async def analyze_all_comments():
         # Show first result
         logger.info(f"Sample result: {analyzed[0]}")
         
-        # Export to CSV
-        output_path = "/home/st1/personal/DellInnovate2026_Team-Untitled/backend/exports/signal_data.csv"
+        # Create exports directory if it doesn't exist
+        import os
+        exports_dir = "exports"
+        os.makedirs(exports_dir, exist_ok=True)
+        
+        # Export to CSV in current directory
+        output_path = f"{exports_dir}/signal_data.csv"
         await nlp.export_signal_csv(
             output_path=output_path,
             source="posts"
