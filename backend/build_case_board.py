@@ -1,165 +1,166 @@
+"""backend/build_case_board.py
+
+Builds a *per-user* case board from the newest unified_instagram_analysis_*.csv.
+
+Correct scoring logic (no ground truth, small N ~ 20 users):
+1) Aggregate comment-level signals -> one row per user ("case")
+2) Compute stable group scores: emotion_score / sentiment_score / harm_score
+3) Standardize and run PCA on the 3 group scores
+   - PC1 loadings = learned weights
+   - PC1 score -> minmax normalize -> risk_score_math in [0,1]
+4) Bounded LLM refinement: delta in [-0.10, +0.10]
+   - final_score = clamp(risk_score_math + delta, 0, 1)
+
+This matches the requested: PCA weight learning + deterministic score + bounded LLM layer.
+"""
+
+from __future__ import annotations
+
+import glob
 import json
-import hashlib
+from pathlib import Path
+from typing import Optional
+
+import numpy as np
 import pandas as pd
 
-
-def make_case_id(username: str, platform: str = "instagram") -> str:
-    raw = f"{platform}|{username}".encode("utf-8")
-    return hashlib.sha256(raw).hexdigest()[:16]
-
-
-DISTRESS_EMOTIONS = {"sadness", "fear", "anger"}  # tweak if you want
-
-
-def is_concerning(row: pd.Series) -> bool:
-    """Heuristic to decide if a comment counts as a 'signal'."""
-    emo = str(row.get("Emotion_Label", "")).lower()
-    sent = str(row.get("Sentiment", "")).lower()
-    dist = bool(row.get("Distortion_Indicator", False))
-
-    # You can loosen/tighten this:
-    return dist or (sent == "negative" and emo in DISTRESS_EMOTIONS)
+from risk_scoring import (
+    latest_unified_csv,
+    build_user_feature_table,
+    compute_pca_risk_scores,
+)
+from decision_layer import stable_llm_refinement, make_ollama_caller
 
 
-def map_category(engagement_pattern: str, overall_risk: str) -> str:
-    p = (engagement_pattern or "").lower()
-    r = (overall_risk or "").lower()
+def build_case_board_from_unified(
+    analysis_dir: str = "analysis_output",
+    out_path: str = "case_board.csv",
+    *,
+    enable_llm: bool = False,
+    ollama_model: str = "llama3.2:3b",
+) -> pd.DataFrame:
+    """Create per-user case board CSV.
 
-    if "crisis_burst" in p:
-        return "Acute Spike"
-    if "declin" in p:
-        return "Social Withdrawal"
-    if "concerning" in p:
-        return "Persistent Low Mood"
-    if r == "high":
-        return "Cognitive Distortions"
-    return "Mixed/Other"
+    If enable_llm=True, this will call Ollama (local) and add a bounded delta.
+    Keep enable_llm=False for deterministic runs (recommended for dev/tests).
+    """
+    path = latest_unified_csv(analysis_dir)
+    raw = pd.read_csv(path)
 
+    users = build_user_feature_table(raw)
 
-def build_case_board(stage2_path="stage2_user_analysis.csv",
-                    stage1_path="stage1_signal_data.csv",
-                    out_path="case_board.csv"):
+    # PCA-based learned weights + risk score
+    users, pca_meta = compute_pca_risk_scores(users)
 
-    s2 = pd.read_csv(stage2_path)
-    s1 = pd.read_csv(stage1_path)
+    # Deterministic base score
+    users["BaseScore"] = users["risk_score_math"].astype(float)
 
-    # Normalize names + timestamps
-    s2["Username"] = s2["Username"].astype(str)
-    s1["User"] = s1["User"].astype(str)
+    # Monotonic sanity: if harm_score rises a lot, score shouldn't go down
+    users["BaseScore"] = np.maximum(users["BaseScore"].astype(float), 0.40 * users["harm_score"].astype(float))
+    users["BaseScore"] = np.clip(users["BaseScore"], 0.0, 1.0)
 
-    s1["Comment_Created_At"] = pd.to_datetime(s1["Comment_Created_At"], utc=True, errors="coerce")
-    s1 = s1.dropna(subset=["Comment_Created_At"])
+    # Optional LLM bounded delta refinement
+    users["delta"] = 0.0
+    users["FinalRiskScore"] = users["BaseScore"].astype(float)
 
-    # Add "concerning" flag + a simple strength score for picking top evidence
-    s1["is_concerning"] = s1.apply(is_concerning, axis=1).astype(bool)
-    # evidence strength: emotion + sentiment + distortion score if present
-    s1["evidence_strength"] = (
-        s1.get("Emotion_Score", 0).fillna(0).astype(float)
-        + s1.get("Sentiment_Score", 0).fillna(0).astype(float)
-        + s1.get("Distortion_Score", 0).fillna(0).astype(float) / 3.0
+    if enable_llm:
+        call_llm = make_ollama_caller(model=ollama_model)
+        deltas = []
+        finals = []
+        reasons = []
+        for _, r in users.iterrows():
+            final, info = stable_llm_refinement(
+                base_score=float(r["BaseScore"]),
+                emotion_score=float(r["emotion_score"]),
+                sentiment_score=float(r["sentiment_score"]),
+                harm_score=float(r["harm_score"]),
+                evidence_text=str(r.get("evidence_snippet", ""))[:1200],
+                call_llm=call_llm,
+            )
+            deltas.append(float(info.get("chosen_delta", info.get("delta", 0.0))))
+            finals.append(float(final))
+            reasons.append(info)
+        users["delta"] = deltas
+        users["FinalRiskScore"] = finals
+        users["llm_meta"] = [json.dumps(x, ensure_ascii=False) for x in reasons]
+    else:
+        users["llm_meta"] = json.dumps({"enabled": False})
+
+    # Build compact explanation payload (deterministic, safe for UI)
+    def _top_reasons(row: pd.Series):
+        reasons = []
+        reasons.append({"signal": "harm_score", "value": float(row["harm_score"])})
+        reasons.append({"signal": "emotion_score", "value": float(row["emotion_score"])})
+        reasons.append({"signal": "sentiment_score", "value": float(row["sentiment_score"])})
+        # include spike features if present
+        reasons.append({"signal": "emotion_p90", "value": float(row.get("emotion_p90", 0.0))})
+        reasons.append({"signal": "distortion_rate", "value": float(row.get("distortion_rate", 0.0))})
+        return reasons[:5]
+
+    users["explanation_signals"] = users.apply(
+        lambda r: json.dumps(
+            {
+                "summary": "PCA math score (PC1) on user-level emotion/sentiment/harm + optional bounded LLM delta.",
+                "top_reasons": _top_reasons(r),
+                "feature_snapshot": {
+                    "total_comments": int(r.get("total_comments", 0)),
+                    "emotion_score": float(r["emotion_score"]),
+                    "sentiment_score": float(r["sentiment_score"]),
+                    "harm_score": float(r["harm_score"]),
+                    "risk_score_math": float(r["risk_score_math"]),
+                    "base_score": float(r["BaseScore"]),
+                    "delta": float(r["delta"]),
+                    "final_score": float(r["FinalRiskScore"]),
+                },
+                "pca_pc1_loadings": pca_meta.get("pc1_loadings", {}),
+                "model_version": "pca_v1_user_level",
+            },
+            ensure_ascii=False,
+        ),
+        axis=1,
     )
 
-    rows = []
+    # Triage labels (simple quantile-based)
+    q_med = float(users["FinalRiskScore"].quantile(0.60)) if len(users) >= 5 else 0.50
+    q_high = float(users["FinalRiskScore"].quantile(0.80)) if len(users) >= 5 else 0.70
+    q_crit = float(users["FinalRiskScore"].quantile(0.90)) if len(users) >= 10 else 0.85
 
-    for _, r in s2.iterrows():
-        username = r["Username"]
-        user_comments = s1[s1["User"] == username].copy()
+    def _bucket(x: float) -> str:
+        if x >= q_crit:
+            return "Critical"
+        if x >= q_high:
+            return "High"
+        if x >= q_med:
+            return "Medium"
+        return "Low"
 
-        # fallback if stage1 doesn't have this user
-        if user_comments.empty:
-            created_at = pd.Timestamp.utcnow().tz_localize("UTC")
-            last_signal_at = created_at
-            latest_excerpt = ""
-            evidence = []
-        else:
-            created_at = user_comments["Comment_Created_At"].min()
+    users["Overall_Risk_Level"] = users["FinalRiskScore"].astype(float).apply(_bucket)
 
-            concerning = user_comments[user_comments["is_concerning"]]
-            if concerning.empty:
-                concerning = user_comments  # fallback: use any activity as "last_signal"
+    # Required output cols for UI
+    out_cols = [
+        "case_id",
+        "Username",
+        "total_comments",
+        "emotion_score",
+        "sentiment_score",
+        "harm_score",
+        "risk_score_math",
+        "BaseScore",
+        "delta",
+        "FinalRiskScore",
+        "Overall_Risk_Level",
+        "evidence_snippet",
+        "explanation_signals",
+        "llm_meta",
+    ]
+    for c in out_cols:
+        if c not in users.columns:
+            users[c] = np.nan
 
-            last_signal_at = concerning["Comment_Created_At"].max()
-
-            # latest concerning excerpt
-            latest_row = concerning.sort_values("Comment_Created_At", ascending=False).iloc[0]
-            latest_excerpt = str(latest_row.get("Comment_Text", ""))[:220]
-
-            # top evidence by strength
-            top = concerning.sort_values("evidence_strength", ascending=False).head(3)
-            evidence = []
-            for _, er in top.iterrows():
-                evidence.append({
-                    "timestamp": pd.to_datetime(er["Comment_Created_At"]).isoformat(),
-                    "emotion": er.get("Emotion_Label"),
-                    "emotion_score": float(er.get("Emotion_Score", 0) or 0),
-                    "sentiment": er.get("Sentiment"),
-                    "sentiment_score": float(er.get("Sentiment_Score", 0) or 0),
-                    "distortion": bool(er.get("Distortion_Indicator", False)),
-                    "excerpt": str(er.get("Comment_Text", ""))[:220],
-                })
-
-        case_id = make_case_id(username)
-
-        # NEW: prefer calibrated probability if Stage2 has it; fallback to Risk_Score (0-100)
-        if "calibrated_prob_attention" in s2.columns and pd.notna(r.get("calibrated_prob_attention")):
-            risk_score_0_1 = float(r.get("calibrated_prob_attention"))
-            model_version = "stage2_caseboard_lr_calibrated"
-        else:
-            risk_score_0_1 = float(r.get("Risk_Score", 0)) / 100.0
-            model_version = "stage2_caseboard_heuristic"
-
-        risk_score_0_1 = max(0.0, min(1.0, risk_score_0_1))
-        category = map_category(r.get("Engagement_Pattern", ""), r.get("Overall_Risk_Level", ""))
-
-        explanation_signals = {
-            "summary": (
-                f"Stage2 flags: {r.get('Overall_Risk_Level')} risk; "
-                f"pattern={r.get('Engagement_Pattern')}, "
-                f"distortion_rate={r.get('Distortion_Rate')}, "
-                f"volatility={r.get('Volatility_Risk')}."
-            ),
-            "top_reasons": [
-                {"signal": "distortion_rate", "value": round(float(r.get("Distortion_Rate", 0.0)), 3)},
-                {"signal": "volatility_risk", "value": str(r.get("Volatility_Risk"))},
-                {"signal": "engagement_pattern", "value": str(r.get("Engagement_Pattern"))},
-                {"signal": "rapid_shifts", "value": int(r.get("Rapid_Shifts", 0))},
-            ],
-            "latest_event": {
-                "timestamp": pd.to_datetime(last_signal_at).isoformat(),
-                "excerpt": latest_excerpt,
-            },
-            "evidence": evidence,
-            "feature_snapshot": {
-                "total_comments": int(r.get("Total_Comments", 0)),
-                "distortion_count": int(r.get("Distortion_Count", 0)),
-                "distortion_ratio": float(r.get("Distortion_Ratio", 0.0)),
-                "volatility_score": float(r.get("Volatility_Score", 0.0)),
-                "risk_score_raw": int(r.get("Risk_Score", 0)),
-                "calibrated_prob_attention": (
-                    float(r.get("calibrated_prob_attention"))
-                    if "calibrated_prob_attention" in s2.columns and pd.notna(r.get("calibrated_prob_attention"))
-                    else None
-                ),
-                "requires_attention": bool(r.get("Requires_Attention", False)),
-            },
-            "model_version": model_version,
-        }
-
-        rows.append({
-            "case_id": case_id,
-            "assigned_to": "",
-            "risk_score": round(risk_score_0_1, 4),
-            "category": category,
-            "explanation_signals": json.dumps(explanation_signals, ensure_ascii=False),
-            "status": "open",
-            "created_at": pd.to_datetime(created_at).isoformat(),
-            "last_signal_at": pd.to_datetime(last_signal_at).isoformat(),
-        })
-
-    out = pd.DataFrame(rows).sort_values(["risk_score", "last_signal_at"], ascending=[False, False])
-    out.to_csv(out_path, index=False)
-    print(f"wrote {out_path} ({len(out)} cases)")
+    users[out_cols].to_csv(out_path, index=False)
+    return users[out_cols]
 
 
 if __name__ == "__main__":
-    build_case_board()
+    build_case_board_from_unified("analysis_output", "case_board.csv", enable_llm=False)
+    print("Wrote case_board.csv")

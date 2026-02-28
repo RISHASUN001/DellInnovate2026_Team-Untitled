@@ -1,130 +1,143 @@
-"""
-backend/decision_layer.py
+"""backend/decision_layer.py
 
-This module loads the saved LR calibration artifacts (joblib + meta json)
-and applies them to Stage2 user-level outputs as the "decision layer".
+Bounded LLM refinement layer.
+- LLM NEVER replaces math score.
+- LLM can only output a small delta in [-0.10, +0.10].
+- Final score is clamped to [0,1].
+- Stability rule: run twice; if disagreement too large, choose conservative delta.
 
-Outputs added to Stage2 df:
-- calibrated_prob_attention (0..1)
-- calibrated_requires_attention (bool) using recommended threshold
-- calibrated_risk_score (0..100)
-- calibrated_priority (low/medium/high/critical) using triage thresholds
+Designed for Ollama (local).
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, Dict, List, Optional
-
 import json
-import joblib
-import numpy as np
-import pandas as pd
+from typing import Callable, Dict, Tuple
+
+import requests
 
 
-@dataclass(frozen=True)
-class CalibrationArtifacts:
-    model: Any
-    features_used: List[str]
-    threshold: float
-    triage_thresholds: Dict[str, float]
+def clamp01(x: float) -> float:
+    return max(0.0, min(1.0, float(x)))
 
 
-def load_calibration_artifacts(
-    model_path: str | Path = "evaluation/artifacts/calibration_lr.joblib",
-    meta_path: str | Path = "evaluation/artifacts/calibration_meta.json",
-) -> CalibrationArtifacts:
-    model_path = Path(model_path)
-    meta_path = Path(meta_path)
+def make_ollama_caller(
+    *,
+    model: str = "llama3.2:3b",
+    host: str = "http://localhost:11434",
+    timeout_s: int = 25,
+    temperature: float = 0.0,
+    num_predict: int = 160,
+) -> Callable[[str], str]:
+    """Returns a function(prompt)->text that calls Ollama chat API."""
 
-    if not model_path.exists():
-        raise FileNotFoundError(f"Calibration model not found: {model_path}")
-    if not meta_path.exists():
-        raise FileNotFoundError(f"Calibration metadata not found: {meta_path}")
+    def _call(prompt: str) -> str:
+        r = requests.post(
+            f"{host}/api/chat",
+            json={
+                "model": model,
+                "stream": False,
+                "messages": [{"role": "user", "content": prompt}],
+                "options": {
+                    "temperature": temperature,
+                    "num_predict": num_predict,
+                },
+            },
+            timeout=timeout_s,
+        )
+        r.raise_for_status()
+        return r.json()["message"]["content"]
 
-    model = joblib.load(model_path)
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    return _call
 
-    features_used = list(meta.get("features_used", []))
 
-    # recommended decision threshold (selected on test set)
-    threshold = float(meta.get("best_threshold_on_test", {}).get("thr", 0.5))
+def bounded_llm_refinement(
+    *,
+    base_score: float,
+    emotion_score: float,
+    sentiment_score: float,
+    harm_score: float,
+    evidence_text: str,
+    call_llm: Callable[[str], str],
+    max_delta: float = 0.10,
+) -> Tuple[float, Dict]:
+    """Single pass bounded refinement. Returns (final_score, info)."""
+    prompt = f"""Return STRICT JSON only: {{"delta": <number>}}.
 
-    triage = meta.get("triage_thresholds_from_full_data", {}) or {}
-    triage_thresholds = {
-        "low_to_med_prob": float(triage.get("low_to_med_prob", 0.5)),
-        "med_to_high_prob": float(triage.get("med_to_high_prob", 0.75)),
-        "high_to_critical_prob": float(triage.get("high_to_critical_prob", 0.9)),
-    }
+Rules:
+- delta must be between -{max_delta} and +{max_delta}
+- prefer delta close to 0 unless evidence is strong
+- do not invent facts
+- be conservative
 
-    return CalibrationArtifacts(
-        model=model,
-        features_used=features_used,
-        threshold=threshold,
-        triage_thresholds=triage_thresholds,
+Inputs:
+emotion_score={emotion_score:.4f}
+sentiment_score={sentiment_score:.4f}
+harm_score={harm_score:.4f}
+base_score={base_score:.4f}
+
+Evidence (may be empty):
+{evidence_text}
+"""
+
+    raw = call_llm(prompt).strip()
+
+    try:
+        obj = json.loads(raw)
+        delta = float(obj.get("delta", 0.0))
+    except Exception as e:
+        # Safe fallback: no adjustment
+        return clamp01(base_score), {"delta": 0.0, "raw": raw, "error": f"non_json_output: {e}"}
+
+    # Clamp delta
+    if delta > max_delta:
+        delta = max_delta
+    if delta < -max_delta:
+        delta = -max_delta
+
+    final = clamp01(base_score + delta)
+    return final, {"delta": float(delta), "raw": obj}
+
+
+def stable_llm_refinement(
+    *,
+    base_score: float,
+    emotion_score: float,
+    sentiment_score: float,
+    harm_score: float,
+    evidence_text: str,
+    call_llm: Callable[[str], str],
+    max_delta: float = 0.10,
+    disagreement_tol: float = 0.05,
+) -> Tuple[float, Dict]:
+    """Two-pass stability rule."""
+    s1, info1 = bounded_llm_refinement(
+        base_score=base_score,
+        emotion_score=emotion_score,
+        sentiment_score=sentiment_score,
+        harm_score=harm_score,
+        evidence_text=evidence_text,
+        call_llm=call_llm,
+        max_delta=max_delta,
+    )
+    s2, info2 = bounded_llm_refinement(
+        base_score=base_score,
+        emotion_score=emotion_score,
+        sentiment_score=sentiment_score,
+        harm_score=harm_score,
+        evidence_text=evidence_text,
+        call_llm=call_llm,
+        max_delta=max_delta,
     )
 
+    diff = abs(s1 - s2)
+    if diff <= disagreement_tol:
+        final = (s1 + s2) / 2.0
+        return clamp01(final), {"mode": "avg", "diff": diff, "delta": (info1.get("delta", 0.0) + info2.get("delta", 0.0)) / 2.0, "pass1": info1, "pass2": info2}
 
-def apply_calibrated_decision_layer(
-    df_stage2: pd.DataFrame,
-    artifacts: CalibrationArtifacts,
-    *,
-    inplace: bool = False,
-) -> pd.DataFrame:
-    """
-    Apply LR calibration model to Stage2 dataframe.
-    Missing feature columns are created and filled with 0.0.
-    """
-    df = df_stage2 if inplace else df_stage2.copy()
-
-    # Ensure feature columns exist
-    for col in artifacts.features_used:
-        if col not in df.columns:
-            df[col] = 0.0
-
-    X = df[artifacts.features_used].fillna(0.0).astype(float).to_numpy()
-    prob = artifacts.model.predict_proba(X)[:, 1]
-
-    df["calibrated_prob_attention"] = prob
-    df["calibrated_requires_attention"] = prob >= artifacts.threshold
-    df["calibrated_risk_score"] = np.clip(prob * 100.0, 0.0, 100.0)
-
-    t = artifacts.triage_thresholds
-
-    def _priority(p: float) -> str:
-        if p >= t["high_to_critical_prob"]:
-            return "critical"
-        if p >= t["med_to_high_prob"]:
-            return "high"
-        if p >= t["low_to_med_prob"]:
-            return "medium"
-        return "low"
-
-    df["calibrated_priority"] = [_priority(float(p)) for p in prob]
-    return df
-
-
-def apply_calibration_to_csv(
-    stage2_csv_path: str | Path,
-    out_csv_path: Optional[str | Path] = None,
-    *,
-    model_path: str | Path = "evaluation/artifacts/calibration_lr.joblib",
-    meta_path: str | Path = "evaluation/artifacts/calibration_meta.json",
-) -> Path:
-    """
-    Convenience wrapper:
-    - reads Stage2 CSV
-    - applies calibration
-    - writes a calibrated CSV
-    """
-    stage2_csv_path = Path(stage2_csv_path)
-    if out_csv_path is None:
-        out_csv_path = stage2_csv_path.with_name(stage2_csv_path.stem + "_calibrated.csv")
-    out_csv_path = Path(out_csv_path)
-
-    df = pd.read_csv(stage2_csv_path)
-    artifacts = load_calibration_artifacts(model_path=model_path, meta_path=meta_path)
-    df2 = apply_calibrated_decision_layer(df, artifacts)
-    df2.to_csv(out_csv_path, index=False)
-    return out_csv_path
+    # Conservative: choose smaller |delta|
+    d1 = float(info1.get("delta", 0.0))
+    d2 = float(info2.get("delta", 0.0))
+    chosen = d1 if abs(d1) <= abs(d2) else d2
+    final = clamp01(base_score + chosen)
+    return final, {"mode": "conservative", "diff": diff, "chosen_delta": chosen, "pass1": info1, "pass2": info2}
