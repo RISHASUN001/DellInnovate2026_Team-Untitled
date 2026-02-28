@@ -1,0 +1,586 @@
+[
+  {
+    "text": "I love this post! So inspiring and amazing! 😍 Really made my day better!",
+    "comment_id": "unified_sample_001",
+    "username": "sample_user_1",
+    "post_id": "post_1",
+    "timestamp": "2026-02-28T08:30:00Z",
+    "likes": 0.5171209573745728,
+    "replies": 0,
+    "emotions": {
+      "joy": 0.9825801253318787,
+      "love": 0.9143489003181458,
+      "optimism": 0.688266396522522,
+      "trust": 0.1231304258108139,
+      "surprise": 0.04422741383314133,
+      "anticipation": 0.034244488924741745,
+      "sadness": 0.025970207527279854,
+      "anger": 0.02335822954773903,
+      "disgust": 0.021168187260627747,
+      "fear": 0.017191704362630844,
+      "pessimism": 0.013833354227244854
+    },
+    "primary_emotion": "joy",
+    "primary_emotion_score": 0.9825801253318787,
+    "sentiment": "positive",
+    "sentiment_score": 0.9482879042625427,
+    "distortion_indicator": false,
+    "distortion_score": 0.06652014143764973,
+    "risk_indicators": {
+      "high_negative_emotions": false,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 0,
+      "distortion_ratio": 0.0,
+      "word_count": 14,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 0,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 0,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 0,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 0,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 0,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": null,
+      "has_distortions": false
+    }
+  },
+  {
+    "text": "I'm feeling really sad and hopeless today 😢 Nothing seems to go right anymore",
+    "comment_id": "unified_sample_002",
+    "username": "sample_user_2",
+    "post_id": "post_2",
+    "timestamp": "2026-02-28T09:30:00Z",
+    "likes": 0.7656115293502808,
+    "replies": 2,
+    "emotions": {
+      "sadness": 0.9780465960502625,
+      "pessimism": 0.6575697660446167,
+      "disgust": 0.21049614250659943,
+      "fear": 0.12060513347387314,
+      "anger": 0.0799480751156807,
+      "anticipation": 0.040153078734874725,
+      "optimism": 0.022290639579296112,
+      "joy": 0.01965411752462387,
+      "surprise": 0.01778370514512062,
+      "love": 0.015543356537818909,
+      "trust": 0.013012250885367393
+    },
+    "primary_emotion": "sadness",
+    "primary_emotion_score": 0.9780465960502625,
+    "sentiment": "negative",
+    "sentiment_score": 0.9234388470649719,
+    "distortion_indicator": true,
+    "distortion_score": 1.1785998046398163,
+    "risk_indicators": {
+      "high_negative_emotions": true,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 3,
+      "distortion_ratio": 21.428571428571427,
+      "word_count": 14,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 1,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 0,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 1,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 0,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 1,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": "all_or_nothing",
+      "has_distortions": true
+    }
+  },
+  {
+    "text": "I always mess everything up. I'm such a complete failure at everything I try. Nothing ever goes right for me.",
+    "comment_id": "unified_sample_003",
+    "username": "sample_user_3",
+    "post_id": "post_1",
+    "timestamp": "2026-02-28T10:30:00Z",
+    "likes": 0.6846851110458374,
+    "replies": 2,
+    "emotions": {
+      "sadness": 0.9733529686927795,
+      "disgust": 0.7147484421730042,
+      "anger": 0.6192424893379211,
+      "pessimism": 0.5928812623023987,
+      "fear": 0.10477911680936813,
+      "anticipation": 0.029332222416996956,
+      "surprise": 0.015687959268689156,
+      "optimism": 0.014708629809319973,
+      "joy": 0.009021110832691193,
+      "trust": 0.008263946510851383,
+      "love": 0.006860992405563593
+    },
+    "primary_emotion": "sadness",
+    "primary_emotion_score": 0.9733529686927795,
+    "sentiment": "negative",
+    "sentiment_score": 0.9315314888954163,
+    "distortion_indicator": true,
+    "distortion_score": 1.6973745748400688,
+    "risk_indicators": {
+      "high_negative_emotions": true,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 5,
+      "distortion_ratio": 25.0,
+      "word_count": 20,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 2,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 2,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 0,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 0,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 1,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": "all_or_nothing",
+      "has_distortions": true
+    }
+  },
+  {
+    "text": "Thanks for sharing this helpful content! Really appreciate it 😊",
+    "comment_id": "unified_sample_004",
+    "username": "sample_user_1",
+    "post_id": "post_2",
+    "timestamp": "2026-02-28T11:30:00Z",
+    "likes": 0.6784212589263916,
+    "replies": 0,
+    "emotions": {
+      "joy": 0.9895351529121399,
+      "optimism": 0.8896026015281677,
+      "love": 0.7254092693328857,
+      "trust": 0.18972711265087128,
+      "anticipation": 0.05635357275605202,
+      "surprise": 0.04244725778698921,
+      "anger": 0.01678548939526081,
+      "fear": 0.013942703604698181,
+      "disgust": 0.013087945058941841,
+      "sadness": 0.012196522206068039,
+      "pessimism": 0.009306833148002625
+    },
+    "primary_emotion": "joy",
+    "primary_emotion_score": 0.9895351529121399,
+    "sentiment": "positive",
+    "sentiment_score": 0.9321578741073608,
+    "distortion_indicator": false,
+    "distortion_score": 0.04292471520602703,
+    "risk_indicators": {
+      "high_negative_emotions": false,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 0,
+      "distortion_ratio": 0.0,
+      "word_count": 10,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 0,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 0,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 0,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 0,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 0,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": null,
+      "has_distortions": false
+    }
+  },
+  {
+    "text": "Why does everyone hate me? I must be a terrible person. I should just give up on everything.",
+    "comment_id": "unified_sample_005",
+    "username": "sample_user_2",
+    "post_id": "post_1",
+    "timestamp": "2026-02-28T12:30:00Z",
+    "likes": 0.47051191329956055,
+    "replies": 3,
+    "emotions": {
+      "anger": 0.9680207967758179,
+      "disgust": 0.9318221807479858,
+      "sadness": 0.654675304889679,
+      "pessimism": 0.1287866234779358,
+      "fear": 0.029474368318915367,
+      "anticipation": 0.02351452223956585,
+      "joy": 0.015220964327454567,
+      "optimism": 0.013912966474890709,
+      "surprise": 0.011239467188715935,
+      "love": 0.006027082912623882,
+      "trust": 0.005456274840980768
+    },
+    "primary_emotion": "anger",
+    "primary_emotion_score": 0.9680207967758179,
+    "sentiment": "negative",
+    "sentiment_score": 0.952948808670044,
+    "distortion_indicator": true,
+    "distortion_score": 1.6521704699844122,
+    "risk_indicators": {
+      "high_negative_emotions": true,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 7,
+      "distortion_ratio": 38.88888888888889,
+      "word_count": 18,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 2,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 2,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 1,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 2,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 0,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": "all_or_nothing",
+      "has_distortions": true
+    }
+  },
+  {
+    "text": "This is awesome! Best day ever! Can't wait to try this myself!",
+    "comment_id": "unified_sample_006",
+    "username": "sample_user_3",
+    "post_id": "post_2",
+    "timestamp": "2026-02-28T13:30:00Z",
+    "likes": 0.5028051137924194,
+    "replies": 0,
+    "emotions": {
+      "joy": 0.9924197793006897,
+      "optimism": 0.8696829676628113,
+      "love": 0.523906946182251,
+      "anticipation": 0.2509835660457611,
+      "trust": 0.22390836477279663,
+      "surprise": 0.10354097187519073,
+      "fear": 0.037259623408317566,
+      "anger": 0.012458538636565208,
+      "disgust": 0.010790769942104816,
+      "sadness": 0.00913951825350523,
+      "pessimism": 0.008592705242335796
+    },
+    "primary_emotion": "joy",
+    "primary_emotion_score": 0.9924197793006897,
+    "sentiment": "positive",
+    "sentiment_score": 0.9497194886207581,
+    "distortion_indicator": false,
+    "distortion_score": 0.058857680298388004,
+    "risk_indicators": {
+      "high_negative_emotions": false,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 0,
+      "distortion_ratio": 0.0,
+      "word_count": 12,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 0,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 0,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 0,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 0,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 0,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": null,
+      "has_distortions": false
+    }
+  },
+  {
+    "text": "I can't handle this anymore. Everything is falling apart. What if I never get better? I'm so scared.",
+    "comment_id": "unified_sample_007",
+    "username": "sample_user_1",
+    "post_id": "post_1",
+    "timestamp": "2026-02-28T14:30:00Z",
+    "likes": 0.7418501377105713,
+    "replies": 1,
+    "emotions": {
+      "fear": 0.9714587926864624,
+      "sadness": 0.7195753455162048,
+      "pessimism": 0.4235669672489166,
+      "disgust": 0.11806938797235489,
+      "anger": 0.05637076869606972,
+      "anticipation": 0.05274457484483719,
+      "optimism": 0.02627641148865223,
+      "surprise": 0.020347313955426216,
+      "joy": 0.017849691212177277,
+      "love": 0.017587821930646896,
+      "trust": 0.013050219044089317
+    },
+    "primary_emotion": "fear",
+    "primary_emotion_score": 0.9714587926864624,
+    "sentiment": "negative",
+    "sentiment_score": 0.9258149862289429,
+    "distortion_indicator": true,
+    "distortion_score": 1.747404906898737,
+    "risk_indicators": {
+      "high_negative_emotions": true,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 2,
+      "distortion_ratio": 11.11111111111111,
+      "word_count": 18,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 1,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 1,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 0,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 0,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 0,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": "all_or_nothing",
+      "has_distortions": true
+    }
+  },
+  {
+    "text": "Great post! Love the positive energy. Keep up the amazing work! 💪",
+    "comment_id": "unified_sample_008",
+    "username": "sample_user_2",
+    "post_id": "post_2",
+    "timestamp": "2026-02-28T15:30:00Z",
+    "likes": 0.473361611366272,
+    "replies": 0,
+    "emotions": {
+      "joy": 0.9866711497306824,
+      "love": 0.8624335527420044,
+      "optimism": 0.8225709199905396,
+      "trust": 0.1446167230606079,
+      "surprise": 0.03697161376476288,
+      "anticipation": 0.03556457534432411,
+      "sadness": 0.019868670031428337,
+      "anger": 0.019857794046401978,
+      "disgust": 0.016648903489112854,
+      "fear": 0.014174558222293854,
+      "pessimism": 0.0118771493434906
+    },
+    "primary_emotion": "joy",
+    "primary_emotion_score": 0.9866711497306824,
+    "sentiment": "positive",
+    "sentiment_score": 0.9526638388633728,
+    "distortion_indicator": false,
+    "distortion_score": 0.05390102230012417,
+    "risk_indicators": {
+      "high_negative_emotions": false,
+      "distortion_ratio": 0
+    },
+    "cognitive_distortions": {
+      "total_distortions": 0,
+      "distortion_ratio": 0.0,
+      "word_count": 12,
+      "distortions": {
+        "all_or_nothing": {
+          "count": 0,
+          "description": "Black-and-white thinking with no middle ground"
+        },
+        "overgeneralization": {
+          "count": 0,
+          "description": "Drawing broad conclusions from single events"
+        },
+        "catastrophizing": {
+          "count": 0,
+          "description": "Expecting the worst possible outcome"
+        },
+        "personalization": {
+          "count": 0,
+          "description": "Taking personal responsibility for external events"
+        },
+        "emotional_reasoning": {
+          "count": 0,
+          "description": "Assuming feelings reflect reality"
+        },
+        "should_statements": {
+          "count": 0,
+          "description": "Rigid rules about how things ought to be"
+        },
+        "labeling": {
+          "count": 0,
+          "description": "Assigning global negative labels to self or others"
+        },
+        "mental_filtering": {
+          "count": 0,
+          "description": "Focusing exclusively on negative details"
+        }
+      },
+      "primary_distortion": null,
+      "has_distortions": false
+    }
+  }
+]

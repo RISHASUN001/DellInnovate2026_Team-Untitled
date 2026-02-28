@@ -1,0 +1,31 @@
+📊 Unified Instagram Comment Analysis Summary
+Generated: 2026-02-28 17:09:49
+Analysis Method: NLP Service + Pattern Analysis Integration
+
+🔍 Dataset Overview:
+   - Total comments analyzed: 8
+   - Unique users: 3
+   - Analysis columns: 34
+
+🧠 Sentiment & Emotion Analysis:
+   - Negative sentiment: 4 (50.0%)
+   - Primary emotions: sadness, fear, joy, anger
+
+🔄 Cognitive Distortion Analysis:
+   - Comments with distortions: 4 (50.0%)
+   - Average distortion ratio: 12.1%
+
+⚠️ Risk Assessment:
+   - High-risk indicators: 4 (50.0%)
+   - Comments requiring attention: 8
+
+📁 Generated Files:
+   - Unified CSV: analysis_output/unified_instagram_analysis_20260228_170949.csv
+   - Detailed JSON: analysis_output/unified_instagram_analysis_20260228_170949.json
+   - Summary Report: analysis_output/unified_analysis_summary_20260228_170949.txt
+
+🔧 Technical Notes:
+   - Used integrated NLP + Pattern Analysis service
+   - Real-time cognitive distortion detection
+   - Combined sentiment, emotion, and behavioral analysis
+   - Ready for dashboard integration
