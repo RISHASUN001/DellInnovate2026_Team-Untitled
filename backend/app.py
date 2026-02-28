@@ -60,8 +60,11 @@ async def root():
                 "run_full_pipeline": "/api/analytics/run-full-pipeline",
                 "get_risk_profiles": "/api/analytics/risk-profiles",
                 "get_risk_profile": "/api/analytics/risk-profiles/{username}",
+                "get_all_signals": "/api/analytics/signals",
                 "get_signals": "/api/analytics/signals/{username}",
-                "get_stats": "/api/analytics/stats"
+                "get_stats": "/api/analytics/stats",
+                "get_dashboard_cases": "/api/analytics/dashboard/cases",
+                "get_case_signals": "/api/analytics/dashboard/case/{case_user}/signals"
             }
         }
     }
