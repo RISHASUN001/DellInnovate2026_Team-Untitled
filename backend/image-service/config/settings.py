@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Anchor all relative paths to the image-service project root regardless of
@@ -32,6 +34,15 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     input_folder: Path = _SERVICE_ROOT / "data" / "post_images"
     output_folder: Path = _SERVICE_ROOT / "outputs"
+
+    @model_validator(mode="after")
+    def _resolve_paths(self) -> "Settings":
+        """Make relative path overrides absolute using _SERVICE_ROOT."""
+        if not self.input_folder.is_absolute():
+            self.input_folder = (_SERVICE_ROOT / self.input_folder).resolve()
+        if not self.output_folder.is_absolute():
+            self.output_folder = (_SERVICE_ROOT / self.output_folder).resolve()
+        return self
 
     # ------------------------------------------------------------------
     # Model identifiers
