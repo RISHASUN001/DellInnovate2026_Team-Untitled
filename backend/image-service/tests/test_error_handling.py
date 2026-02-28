@@ -26,7 +26,7 @@ from domain.entities import (
     SentimentResult,
 )
 from ports.emotion_port import EmotionPort
-from ports.ocr_port import OcrPort
+from adapters.smolvlm_adapter import SmolVLMAdapter
 from ports.preprocessing_port import PreprocessingPort
 from ports.sentiment_port import SentimentPort
 from ports.storage_port import StoragePort
@@ -65,16 +65,15 @@ class _ExplodingPreprocessorEmotion(PreprocessingPort):
         raise RuntimeError("Simulated emotion preprocessing failure")
 
 
-class _GoodOcr(OcrPort):
-    def extract(self, image: Image.Image) -> OcrResult:
-        return OcrResult(
-            ocr_text_raw="hello", ocr_text_clean="hello",
-            ocr_char_count=5, ocr_word_count=1, ocr_detected_bool=True
-        )
+
+class _GoodSmolVLM(SmolVLMAdapter):
+    def describe_images(self, image_paths, prompt_text):
+        return "hello"
 
 
-class _ExplodingOcr(OcrPort):
-    def extract(self, image: Image.Image) -> OcrResult:
+
+class _ExplodingSmolVLM(SmolVLMAdapter):
+    def describe_images(self, image_paths, prompt_text):
         raise RuntimeError("Simulated OCR failure")
 
 
@@ -132,11 +131,12 @@ def _make_job(name: str = "user__20240101__0.jpg") -> ImageJob:
 # ---------------------------------------------------------------------------
 
 
+
 def test_ocr_failure_captured_emotion_still_runs() -> None:
-    """An OCR exception must be captured; emotion pipeline must still execute."""
+    """A vision-language exception must be captured; emotion pipeline must still execute."""
     use_case = ProcessSingleImage(
         preprocessor=_DummyPreprocessor(),
-        ocr=_ExplodingOcr(),
+        smolvlm=_ExplodingSmolVLM(),
         sentiment=_GoodSentiment(),
         emotion=_GoodEmotion(),
     )
@@ -145,17 +145,18 @@ def test_ocr_failure_captured_emotion_still_runs() -> None:
     assert record.error_ocr is not None
     assert "Simulated OCR failure" in record.error_ocr
 
-    # Emotion pipeline ran even though OCR failed
+    # Emotion pipeline ran even though vision-language failed
     assert record.emotion_result is not None
     assert record.emotion_result.face_detected_bool is True
     assert record.error_emotion is None
 
 
+
 def test_emotion_failure_captured_ocr_still_runs() -> None:
-    """An emotion exception must be captured; OCR pipeline must succeed."""
+    """An emotion exception must be captured; vision-language pipeline must succeed."""
     use_case = ProcessSingleImage(
         preprocessor=_DummyPreprocessor(),
-        ocr=_GoodOcr(),
+        smolvlm=_GoodSmolVLM(),
         sentiment=_GoodSentiment(),
         emotion=_ExplodingEmotion(),
     )
@@ -164,16 +165,17 @@ def test_emotion_failure_captured_ocr_still_runs() -> None:
     assert record.error_emotion is not None
     assert "Simulated emotion failure" in record.error_emotion
 
-    # OCR succeeded
+    # Vision-language succeeded
     assert record.ocr_result is not None
     assert record.ocr_result.ocr_detected_bool is True
     assert record.error_ocr is None
 
 
+
 def test_both_pipelines_fail_record_has_both_errors() -> None:
     use_case = ProcessSingleImage(
         preprocessor=_DummyPreprocessor(),
-        ocr=_ExplodingOcr(),
+        smolvlm=_ExplodingSmolVLM(),
         sentiment=_GoodSentiment(),
         emotion=_ExplodingEmotion(),
     )
@@ -185,19 +187,20 @@ def test_both_pipelines_fail_record_has_both_errors() -> None:
     assert record.emotion_result is None
 
 
+
 def test_sentiment_failure_captured_ocr_result_preserved() -> None:
     use_case = ProcessSingleImage(
         preprocessor=_DummyPreprocessor(),
-        ocr=_GoodOcr(),
+        smolvlm=_GoodSmolVLM(),
         sentiment=_ExplodingSentiment(),
         emotion=_GoodEmotion(),
     )
     record = use_case.execute(_make_job())
 
-    # OCR ran, sentiment failed — error captured in ocr pipeline slot
+    # Vision-language ran, sentiment failed — error captured in ocr pipeline slot
     assert record.error_ocr is not None
     assert "Simulated sentiment failure" in record.error_ocr
-    # OCR result was set before sentiment failed
+    # Vision-language result was set before sentiment failed
     assert record.ocr_result is not None
 
 

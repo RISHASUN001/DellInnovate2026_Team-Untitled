@@ -23,7 +23,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from adapters.emotion_adapter import HuggingFaceEmotionAdapter
-from adapters.ocr_adapter import EasyOcrAdapter
+from adapters.smolvlm_adapter import SmolVLMAdapter
 from adapters.preprocessing_adapter import PillowPreprocessingAdapter
 from adapters.sentiment_adapter import HuggingFaceSentimentAdapter
 from adapters.storage_adapter import CsvStorageAdapter
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Instantiate adapters (model warm-loading happens in __init__)
     preprocessor = PillowPreprocessingAdapter()
-    ocr = EasyOcrAdapter()
+    ocr = SmolVLMAdapter()
     sentiment = HuggingFaceSentimentAdapter()
     emotion = HuggingFaceEmotionAdapter()
     storage = CsvStorageAdapter()
@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Wire use cases
     process_single = ProcessSingleImage(
         preprocessor=preprocessor,
-        ocr=ocr,
+        smolvlm=ocr,
         sentiment=sentiment,
         emotion=emotion,
     )

@@ -16,12 +16,14 @@ numpy>=1.26.0
 # --- OCR ---
 easyocr>=1.7.1
 
+
 # --- HuggingFace / ML ---
 torch>=2.2.0
 torchvision>=0.17.0
 transformers>=4.41.0
 # Accelerate is optional but avoids transformers deprecation warnings
 accelerate>=0.30.0
+Pillow>=10.3.0  # For image loading
 
 # --- Testing ---
 pytest>=8.2.0

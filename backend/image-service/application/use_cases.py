@@ -26,7 +26,7 @@ from application.filename_parser import discover_images, parse_image_filename
 from config.settings import settings
 from domain.entities import ImageJob, ImageRecord
 from ports.emotion_port import EmotionPort
-from ports.ocr_port import OcrPort
+from adapters.smolvlm_adapter import SmolVLMAdapter
 from ports.preprocessing_port import PreprocessingPort
 from ports.sentiment_port import SentimentPort
 from ports.storage_port import StoragePort
@@ -90,26 +90,24 @@ class BatchRunSummary:
 # ---------------------------------------------------------------------------
 
 
-class ProcessSingleImage:
-    """Orchestrates both pipelines for one image.
 
-    Dependencies are injected via constructor — adapters are swappable
-    without changing this class.
-    """
+class ProcessSingleImage:
+    """Orchestrates both pipelines for one image, using SmolVLM for vision-language tasks."""
 
     def __init__(
         self,
         preprocessor: PreprocessingPort,
-        ocr: OcrPort,
+        smolvlm: SmolVLMAdapter,
         sentiment: SentimentPort,
         emotion: EmotionPort,
     ) -> None:
         self._preprocessor = preprocessor
-        self._ocr = ocr
+        self._smolvlm = smolvlm
         self._sentiment = sentiment
         self._emotion = emotion
 
     # ------------------------------------------------------------------
+
 
     def execute(self, job: ImageJob) -> ImageRecord:
         """Run both pipelines and return an ``ImageRecord``.
@@ -119,18 +117,33 @@ class ProcessSingleImage:
         """
         record = ImageRecord(job=job, processed_at=datetime.utcnow())
 
-        # ---- Pipeline A: OCR → Sentiment --------------------------------
+        # ---- Pipeline A: Vision-Language (SmolVLM) → Sentiment ---------
         try:
-            ocr_image = self._preprocessor.load_for_ocr(job.image_path)
-            ocr_result = self._ocr.extract(ocr_image)
-            record.ocr_result = ocr_result
-
-            if ocr_result.ocr_detected_bool:
-                record.sentiment_result = self._sentiment.analyze(
-                    ocr_result.ocr_text_clean
+            # Use SmolVLM to describe the image and extract text
+            prompt_text = "Extract all visible text from this image."
+            extracted_text = self._smolvlm.describe_images([str(job.image_path)], prompt_text)
+            if extracted_text:
+                from domain.entities import OcrResult
+                ocr_result = OcrResult(
+                    ocr_text_raw=extracted_text,
+                    ocr_text_clean=extracted_text.strip(),
+                    ocr_char_count=len(extracted_text),
+                    ocr_word_count=len(extracted_text.split()),
+                    ocr_detected_bool=bool(extracted_text.strip()),
+                )
+                record.ocr_result = ocr_result
+                record.sentiment_result = self._sentiment.analyze(ocr_result.ocr_text_clean)
+            else:
+                from domain.entities import OcrResult
+                record.ocr_result = OcrResult(
+                    ocr_text_raw="",
+                    ocr_text_clean="",
+                    ocr_char_count=0,
+                    ocr_word_count=0,
+                    ocr_detected_bool=False,
                 )
         except Exception as exc:  # noqa: BLE001
-            msg = f"OCR/sentiment pipeline error: {exc}"
+            msg = f"Vision-language/sentiment pipeline error: {exc}"
             logger.error("[%s] %s", job.image_path.name, msg)
             record.error_ocr = msg
 

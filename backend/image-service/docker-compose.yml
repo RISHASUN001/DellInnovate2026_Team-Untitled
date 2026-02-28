@@ -17,8 +17,6 @@ services:
     container_name: image-service
     ports:
       - "8002:8002"
-    env_file:
-      - .env
     environment:
       # Override any env-file values here if needed
       - PYTHONPATH=/app

@@ -44,13 +44,9 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     device: str = "cpu"
 
+
     # ------------------------------------------------------------------
-    # OCR settings
-    # ------------------------------------------------------------------
-    ocr_language: str = "en"
-    # Minimum number of *characters* for OCR output to be considered
-    # "detected" and passed to sentiment inference.
-    ocr_min_chars: int = 10
+    # OCR settings removed (SmolVLM replaces OCR pipeline)
 
     # ------------------------------------------------------------------
     # Image preprocessing
