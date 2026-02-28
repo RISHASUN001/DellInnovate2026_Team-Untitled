@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from config.database import MongoDB
 from routes.scraper_routes import router as scraper_router
+from routes.analytics_routes import router as analytics_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,8 +20,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI app
 app = FastAPI(
-    title="Instagram Scraper API",
-    description="API for scraping Instagram data using Scrapfly",
+    title="Instagram Scraper & Analytics API",
+    description="API for scraping Instagram data and detecting emotional distress signals",
     version="1.0.0",
     lifespan=lifespan
 )
@@ -36,20 +37,32 @@ app.add_middleware(
 
 # Include routers
 app.include_router(scraper_router)
+app.include_router(analytics_router)
 
 @app.get("/")
 async def root():
     return {
-        "message": "Instagram Scraper API",
+        "message": "Instagram Scraper & Analytics API",
         "version": "1.0.0",
         "endpoints": {
-            "scrape_user": "/api/scraper/scrape/user/{username}",
-            "scrape_multiple": "/api/scraper/scrape",
-            "scrape_post": "/api/scraper/scrape/post",
-            "get_users": "/api/scraper/users",
-            "get_user": "/api/scraper/user/{username}",
-            "get_post": "/api/scraper/post/{shortcode}",
-            "get_job": "/api/scraper/job/{job_id}"
+            "scraper": {
+                "scrape_user": "/api/scraper/scrape/user/{username}",
+                "scrape_multiple": "/api/scraper/scrape",
+                "scrape_post": "/api/scraper/scrape/post",
+                "get_users": "/api/scraper/users",
+                "get_user": "/api/scraper/user/{username}",
+                "get_post": "/api/scraper/post/{shortcode}",
+                "get_job": "/api/scraper/job/{job_id}"
+            },
+            "analytics": {
+                "extract_signals": "/api/analytics/extract-signals",
+                "compute_risk_profiles": "/api/analytics/compute-risk-profiles",
+                "run_full_pipeline": "/api/analytics/run-full-pipeline",
+                "get_risk_profiles": "/api/analytics/risk-profiles",
+                "get_risk_profile": "/api/analytics/risk-profiles/{username}",
+                "get_signals": "/api/analytics/signals/{username}",
+                "get_stats": "/api/analytics/stats"
+            }
         }
     }
 
