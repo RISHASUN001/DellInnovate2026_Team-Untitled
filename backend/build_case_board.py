@@ -99,7 +99,15 @@ def build_case_board(stage2_path="stage2_user_analysis.csv",
                 })
 
         case_id = make_case_id(username)
-        risk_score_0_1 = float(r.get("Risk_Score", 0)) / 100.0
+
+        # NEW: prefer calibrated probability if Stage2 has it; fallback to Risk_Score (0-100)
+        if "calibrated_prob_attention" in s2.columns and pd.notna(r.get("calibrated_prob_attention")):
+            risk_score_0_1 = float(r.get("calibrated_prob_attention"))
+            model_version = "stage2_caseboard_lr_calibrated"
+        else:
+            risk_score_0_1 = float(r.get("Risk_Score", 0)) / 100.0
+            model_version = "stage2_caseboard_heuristic"
+
         risk_score_0_1 = max(0.0, min(1.0, risk_score_0_1))
         category = map_category(r.get("Engagement_Pattern", ""), r.get("Overall_Risk_Level", ""))
 
@@ -127,9 +135,14 @@ def build_case_board(stage2_path="stage2_user_analysis.csv",
                 "distortion_ratio": float(r.get("Distortion_Ratio", 0.0)),
                 "volatility_score": float(r.get("Volatility_Score", 0.0)),
                 "risk_score_raw": int(r.get("Risk_Score", 0)),
+                "calibrated_prob_attention": (
+                    float(r.get("calibrated_prob_attention"))
+                    if "calibrated_prob_attention" in s2.columns and pd.notna(r.get("calibrated_prob_attention"))
+                    else None
+                ),
                 "requires_attention": bool(r.get("Requires_Attention", False)),
             },
-            "model_version": "stage2_caseboard",
+            "model_version": model_version,
         }
 
         rows.append({
