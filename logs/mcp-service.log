@@ -1,8 +1,151 @@
 INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/mcp-service']
 INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
-INFO:     Started reloader process [16490] using WatchFiles
-INFO:     Started server process [16495]
+INFO:     Started reloader process [39161] using WatchFiles
+INFO:     Started server process [39164]
 INFO:     Waiting for application startup.
-2026-03-01 01:56:37.229 | INFO     | app.main:lifespan:57 - mcp-service starting up...
+2026-03-01 21:49:48.416 | INFO     | app.main:lifespan:53 - mcp-service starting up...
+2026-03-01 21:49:48.437 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 21:49:51.889 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
 INFO:     Application startup complete.
-INFO:     127.0.0.1:57333 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53256 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53393 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53393 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53393 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53393 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53393 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53464 - "OPTIONS /tools/add_subtask HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53464 - "POST /tools/add_subtask HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53466 - "POST /tools/add_subtask HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:53672 - "POST /tools/add_subtask HTTP/1.1" 404 Not Found
+WARNING:  WatchFiles detected changes in 'app/tools.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 21:57:24.390 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 21:57:24.391 | INFO     | app.main:lifespan:57 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39164]
+INFO:     Started server process [39883]
+INFO:     Waiting for application startup.
+2026-03-01 21:57:26.135 | INFO     | app.main:lifespan:53 - mcp-service starting up...
+2026-03-01 21:57:26.186 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 21:57:28.585 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 21:57:44.559 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 21:57:44.560 | INFO     | app.main:lifespan:57 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39883]
+INFO:     Started server process [39893]
+INFO:     Waiting for application startup.
+2026-03-01 21:57:46.026 | INFO     | app.main:lifespan:54 - mcp-service starting up...
+2026-03-01 21:57:46.042 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 21:57:49.088 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 21:58:19.607 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 21:58:19.607 | INFO     | app.main:lifespan:58 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39893]
+INFO:     Started server process [39935]
+INFO:     Waiting for application startup.
+2026-03-01 21:58:21.475 | INFO     | app.main:lifespan:54 - mcp-service starting up...
+2026-03-01 21:58:21.505 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 21:58:23.889 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 21:58:58.369 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 21:58:58.369 | INFO     | app.main:lifespan:58 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39935]
+INFO:     Started server process [39942]
+INFO:     Waiting for application startup.
+2026-03-01 21:58:59.691 | INFO     | app.main:lifespan:54 - mcp-service starting up...
+2026-03-01 21:58:59.715 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 21:59:02.178 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/main.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 21:59:24.714 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 21:59:24.714 | INFO     | app.main:lifespan:58 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39942]
+INFO:     Started server process [39947]
+INFO:     Waiting for application startup.
+2026-03-01 21:59:26.973 | INFO     | app.main:lifespan:54 - mcp-service starting up...
+2026-03-01 21:59:26.985 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 21:59:29.239 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+INFO:     127.0.0.1:55266 - "POST /tools/add_subtask HTTP/1.1" 200 OK
+WARNING:  WatchFiles detected changes in 'app/tools_sqlite_backup.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 22:00:59.780 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 22:00:59.780 | INFO     | app.main:lifespan:58 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [39947]
+INFO:     Started server process [40674]
+INFO:     Waiting for application startup.
+2026-03-01 22:01:03.507 | INFO     | app.main:lifespan:54 - mcp-service starting up...
+2026-03-01 22:01:03.531 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 22:01:05.887 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+WARNING:  WatchFiles detected changes in 'app/tools.py'. Reloading...
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 22:03:09.786 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 22:03:09.786 | INFO     | app.main:lifespan:58 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [40674]
+WARNING:  WatchFiles detected changes in 'app/main.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'app/tools.py'. Reloading...
+WARNING:  WatchFiles detected changes in 'app/main.py'. Reloading...
+INFO:     Started server process [40739]
+INFO:     Waiting for application startup.
+2026-03-01 22:03:12.454 | INFO     | app.main:lifespan:53 - mcp-service starting up...
+2026-03-01 22:03:12.471 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 22:03:15.006 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-01 22:03:15.206 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-01 22:03:15.206 | INFO     | app.main:lifespan:57 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [40739]
+INFO:     Started server process [40746]
+INFO:     Waiting for application startup.
+2026-03-01 22:03:16.686 | INFO     | app.main:lifespan:53 - mcp-service starting up...
+2026-03-01 22:03:16.697 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-01 22:03:18.916 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+INFO:     Application startup complete.
+INFO:     127.0.0.1:55878 - "GET /tools HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55890 - "POST /tools/add_subtask HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55896 - "POST /tools/add_subtask HTTP/1.1" 404 Not Found
+INFO:     127.0.0.1:55902 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55937 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55937 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55937 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55937 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55937 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55937 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55941 - "OPTIONS /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55941 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:55943 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56095 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56468 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56468 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56468 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56468 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56468 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56468 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:56468 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:60127 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61567 - "OPTIONS /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61567 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK
+INFO:     127.0.0.1:61584 - "POST /tools/add_checklist_item HTTP/1.1" 200 OK

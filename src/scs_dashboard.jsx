@@ -1271,17 +1271,53 @@ setLoading(false);
 
 function ChecklistPanel({ caseId, highlight, currentUser }) {
   const displayName = currentUser?.name || "You";
-  const [items, setItems] = useState([
-    { id: 1, label: "Outreach attempted",    status: "Not Started", mandatory: true,  parent_id: null },
-    { id: 2, label: "Response received",     status: "Not Started", mandatory: true,  parent_id: null },
-    { id: 3, label: "Follow-up scheduled",   status: "Not Started", mandatory: true,  parent_id: null },
-    { id: 4, label: "Escalation considered", status: "Not Started", mandatory: true,  parent_id: null },
-    { id: 5, label: "Case closed",           status: "Not Started", mandatory: true,  parent_id: null },
-  ]);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState([]);
   const [newItem, setNewItem] = useState("");
   const [newComment, setNewComment] = useState("");
   const [addingItem, setAddingItem] = useState(false);
+
+  // Fetch real checklist data from MongoDB
+  useEffect(() => {
+    if (!caseId) return;
+    
+    const fetchChecklist = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}`, {
+          headers: {
+            "X-User-Id": currentUser?.user_id || currentUser?.id || "admin",
+            "X-User-Role": currentUser?.role || "Admin"
+          }
+        });
+        if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+        const caseData = await res.json();
+        
+        // Transform MongoDB checklist format to UI format
+        const checklistItems = (caseData.checklist || []).map(item => ({
+          id: item.checklist_item_id,
+          label: item.label,
+          status: item.completed ? "Completed" : "Not Started",
+          mandatory: item.is_mandatory,
+          comments: item.comments || []
+        }));
+        
+        setItems(checklistItems);
+      } catch (err) {
+        console.error('Failed to fetch checklist:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchChecklist();
+    
+    // Listen for checklist updates from MCP tool execution
+    const handleChecklistUpdate = () => fetchChecklist();
+    window.addEventListener('checklistUpdate', handleChecklistUpdate);
+    return () => window.removeEventListener('checklistUpdate', handleChecklistUpdate);
+  }, [caseId, currentUser]);
 
   // Status popup state
   const [popup, setPopup] = useState(null); // { item } | null
@@ -1306,7 +1342,7 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
     setPopupComment("");
   };
 
-  const addItem = () => { if (newItem.trim()) { setItems(prev => [...prev, { id: Date.now(), label: newItem.trim(), status: "Not Started", mandatory: false, parent_id: null }]); setNewItem(""); setAddingItem(false); } };
+  const addItem = () => { if (newItem.trim()) { setItems(prev => [...prev, { id: Date.now(), label: newItem.trim(), status: "Not Started", mandatory: false }]); setNewItem(""); setAddingItem(false); } };
   const addComment = () => { if (newComment.trim()) { setComments(prev => [...prev, { id: Date.now(), text: newComment.trim(), time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]); setNewComment(""); } };
 
   const mandatoryDone = items.filter(i => i.mandatory).every(i => i.status === "Completed");
@@ -1378,28 +1414,31 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
           <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{completedCount}/{items.length} complete{mandatoryDone && " · All mandatory done"}</div>
         </div>
 
-        {/* Mandatory items */}
-        <div style={{ padding: "10px 18px 0" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Mandatory Steps</div>
-          {items.filter(i => i.mandatory && !i.parent_id).map(item => renderItem(item, "#6366f1"))}
-        </div>
-
+        {loading ? (
+          <div style={{ padding: "40px 18px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+            <div style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⏳</div>
+            <div style={{ marginTop: 8 }}>Loading checklist...</div>
+          </div>
+        ) : (
+          <>
+            {/* Mandatory items */}
+            <div style={{ padding: "10px 18px 0" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Mandatory Steps</div>
+              {items.filter(i => i.mandatory).length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", padding: "8px 0" }}>No mandatory items yet.</div>}
+              {items.filter(i => i.mandatory).map(item => renderItem(item, "#6366f1"))}
+            </div>
         {/* Custom items */}
         {items.filter(i => !i.mandatory).length > 0 && (
           <div style={{ padding: "10px 18px 0" }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Custom Items</div>
-            {items.filter(i => !i.mandatory && !i.parent_id).map(item => (
-              <div key={item.id}>
-                {renderItem(item, "#8b5cf6")}
-                {items.filter(s => s.parent_id === item.id).map(sub => (
-                  <div key={sub.id} style={{ paddingLeft: 24 }}>{renderItem(sub, "#a78bfa")}</div>
-                ))}
-              </div>
-            ))}
+            {items.filter(i => !i.mandatory).map(item => renderItem(item, "#8b5cf6"))}
           </div>
+        )}
+          </>
         )}
 
         {/* Add custom item */}
+        {!loading && (
         <div style={{ padding: "10px 18px" }}>
           {addingItem ? (
             <div style={{ display: "flex", gap: 6 }}>
@@ -1411,8 +1450,10 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
             <button onClick={() => setAddingItem(true)} style={{ width: "100%", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "7px", cursor: "pointer", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>+ Add custom item</button>
           )}
         </div>
+        )}
 
         {/* Comments */}
+        {!loading && (
         <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 18px", flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}><Icon.MessageCircle size={11} style={{ display: "inline-block", marginRight: 4 }} /> Comments</div>
           <div style={{ maxHeight: 150, overflowY: "auto", marginBottom: 8 }}>
@@ -1429,6 +1470,7 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
             <button onClick={addComment} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}><Icon.Send size={13} /></button>
           </div>
         </div>
+        )}
       </div>
     </>
   );
@@ -1482,6 +1524,8 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
             status: attachedCase.status,
             signals: attachedCase.signals || [],
           } : null,
+          user_id: currentUser.user_id || currentUser.id,
+          execute_tools: false, // Never auto-execute, require approval
           conversation_history: messages.slice(-6).map(m => ({ 
             role: m.role === "user" ? "user" : "assistant", 
             content: m.text 
@@ -1536,7 +1580,7 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
 
   const executeAction = async (action) => {
     const toolMap = {
-      add_checklist_item: "add_subtask",
+      add_checklist_item: "add_checklist_item",
       update_checklist_item_status: "update_checklist_item_status",
       add_case_note: "add_case_note",
       schedule_followup: "schedule_followup",
@@ -1544,7 +1588,7 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
       update_priority: "update_priority",
       request_reassignment: "request_reassignment",
       assign_case: "assign_case",
-      update_checklist: "update_checklist",
+      update_checklist: "update_checklist_item_status",
       add_comment: "add_case_note",
       schedule_review: "schedule_followup",
       query_case_details: "query_case_details",
@@ -1565,8 +1609,8 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
       const data = await res.json();
       
       // Handle UI updates based on action type
-      if (data.success) {
-        if (tool === "update_checklist" || tool === "add_subtask") {
+      if (res.ok && data) {
+        if (tool === "update_checklist_item_status" || tool === "add_checklist_item") {
           // Trigger checklist refresh event
           window.dispatchEvent(new CustomEvent('checklistUpdate', { detail: data }));
         } else if (tool === "schedule_followup") {

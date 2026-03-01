@@ -40,14 +40,10 @@ from .tools import (
     # write
     tool_add_checklist_item,
     tool_update_checklist_item_status,
-    tool_add_subtask,
     tool_add_case_note,
-    tool_schedule_followup,
     tool_update_case_status,
-    tool_update_priority,
     tool_request_reassignment,
-    tool_assign_case,
-    tool_flag_for_escalation,
+    tool_submit_review_request,
 )
 from .audit import audit_log
 
@@ -244,26 +240,16 @@ async def execute_approved_plan(body: ExecutePlanRequest, request: Request):
                 step_result = await tool_add_checklist_item(
                     case_id=args["case_id"],
                     label=args.get("label", ""),
-                    mandatory=args.get("mandatory", False),
-                    sub_items=args.get("sub_items", []),
                     user=user,
+                    is_mandatory=args.get("is_mandatory", False),
                     **write_kwargs,
                 )
             elif tool_name == "update_checklist_item_status":
                 step_result = await tool_update_checklist_item_status(
                     case_id=args["case_id"],
-                    item_id=int(args["item_id"]),
-                    new_status=args.get("new_status", "In Progress"),
+                    checklist_item_id=int(args["checklist_item_id"]),
+                    completed=args.get("completed", True),
                     comment=args.get("comment", "Updated via approved agent plan"),
-                    user=user,
-                    **write_kwargs,
-                )
-            elif tool_name == "add_subtask":
-                step_result = await tool_add_subtask(
-                    case_id=args["case_id"],
-                    parent_id=int(args["parent_id"]),
-                    label=args.get("label", ""),
-                    mandatory=args.get("mandatory", False),
                     user=user,
                     **write_kwargs,
                 )
@@ -275,26 +261,10 @@ async def execute_approved_plan(body: ExecutePlanRequest, request: Request):
                     note_type=args.get("note_type", "general"),
                     **write_kwargs,
                 )
-            elif tool_name == "schedule_followup":
-                step_result = await tool_schedule_followup(
-                    case_id=args["case_id"],
-                    user=user,
-                    note=args.get("note", ""),
-                    scheduled_at=args.get("scheduled_at"),
-                    due_in_hours=args.get("due_in_hours"),
-                    **write_kwargs,
-                )
             elif tool_name == "update_case_status":
                 step_result = await tool_update_case_status(
                     case_id=args["case_id"],
                     status=args["status"],
-                    user=user,
-                    **write_kwargs,
-                )
-            elif tool_name == "update_priority":
-                step_result = await tool_update_priority(
-                    case_id=args["case_id"],
-                    priority=args["priority"],
                     user=user,
                     **write_kwargs,
                 )
@@ -306,18 +276,11 @@ async def execute_approved_plan(body: ExecutePlanRequest, request: Request):
                     requested_to=args.get("requested_to"),
                     **write_kwargs,
                 )
-            elif tool_name == "assign_case":
-                step_result = await tool_assign_case(
+            elif tool_name == "submit_review_request":
+                step_result = await tool_submit_review_request(
                     case_id=args["case_id"],
-                    assigned_to=args["assigned_to"],
-                    user=user,
-                    **write_kwargs,
-                )
-            elif tool_name == "flag_for_escalation":
-                step_result = await tool_flag_for_escalation(
-                    case_id=args["case_id"],
+                    review_type=args.get("review_type", "general"),
                     reason=args.get("reason", ""),
-                    escalation_level=args.get("escalation_level", "internal"),
                     user=user,
                     **write_kwargs,
                 )
@@ -374,8 +337,7 @@ async def execute_approved_plan(body: ExecutePlanRequest, request: Request):
 class AddChecklistItemRequest(BaseModel):
     case_id: str
     label: str
-    mandatory: bool = False
-    sub_items: list = []
+    is_mandatory: bool = False
 
 
 @app.post("/tools/add_checklist_item")
@@ -384,15 +346,15 @@ async def add_checklist_item(body: AddChecklistItemRequest, request: Request):
     req_id = _request_id(request)
     plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
     return await tool_add_checklist_item(
-        body.case_id, body.label, body.mandatory, body.sub_items, user,
+        body.case_id, body.label, user, body.is_mandatory,
         request_id=req_id, approved_plan_hash=plan_hash,
     )
 
 
 class ChecklistStatusRequest(BaseModel):
     case_id: str
-    item_id: int
-    new_status: str
+    checklist_item_id: int
+    completed: bool
     comment: str
 
 
@@ -402,25 +364,7 @@ async def update_checklist_item_status(body: ChecklistStatusRequest, request: Re
     req_id = _request_id(request)
     plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
     return await tool_update_checklist_item_status(
-        body.case_id, body.item_id, body.new_status, body.comment, user,
-        request_id=req_id, approved_plan_hash=plan_hash,
-    )
-
-
-class AddSubtaskRequest(BaseModel):
-    case_id: str
-    parent_id: int
-    label: str
-    mandatory: bool = False
-
-
-@app.post("/tools/add_subtask")
-async def add_subtask(body: AddSubtaskRequest, request: Request):
-    user = _get_user(request)
-    req_id = _request_id(request)
-    plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
-    return await tool_add_subtask(
-        body.case_id, body.parent_id, body.label, body.mandatory, user,
+        body.case_id, body.checklist_item_id, body.completed, body.comment, user,
         request_id=req_id, approved_plan_hash=plan_hash,
     )
 
@@ -442,28 +386,6 @@ async def add_case_note(body: CaseNoteRequest, request: Request):
     )
 
 
-class FollowupRequest(BaseModel):
-    case_id: str
-    scheduled_at: Optional[str] = None
-    due_in_hours: Optional[int] = None
-    note: Optional[str] = ""
-
-
-@app.post("/tools/schedule_followup")
-async def schedule_followup(body: FollowupRequest, request: Request):
-    user = _get_user(request)
-    req_id = _request_id(request)
-    plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
-    return await tool_schedule_followup(
-        body.case_id, user,
-        note=body.note or "",
-        scheduled_at=body.scheduled_at,
-        due_in_hours=body.due_in_hours,
-        request_id=req_id,
-        approved_plan_hash=plan_hash,
-    )
-
-
 class CaseStatusRequest(BaseModel):
     case_id: str
     status: str
@@ -476,22 +398,6 @@ async def update_case_status(body: CaseStatusRequest, request: Request):
     plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
     return await tool_update_case_status(
         body.case_id, body.status, user,
-        request_id=req_id, approved_plan_hash=plan_hash,
-    )
-
-
-class PriorityRequest(BaseModel):
-    case_id: str
-    priority: str
-
-
-@app.post("/tools/update_priority")
-async def update_priority(body: PriorityRequest, request: Request):
-    user = _get_user(request)
-    req_id = _request_id(request)
-    plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
-    return await tool_update_priority(
-        body.case_id, body.priority, user,
         request_id=req_id, approved_plan_hash=plan_hash,
     )
 
@@ -513,37 +419,22 @@ async def request_reassignment(body: ReassignmentRequest, request: Request):
     )
 
 
-class AssignCaseRequest(BaseModel):
+class ReviewRequest(BaseModel):
     case_id: str
-    assigned_to: str
-
-
-@app.post("/tools/assign_case")
-async def assign_case(body: AssignCaseRequest, request: Request):
-    user = _get_user(request)
-    req_id = _request_id(request)
-    plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
-    return await tool_assign_case(
-        body.case_id, body.assigned_to, user,
-        request_id=req_id, approved_plan_hash=plan_hash,
-    )
-
-
-class FlagEscalationRequest(BaseModel):
-    case_id: str
+    review_type: str  # escalation, closure, follow_up, general
     reason: str
-    escalation_level: str = "internal"
 
 
-@app.post("/tools/flag_for_escalation")
-async def flag_for_escalation(body: FlagEscalationRequest, request: Request):
+@app.post("/tools/submit_review_request")
+async def submit_review_request(body: ReviewRequest, request: Request):
     user = _get_user(request)
     req_id = _request_id(request)
     plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
-    return await tool_flag_for_escalation(
-        body.case_id, body.reason, body.escalation_level, user,
+    return await tool_submit_review_request(
+        body.case_id, body.review_type, body.reason, user,
         request_id=req_id, approved_plan_hash=plan_hash,
     )
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -562,26 +453,27 @@ async def get_audit_log(
     require_admin(request)
     db = await get_db()
 
-    query = "SELECT * FROM audit_log WHERE 1=1"
-    params: list = []
+    audit_col = db['mcp_audit_log']
+    
+    # Build MongoDB query
+    query: dict = {}
     if case_id:
-        query += " AND case_id = ?"
-        params.append(case_id)
+        query["case_id"] = case_id
     if tool_name:
-        query += " AND tool_name = ?"
-        params.append(tool_name)
+        query["tool_name"] = tool_name
     if actor_id:
-        query += " AND actor_id = ?"
-        params.append(actor_id)
+        query["actor_id"] = actor_id
     if plan_hash:
-        query += " AND approved_plan_hash = ?"
-        params.append(plan_hash)
-    query += " ORDER BY id DESC LIMIT ?"
-    params.append(limit)
-
-    async with db.execute(query, params) as cur:
-        rows = [dict(r) for r in await cur.fetchall()]
+        query["approved_plan_hash"] = plan_hash
+    
+    # Query with limit
+    cursor = audit_col.find(query).sort("created_at", -1).limit(limit)
+    rows = await cursor.to_list(length=limit)
+    
+    # Parse JSON fields and remove _id
     for r in rows:
+        if "_id" in r:
+            del r["_id"]
         for f in ("payload", "result"):
             if isinstance(r.get(f), str):
                 try:
@@ -599,10 +491,9 @@ async def list_tools():
             "get_case_history", "search_protocol", "get_similar_cases",
         ],
         "write_tools": [
-            "add_checklist_item", "update_checklist_item_status", "add_subtask",
-            "add_case_note", "schedule_followup", "update_case_status",
-            "update_priority", "request_reassignment", "assign_case",
-            "flag_for_escalation",
+            "add_checklist_item", "update_checklist_item_status",
+            "add_case_note", "update_case_status",
+            "request_reassignment", "submit_review_request",
         ],
         "approval_gateway": "/execute-approved-plan",
         "note": "Write tools should only be called via /execute-approved-plan with a plan_hash from chatbot-service.",

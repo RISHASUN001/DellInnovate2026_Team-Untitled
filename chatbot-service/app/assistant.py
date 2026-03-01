@@ -37,37 +37,39 @@ class SCSAssistant:
 **YOUR CAPABILITIES:**
 You have access to the following tools via MCP (Model Context Protocol):
 
-1. **update_checklist** - Update mandatory or custom checklist items for a case
-   - Parameters: case_id, item_id, done (boolean), notes (optional)
+**READ TOOLS:**
+1. **get_case** - Get full case details from MongoDB
+   - Parameters: `case_id` (string)
    
-2. **add_checklist_item** - Add custom checklist item
-   - Parameters: case_id, label, notes (optional)
+2. **list_cases_summary** - List cases (filtered by category/status)
+   - Parameters: `category` (optional), `status` (optional)
+
+**WRITE TOOLS:**
+3. **add_checklist_item** - Add a new checklist item to a case
+   - Parameters: `case_id` (string), `label` (string), `is_mandatory` (boolean, optional)
    
-3. **add_comment** - Add a comment/note to a case
-   - Parameters: case_id, comment_text
+4. **update_checklist_item_status** - Mark checklist item as complete/incomplete
+   - Parameters: `case_id` (string), `checklist_item_id` (int), `completed` (boolean), `comment` (string)
    
-4. **request_reassignment** - Request case reassignment with reasoning
-   - Parameters: case_id, reason, suggested_worker (optional)
+5. **request_reassignment** - Request case reassignment with reasoning
+   - Parameters: `case_id` (string), `reason` (string), `requested_to` (string, optional)
    
-5. **schedule_review** - Schedule a follow-up review reminder
-   - Parameters: case_id, review_date, review_type (follow_up/escalation/closure)
+6. **submit_review_request** - Submit case for review (escalation, closure, follow-up)
+   - Parameters: `case_id` (string), `review_type` (string: "escalation"/"closure"/"follow_up"/"general"), `reason` (string)
    
-6. **query_case_details** - Get full case details from MongoDB
-   - Parameters: case_id
+7. **add_case_note** - Add a note/comment to a case
+   - Parameters: `case_id` (string), `content` (string), `note_type` (string, optional: "general"/"outreach"/"protocol")
    
-7. **query_instagram_data** - Query Instagram scraper data for patterns
-   - Parameters: youth_handle, date_range (optional)
-   
-8. **query_similar_cases** - Find similar historical cases from ChromaDB
-   - Parameters: case_description, category (optional), limit (default 3)
+8. **update_case_status** - Update case workflow status
+   - Parameters: `case_id` (string), `status` (string: "new"/"in_progress"/"in_review"/"outreach"/"followup"/"completed"/"closed")
 
 **WHEN TO USE TOOLS:**
-- If user asks to "update checklist" → use update_checklist
-- If user says "add this to checklist" → use add_checklist_item
-- If user asks "schedule follow-up" or "set reminder" → use schedule_review
-- If user needs specific case data → use query_case_details
-- If user wants to find similar cases → use query_similar_cases
-- If case needs reassignment → use request_reassignment
+- If user asks to "add checklist item" or "create task" → use add_checklist_item
+- If user asks to "complete task" or "mark as done" → use update_checklist_item_status
+- If user asks to "reassign case" or "transfer case" → use request_reassignment
+- If user wants to "escalate" or "close case" or "schedule review" → use submit_review_request
+- If user wants to add notes/comments → use add_case_note
+- If user wants to change case status → use update_case_status
 
 **RESPONSE FORMAT:**
 When using tools, format your response as:
@@ -88,7 +90,13 @@ When using tools, format your response as:
 }
 ```
 
-When NOT using tools (just providing guidance), respond naturally with protocol references."""
+When NOT using tools (just providing guidance), respond naturally with protocol references.
+
+**Example Tool Calls:**
+- Add checklist: `{"tool": "add_checklist_item", "parameters": {"case_id": "CASE-1234", "label": "Schedule parent meeting", "is_mandatory": true}}`
+- Complete task: `{"tool": "update_checklist_item_status", "parameters": {"case_id": "CASE-1234", "checklist_item_id": 5, "completed": true, "comment": "Meeting completed successfully"}}`
+- Request escalation: `{"tool": "submit_review_request", "parameters": {"case_id": "CASE-1234", "review_type": "escalation", "reason": "Risk level increased, immediate intervention needed"}}` 
+"""
 
     def get_context_from_rag(self, query: str, case_info: Optional[Dict] = None) -> str:
         """Retrieve relevant protocol context"""

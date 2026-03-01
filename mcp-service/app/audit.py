@@ -32,26 +32,22 @@ async def audit_log(
     approved_plan_hash: str = "",
 ) -> None:
     db = await get_db()
+    audit_col = db['mcp_audit_log']
+    
     # Truncate large payloads (e.g. outreach message bodies)
     payload_str = json.dumps(payload)
     if len(payload_str) > 500:
         payload_str = payload_str[:497] + "..."
+    
+    await audit_col.insert_one({
+        "tool_name": tool_name,
+        "actor_id": actor_id,
+        "actor_role": actor_role,
+        "payload": payload_str,
+        "result": json.dumps(result),
+        "request_id": request_id,
+        "case_id": case_id,
+        "approved_plan_hash": approved_plan_hash,
+        "created_at": _now_iso(),
+    })
 
-    await db.execute(
-        """INSERT INTO audit_log
-           (tool_name, actor_id, actor_role, payload, result, request_id,
-            case_id, approved_plan_hash, created_at)
-           VALUES (?,?,?,?,?,?,?,?,?)""",
-        (
-            tool_name,
-            actor_id,
-            actor_role,
-            payload_str,
-            json.dumps(result),
-            request_id,
-            case_id,
-            approved_plan_hash,
-            _now_iso(),
-        ),
-    )
-    await db.commit()

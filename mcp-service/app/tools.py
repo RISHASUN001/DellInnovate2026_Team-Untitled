@@ -1,84 +1,93 @@
 """
-MCP Tool Definitions.
-
-READ TOOLS  (no DB writes, no approval needed):
-  get_case, list_cases_summary, list_assigned_cases,
-  get_case_history, search_protocol, get_similar_cases
-
-WRITE TOOLS (approval-gated — called only via /execute-approved-plan):
-  add_checklist_item, update_checklist_item_status, add_subtask,
-  add_case_note, schedule_followup, update_case_status,
-  update_priority, request_reassignment, assign_case,
-  flag_for_escalation
-
-Every tool:
-  - validates role + assignment
-  - calls the SQLite DB directly (LLM never accesses DB)
-  - logs via audit_log with request_id, case_id, approved_plan_hash
+MCP Tools for SCS Case Management - MongoDB Version
+Provides tools for reading and writing case data with MongoDB backend.
 """
-import json
 import httpx
+import json
 from datetime import datetime, timezone, timedelta
-from typing import Any, Optional
-
+from typing import Optional
 from fastapi import HTTPException
-
-from .database import get_db
-from .audit import audit_log
+from .database import get_db, get_next_id, serialize_doc
 from .auth import AuthUser
 from .config import settings
 
 
 def _now_iso() -> str:
+    """Return current time as ISO 8601 string"""
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _hours_from_now_iso(hours: int) -> str:
+    """Return time N hours from now as ISO 8601 string"""
     return (datetime.now(timezone.utc) + timedelta(hours=hours)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-async def _row_to_dict_json(row) -> dict:
-    d = dict(row)
-    for field in ("explanation_signals", "explanation_snapshot", "frequency_metrics"):
-        if field in d and isinstance(d[field], str):
-            try:
-                d[field] = json.loads(d[field])
-            except Exception:
-                pass
-    return d
+async def audit_log(
+    tool_name: str,
+    actor_id: str,
+    actor_role: str,
+    payload: dict,
+    result: dict,
+    *,
+    request_id: str = "",
+    case_id: str = "",
+    approved_plan_hash: str = "",
+):
+    """Log tool usage in MongoDB audit collection"""
+    db = await get_db()
+    audit_col = db['mcp_audit_log']
+    
+    await audit_col.insert_one({
+        "tool_name": tool_name,
+        "actor_id": actor_id,
+        "actor_role": actor_role,
+        "payload": json.dumps(payload),
+        "result": json.dumps(result),
+        "request_id": request_id,
+        "case_id": case_id,
+        "approved_plan_hash": approved_plan_hash,
+        "created_at": _now_iso(),
+    })
 
 
-async def _assert_case_write_access(db, case_id: str, user: AuthUser) -> dict:
-    """Returns case row; raises 403/404 if not allowed."""
-    async with db.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)) as cur:
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(404, f"Case {case_id} not found")
-    case = dict(row)
+async def _assert_case_write_access(db, case_id: str, user: AuthUser):
+    """Validate user can write to this case"""
+    cases_col = db['scs_cases']
+    case = await cases_col.find_one({"case_id": case_id})
+    
+    if not case:
+        raise HTTPException(404, "Case not found")
     if user.is_helper and case.get("assigned_to") != user.user_id:
-        raise HTTPException(403, "You can only modify your assigned cases")
-    return case
+        raise HTTPException(403, "Not your assigned case")
 
 
-# ─── READ TOOLS ──────────────────────────────────────────────────────────────
+# ─── READ TOOLS (No approval needed) ─────────────────────────────────────────
 
 async def tool_get_case(case_id: str, user: AuthUser) -> dict:
+    """Get full case details including checklist and history"""
     db = await get_db()
-    async with db.execute("SELECT * FROM cases WHERE case_id = ?", (case_id,)) as cur:
-        row = await cur.fetchone()
-    if not row:
+    cases_col = db['scs_cases']
+    
+    case = await cases_col.find_one({"case_id": case_id})
+    if not case:
         raise HTTPException(404, "Case not found")
-    case = await _row_to_dict_json(row)
-
+    
     if user.is_helper and case.get("assigned_to") != user.user_id:
-        allowed = {"case_id", "user_id", "assigned_to", "risk_score", "category",
-                   "status", "priority", "created_at", "last_signal_at"}
-        case = {k: v for k, v in case.items() if k in allowed}
-
-    await audit_log("get_case", user.user_id, user.role,
-                    {"case_id": case_id}, {"found": True},
-                    case_id=case_id)
-    return case
+        raise HTTPException(403, "Not your assigned case")
+    
+    # Get checklist items
+    checklist_col = db['scs_checklist']
+    checklist_items = await checklist_col.find({"case_id": case_id}).sort("display_order", 1).to_list(length=None)
+    
+    case_data = serialize_doc(case)
+    case_data["checklist"] = [serialize_doc(item) for item in checklist_items]
+    
+    await audit_log(
+        "get_case", user.user_id, user.role,
+        {"case_id": case_id}, {"found": True},
+        case_id=case_id
+    )
+    return case_data
 
 
 async def tool_list_cases_summary(
@@ -86,60 +95,58 @@ async def tool_list_cases_summary(
     category: Optional[str] = None,
     status: Optional[str] = None,
 ) -> list[dict]:
+    """List cases (admins see all, helpers see only assigned)"""
     db = await get_db()
-    query = """
-        SELECT case_id, user_id, assigned_to, risk_score, category,
-               status, priority, needs_review, created_at, last_signal_at
-        FROM cases WHERE 1=1
-    """
-    params = []
+    cases_col = db['scs_cases']
+    
+    query = {}
+    if user.is_helper:
+        query["assigned_to"] = user.user_id
     if category:
-        query += " AND category = ?"
-        params.append(category)
+        query["current_category"] = category
     if status:
-        query += " AND status = ?"
-        params.append(status)
-    query += " ORDER BY risk_score DESC, created_at DESC"
-
-    async with db.execute(query, params) as cur:
-        rows = [dict(r) for r in await cur.fetchall()]
-
+        query["status"] = status
+    
+    cases = await cases_col.find(query).sort([
+        ("current_risk_score", -1),
+        ("created_at", -1)
+    ]).to_list(length=None)
+    
+    result = [serialize_doc(case) for case in cases]
     await audit_log(
         "list_cases_summary", user.user_id, user.role,
-        {"category": category, "status": status}, {"count": len(rows)}
+        {"category": category, "status": status}, {"count": len(result)}
     )
-    return rows
+    return result
 
 
 async def tool_list_assigned_cases(user: AuthUser) -> list[dict]:
+    """Get all cases assigned to the user"""
     db = await get_db()
-    async with db.execute(
-        """SELECT case_id, user_id, assigned_to, risk_score, category,
-                  explanation_signals, status, priority, needs_review,
-                  created_at, last_signal_at
-           FROM cases WHERE assigned_to = ? ORDER BY risk_score DESC""",
-        (user.user_id,),
-    ) as cur:
-        rows = await cur.fetchall()
-    result = [await _row_to_dict_json(r) for r in rows]
+    cases_col = db['scs_cases']
+    
+    cases = await cases_col.find({"assigned_to": user.user_id}).sort("current_risk_score", -1).to_list(length=None)
+    
+    result = [serialize_doc(case) for case in cases]
     await audit_log("list_assigned_cases", user.user_id, user.role, {}, {"count": len(result)})
     return result
 
 
 async def tool_get_case_history(case_id: str, user: AuthUser) -> list[dict]:
+    """Get case risk score history"""
     db = await get_db()
-    async with db.execute("SELECT assigned_to FROM cases WHERE case_id = ?", (case_id,)) as cur:
-        row = await cur.fetchone()
-    if not row:
+    cases_col = db['scs_cases']
+    
+    case = await cases_col.find_one({"case_id": case_id})
+    if not case:
         raise HTTPException(404, "Case not found")
-    if user.is_helper and row["assigned_to"] != user.user_id:
+    if user.is_helper and case.get("assigned_to") != user.user_id:
         raise HTTPException(403, "Not your assigned case")
-
-    async with db.execute(
-        "SELECT * FROM case_history WHERE case_id = ? ORDER BY timestamp ASC", (case_id,)
-    ) as cur:
-        rows = await cur.fetchall()
-    result = [await _row_to_dict_json(r) for r in rows]
+    
+    history_col = db['scs_case_history']
+    history = await history_col.find({"case_id": case_id}).sort("timestamp", 1).to_list(length=None)
+    
+    result = [serialize_doc(h) for h in history]
     await audit_log("get_case_history", user.user_id, user.role,
                     {"case_id": case_id}, {"rows": len(result)},
                     case_id=case_id)
@@ -147,24 +154,24 @@ async def tool_get_case_history(case_id: str, user: AuthUser) -> list[dict]:
 
 
 async def tool_search_protocol(query: str, user: AuthUser) -> dict:
-    """Delegates to chatbot-service RAG search."""
+    """Delegates to chatbot-service RAG search"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(
                 f"{settings.chatbot_service_url}/chat",
-                json={"messages": [{"role": "user", "content": f"Protocol search: {query}"}]},
+                json={"message": f"Protocol search: {query}"},
                 headers={"X-User-Id": user.user_id, "X-User-Role": user.role},
             )
         result = resp.json()
     except Exception as e:
-        result = {"response_text": f"Protocol search unavailable: {e}", "proposed_actions": []}
-
+        result = {"response": f"Protocol search unavailable: {e}", "tool_calls": []}
+    
     await audit_log("search_protocol", user.user_id, user.role, {"query": query}, {"found": True})
     return result
 
 
 async def tool_get_similar_cases(case_id: str, user: AuthUser, top_k: int = 5) -> dict:
-    """Delegates to chatbot-service similarity endpoint."""
+    """Delegates to chatbot-service similarity endpoint"""
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(
@@ -174,57 +181,61 @@ async def tool_get_similar_cases(case_id: str, user: AuthUser, top_k: int = 5) -
         result = resp.json()
     except Exception as e:
         result = {"case_id": case_id, "similar_cases": [], "error": str(e)}
-
+    
     await audit_log("get_similar_cases", user.user_id, user.role,
                     {"case_id": case_id}, result,
                     case_id=case_id)
     return result
 
 
-# ─── WRITE TOOLS ─────────────────────────────────────────────────────────────
+# ─── WRITE TOOLS (Approval-gated) ────────────────────────────────────────────
 
 async def tool_add_checklist_item(
     case_id: str,
     label: str,
-    mandatory: bool,
-    sub_items: list[str],
     user: AuthUser,
+    is_mandatory: bool = False,
     *,
     request_id: str = "",
     approved_plan_hash: str = "",
 ) -> dict:
-    """Add a top-level checklist item, optionally with child sub-items."""
-    db = await get_db()
+    """Add a new checklist item to a case"""
+    db = await get_db() 
     await _assert_case_write_access(db, case_id, user)
-
-    await db.execute(
-        "INSERT INTO checklist_items (case_id, parent_id, label, status, mandatory, created_by, created_at) VALUES (?,?,?,?,?,?,?)",
-        (case_id, None, label, "Not Started", 1 if mandatory else 0, "agent", _now_iso()),
+    
+    checklist_col = db['scs_checklist']
+    
+    # Get next checklist_item_id
+    new_id = await get_next_id('scs_checklist', 'checklist_item_id')
+    
+    # Get max display_order for this case
+    max_order_doc = await checklist_col.find_one(
+        {"case_id": case_id},
+        sort=[("display_order", -1)]
     )
-    await db.commit()
-    async with db.execute(
-        "SELECT id FROM checklist_items WHERE case_id = ? AND parent_id IS NULL ORDER BY id DESC LIMIT 1",
-        (case_id,),
-    ) as cur:
-        parent_id = (await cur.fetchone())["id"]
-
-    sub_ids = []
-    for sub_label in sub_items:
-        await db.execute(
-            "INSERT INTO checklist_items (case_id, parent_id, label, status, mandatory, created_by, created_at) VALUES (?,?,?,?,?,?,?)",
-            (case_id, parent_id, sub_label, "Not Started", 0, "agent", _now_iso()),
-        )
-        await db.commit()
-        async with db.execute(
-            "SELECT id FROM checklist_items WHERE case_id = ? AND parent_id = ? ORDER BY id DESC LIMIT 1",
-            (case_id, parent_id),
-        ) as cur:
-            sub_ids.append((await cur.fetchone())["id"])
-
-    result = {"item_id": parent_id, "sub_item_ids": sub_ids, "label": label}
+    display_order = (max_order_doc.get("display_order", 0) + 1) if max_order_doc else 1
+    
+    checklist_item = {
+        "checklist_item_id": new_id,
+        "case_id": case_id,
+        "template_id": None,  # Custom item, not from template
+        "label": label,
+        "is_mandatory": is_mandatory,
+        "completed": False,
+        "comments": [],
+        "completed_at": None,
+        "completed_by": None,
+        "display_order": display_order,
+        "created_at": datetime.now(timezone.utc),
+        "created_by": "agent"
+    }
+    
+    await checklist_col.insert_one(checklist_item)
+    
+    result = {"checklist_item_id": new_id, "label": label, "case_id": case_id}
     await audit_log(
         "add_checklist_item", user.user_id, user.role,
-        {"case_id": case_id, "label": label, "sub_items": sub_items},
+        {"case_id": case_id, "label": label, "is_mandatory": is_mandatory},
         result,
         request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
     )
@@ -233,197 +244,54 @@ async def tool_add_checklist_item(
 
 async def tool_update_checklist_item_status(
     case_id: str,
-    item_id: int,
-    new_status: str,
+    checklist_item_id: int,
+    completed: bool,
     comment: str,
     user: AuthUser,
     *,
     request_id: str = "",
     approved_plan_hash: str = "",
 ) -> dict:
-    valid = {"Not Started", "In Progress", "Completed", "Needs Review"}
-    if new_status not in valid:
-        raise HTTPException(400, f"status must be one of {valid}")
+    """Update checklist item completion status"""
     if not comment:
         raise HTTPException(400, "comment required for status change")
-
+    
     db = await get_db()
     await _assert_case_write_access(db, case_id, user)
-
-    async with db.execute(
-        "SELECT id FROM checklist_items WHERE id = ? AND case_id = ?", (item_id, case_id)
-    ) as cur:
-        if not await cur.fetchone():
-            raise HTTPException(404, "Checklist item not found")
-
-    await db.execute("UPDATE checklist_items SET status = ? WHERE id = ?", (new_status, item_id))
-    await db.execute(
-        "INSERT INTO case_notes (case_id, checklist_item_id, author_id, content, created_at) VALUES (?,?,?,?,?)",
-        (case_id, item_id, user.user_id, comment, _now_iso()),
+    
+    checklist_col = db['scs_checklist']
+    
+    # Verify item exists
+    item = await checklist_col.find_one({"checklist_item_id": checklist_item_id, "case_id": case_id})
+    if not item:
+        raise HTTPException(404, "Checklist item not found")
+    
+    # Update item
+    update_data = {
+        "completed": completed,
+        "completed_at": datetime.now(timezone.utc) if completed else None,
+        "completed_by": user.user_id if completed else None
+    }
+    
+    # Add comment
+    await checklist_col.update_one(
+        {"checklist_item_id": checklist_item_id},
+        {
+            "$set": update_data,
+            "$push": {
+                "comments": {
+                    "author_id": user.user_id,
+                    "content": comment,
+                    "created_at": _now_iso()
+                }
+            }
+        }
     )
-
-    if new_status == "Needs Review":
-        await db.execute("UPDATE cases SET needs_review = 1 WHERE case_id = ?", (case_id,))
-    else:
-        async with db.execute(
-            "SELECT COUNT(*) FROM checklist_items WHERE case_id = ? AND status = 'Needs Review'", (case_id,)
-        ) as cur:
-            nr = (await cur.fetchone())[0]
-        if nr == 0:
-            await db.execute("UPDATE cases SET needs_review = 0 WHERE case_id = ?", (case_id,))
-
-    await db.commit()
-    result = {"item_id": item_id, "status": new_status, "comment_saved": True}
+    
+    result = {"checklist_item_id": checklist_item_id, "completed": completed, "comment_saved": True}
     await audit_log(
         "update_checklist_item_status", user.user_id, user.role,
-        {"case_id": case_id, "item_id": item_id, "new_status": new_status, "comment": comment[:80]},
-        result,
-        request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
-    )
-    return result
-
-
-async def tool_add_subtask(
-    case_id: str,
-    parent_id: int,
-    label: str,
-    mandatory: bool,
-    user: AuthUser,
-    *,
-    request_id: str = "",
-    approved_plan_hash: str = "",
-) -> dict:
-    db = await get_db()
-    await _assert_case_write_access(db, case_id, user)
-
-    await db.execute(
-        "INSERT INTO checklist_items (case_id, parent_id, label, status, mandatory, created_by, created_at) VALUES (?,?,?,?,?,?,?)",
-        (case_id, parent_id, label, "Not Started", 1 if mandatory else 0, "agent", _now_iso()),
-    )
-    await db.commit()
-    async with db.execute(
-        "SELECT id FROM checklist_items WHERE case_id = ? ORDER BY id DESC LIMIT 1", (case_id,)
-    ) as cur:
-        new_id = (await cur.fetchone())["id"]
-
-    result = {"item_id": new_id, "parent_id": parent_id, "label": label}
-    await audit_log(
-        "add_subtask", user.user_id, user.role,
-        {"case_id": case_id, "parent_id": parent_id, "label": label},
-        result,
-        request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
-    )
-    return result
-
-
-async def tool_add_case_note(
-    case_id: str,
-    content: str,
-    user: AuthUser,
-    note_type: str = "general",
-    *,
-    request_id: str = "",
-    approved_plan_hash: str = "",
-) -> dict:
-    db = await get_db()
-    await _assert_case_write_access(db, case_id, user)
-
-    tagged_content = f"[{note_type.upper()}] {content}" if note_type != "general" else content
-    await db.execute(
-        "INSERT INTO case_notes (case_id, checklist_item_id, author_id, content, created_at) VALUES (?,?,?,?,?)",
-        (case_id, None, user.user_id, tagged_content, _now_iso()),
-    )
-    await db.commit()
-    result = {"case_id": case_id, "note_type": note_type, "saved": True}
-    await audit_log(
-        "add_case_note", user.user_id, user.role,
-        {"case_id": case_id, "note_type": note_type, "content_len": len(content)},
-        result,
-        request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
-    )
-    return result
-
-
-async def tool_schedule_followup(
-    case_id: str,
-    user: AuthUser,
-    note: str = "",
-    scheduled_at: Optional[str] = None,
-    due_in_hours: Optional[int] = None,
-    *,
-    request_id: str = "",
-    approved_plan_hash: str = "",
-) -> dict:
-    """Accepts either a scheduled_at ISO timestamp or due_in_hours (relative)."""
-    db = await get_db()
-    await _assert_case_write_access(db, case_id, user)
-
-    if not scheduled_at:
-        hours = due_in_hours or 24
-        scheduled_at = _hours_from_now_iso(hours)
-
-    await db.execute(
-        "INSERT INTO followups (case_id, scheduled_at, note, created_by, completed, created_at) VALUES (?,?,?,?,?,?)",
-        (case_id, scheduled_at, note, user.user_id, 0, _now_iso()),
-    )
-    await db.commit()
-    result = {"case_id": case_id, "scheduled_at": scheduled_at}
-    await audit_log(
-        "schedule_followup", user.user_id, user.role,
-        {"case_id": case_id, "scheduled_at": scheduled_at},
-        result,
-        request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
-    )
-    return result
-
-
-async def tool_update_case_status(
-    case_id: str,
-    status: str,
-    user: AuthUser,
-    *,
-    request_id: str = "",
-    approved_plan_hash: str = "",
-) -> dict:
-    valid = {"new", "in_progress", "in_review", "outreach", "followup", "completed", "closed"}
-    if status not in valid:
-        raise HTTPException(400, f"Invalid status: {status}")
-
-    db = await get_db()
-    await _assert_case_write_access(db, case_id, user)
-
-    await db.execute("UPDATE cases SET status = ? WHERE case_id = ?", (status, case_id))
-    await db.commit()
-    result = {"case_id": case_id, "status": status}
-    await audit_log(
-        "update_case_status", user.user_id, user.role,
-        {"case_id": case_id, "status": status},
-        result,
-        request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
-    )
-    return result
-
-
-async def tool_update_priority(
-    case_id: str,
-    priority: str,
-    user: AuthUser,
-    *,
-    request_id: str = "",
-    approved_plan_hash: str = "",
-) -> dict:
-    if priority not in {"low", "medium", "high", "critical"}:
-        raise HTTPException(400, "Invalid priority")
-    if not user.is_admin:
-        raise HTTPException(403, "Admin only")
-
-    db = await get_db()
-    await db.execute("UPDATE cases SET priority = ? WHERE case_id = ?", (priority, case_id))
-    await db.commit()
-    result = {"case_id": case_id, "priority": priority}
-    await audit_log(
-        "update_priority", user.user_id, user.role,
-        {"case_id": case_id, "priority": priority},
+        {"case_id": case_id, "checklist_item_id": checklist_item_id, "completed": completed, "comment": comment[:80]},
         result,
         request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
     )
@@ -439,20 +307,36 @@ async def tool_request_reassignment(
     request_id: str = "",
     approved_plan_hash: str = "",
 ) -> dict:
+    """Submit a case reassignment request"""
     db = await get_db()
-    async with db.execute("SELECT assigned_to FROM cases WHERE case_id = ?", (case_id,)) as cur:
-        row = await cur.fetchone()
-    if not row:
+    cases_col = db['scs_cases']
+    
+    case = await cases_col.find_one({"case_id": case_id})
+    if not case:
         raise HTTPException(404, "Case not found")
-    if user.is_helper and row["assigned_to"] != user.user_id:
+    if user.is_helper and case.get("assigned_to") != user.user_id:
         raise HTTPException(403, "Not your case")
-
-    await db.execute(
-        "INSERT INTO reassignment_requests (case_id, requested_by, requested_to, reason, status, created_at) VALUES (?,?,?,?,?,?)",
-        (case_id, user.user_id, requested_to, reason, "pending", _now_iso()),
-    )
-    await db.commit()
-    result = {"case_id": case_id, "status": "pending"}
+    
+    reassign_col = db['scs_reassignment_requests']
+    
+    # Get next request ID
+    req_id = await get_next_id('scs_reassignment_requests', 'request_id')
+    
+    reassignment_request = {
+        "request_id": req_id,
+        "case_id": case_id,
+        "requested_by": user.user_id,
+        "requested_to": requested_to,
+        "reason": reason,
+        "status": "pending",
+        "reviewed_by": None,
+        "reviewed_at": None,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await reassign_col.insert_one(reassignment_request)
+    
+    result = {"request_id": req_id, "case_id": case_id, "status": "pending"}
     await audit_log(
         "request_reassignment", user.user_id, user.role,
         {"case_id": case_id, "reason": reason[:100], "requested_to": requested_to},
@@ -462,78 +346,127 @@ async def tool_request_reassignment(
     return result
 
 
-async def tool_assign_case(
+async def tool_submit_review_request(
     case_id: str,
-    assigned_to: str,
+    review_type: str,
+    reason: str,
     user: AuthUser,
     *,
     request_id: str = "",
     approved_plan_hash: str = "",
 ) -> dict:
-    if not user.is_admin:
-        raise HTTPException(403, "Admin only")
-
+    """Submit a case for review (escalation, closure, etc.)"""
+    valid_types = {"escalation", "closure", "follow_up", "general"}
+    if review_type not in valid_types:
+        raise HTTPException(400, f"review_type must be one of {valid_types}")
+    
     db = await get_db()
-    async with db.execute("SELECT case_id FROM cases WHERE case_id = ?", (case_id,)) as cur:
-        if not await cur.fetchone():
-            raise HTTPException(404, "Case not found")
-
-    await db.execute("UPDATE cases SET assigned_to = ? WHERE case_id = ?", (assigned_to, case_id))
-    await db.commit()
-    result = {"case_id": case_id, "assigned_to": assigned_to}
+    await _assert_case_write_access(db, case_id, user)
+    
+    review_col = db['scs_review_requests']
+    
+    # Get next review request ID
+    req_id = await get_next_id('scs_review_requests', 'request_id')
+    
+    review_request = {
+        "request_id": req_id,
+        "case_id": case_id,
+        "requested_by": user.user_id,
+        "review_type": review_type,
+        "reason": reason,
+        "status": "pending",
+        "reviewed_by": None,
+        "reviewed_at": None,
+        "resolution": None,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await review_col.insert_one(review_request)
+    
+    # Update case status to indicate review needed
+    cases_col = db['scs_cases']
+    await cases_col.update_one(
+        {"case_id": case_id},
+        {"$set": {"status": "in_review", "updated_at": datetime.now(timezone.utc)}}
+    )
+    
+    result = {"request_id": req_id, "case_id": case_id, "review_type": review_type, "status": "pending"}
     await audit_log(
-        "assign_case", user.user_id, user.role,
-        {"case_id": case_id, "assigned_to": assigned_to},
+        "submit_review_request", user.user_id, user.role,
+        {"case_id": case_id, "review_type": review_type, "reason": reason[:100]},
         result,
         request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
     )
     return result
 
 
-async def tool_flag_for_escalation(
+async def tool_add_case_note(
     case_id: str,
-    reason: str,
-    escalation_level: str,
+    content: str,
+    user: AuthUser,
+    note_type: str = "general",
+    *,
+    request_id: str = "",
+    approved_plan_hash: str = "",
+) -> dict:
+    """Add a note to a case"""
+    db = await get_db()
+    await _assert_case_write_access(db, case_id, user)
+    
+    cases_col = db['scs_cases']
+    tagged_content = f"[{note_type.upper()}] {content}" if note_type != "general" else content
+    
+    await cases_col.update_one(
+        {"case_id": case_id},
+        {
+            "$push": {
+                "notes": {
+                    "author_id": user.user_id,
+                    "content": tagged_content,
+                    "note_type": note_type,
+                    "created_at": _now_iso()
+                }
+            },
+            "$set": {"updated_at": datetime.now(timezone.utc)}
+        }
+    )
+    
+    result = {"case_id": case_id, "note_type": note_type, "saved": True}
+    await audit_log(
+        "add_case_note", user.user_id, user.role,
+        {"case_id": case_id, "note_type": note_type, "content_len": len(content)},
+        result,
+        request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
+    )
+    return result
+
+
+async def tool_update_case_status(
+    case_id: str,
+    status: str,
     user: AuthUser,
     *,
     request_id: str = "",
     approved_plan_hash: str = "",
 ) -> dict:
-    """
-    Flags a case for escalation:
-      - Updates case status to 'in_review' (or 'escalated' for mandatory_reporting)
-      - Adds an escalation case note
-      - Marks needs_review = 1
-    """
-    valid_levels = {"internal", "external", "mandatory_reporting"}
-    if escalation_level not in valid_levels:
-        raise HTTPException(400, f"escalation_level must be one of {valid_levels}")
-
+    """Update case status"""
+    valid = {"new", "in_progress", "in_review", "outreach", "followup", "completed", "closed"}
+    if status not in valid:
+        raise HTTPException(400, f"Invalid status: {status}")
+    
     db = await get_db()
     await _assert_case_write_access(db, case_id, user)
-
-    new_status = "in_review" if escalation_level == "internal" else "in_review"
-    await db.execute(
-        "UPDATE cases SET status = ?, needs_review = 1 WHERE case_id = ?",
-        (new_status, case_id),
+    
+    cases_col = db['scs_cases']
+    await cases_col.update_one(
+        {"case_id": case_id},
+        {"$set": {"status": status, "updated_at": datetime.now(timezone.utc)}}
     )
-    note_content = (
-        f"[ESCALATION — {escalation_level.upper()}] {reason}"
-    )
-    await db.execute(
-        "INSERT INTO case_notes (case_id, checklist_item_id, author_id, content, created_at) VALUES (?,?,?,?,?)",
-        (case_id, None, user.user_id, note_content, _now_iso()),
-    )
-    await db.commit()
-    result = {
-        "case_id": case_id,
-        "escalation_level": escalation_level,
-        "status": new_status,
-        "note_saved": True,
-    }
+    
+    result = {"case_id": case_id, "status": status}
     await audit_log(
-        "flag_for_escalation", user.user_id, user.role,
-        {"case_id": case_id, "reason": reason[:120], "escalation_level": escalation_level},
+        "update_case_status", user.user_id, user.role,
+        {"case_id": case_id, "status": status},
         result,
         request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
     )
