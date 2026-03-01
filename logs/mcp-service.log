@@ -1,8 +1,8 @@
 INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/mcp-service']
 INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
-INFO:     Started reloader process [26291] using WatchFiles
-INFO:     Started server process [26375]
+INFO:     Started reloader process [16490] using WatchFiles
+INFO:     Started server process [16495]
 INFO:     Waiting for application startup.
-2026-02-28 01:37:20.185 | INFO     | app.main:lifespan:40 - mcp-service starting up...
+2026-03-01 01:56:37.229 | INFO     | app.main:lifespan:57 - mcp-service starting up...
 INFO:     Application startup complete.
-INFO:     127.0.0.1:57027 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:57333 - "GET /health HTTP/1.1" 200 OK

@@ -1,303 +1,137 @@
-"""
-Single orchestrator assistant.
-Combines advisory (RAG-backed guidance) and agentic (action proposals) in one.
-Returns both a response text AND a list of proposed_actions that the UI can
-Approve / Edit / Regenerate / Cancel before anything is executed.
-"""
-import json
-from typing import Optional
-from loguru import logger
-from openai import AsyncOpenAI
-
+import os
+from typing import List, Dict, Optional
+from openai import OpenAI
+from .rag import RAGSystem
 from .config import settings
-from .rag import search_protocols, search_templates, search_case_studies
-from .similarity import get_similar_cases
 
-_openai_client: Optional[AsyncOpenAI] = None
-
-SYSTEM_PROMPT = """You are the SCS Youth Case Management Assistant, embedded in the Singapore Children's Society YOUTHHCARE dashboard.
-
-You serve two roles simultaneously:
-1. ADVISORY: Provide trauma-informed, protocol-compliant guidance to Youth Helpers and Admins based on SCS protocols, outreach templates, and case studies.
-2. AGENTIC: Propose structured actions that the user must explicitly approve before they are executed. You NEVER execute actions yourself — you only propose them.
-
-CRITICAL RULES:
-- You are advising trained case workers, not youth themselves.
-- Always cite whether your advice comes from SCS protocols, outreach templates, or case studies.
-- Use professional, clear language. No emojis unless illustrating a template.
-- Never access or mention raw social media content (only AI-generated risk signals are available).
-- All proposed actions go through explicit human approval — explicitly state this.
-- If you propose an action, include it in the `proposed_actions` JSON at the end of your response.
-
-PROPOSED ACTIONS FORMAT:
-At the end of your response, include a JSON block (and ONLY this JSON, no surrounding text after it):
-<ACTIONS>
-[
-  {
-    "action_type": "add_checklist_item | update_checklist_item_status | add_case_note | schedule_followup | update_case_status | update_priority | request_reassignment | assign_case",
-    "description": "One-sentence human-readable description of what this action will do",
-    "payload": { ... action-specific fields ... }
-  }
-]
-</ACTIONS>
-
-If no actions are proposed, end with: <ACTIONS>[]</ACTIONS>
-
-CONTEXT AVAILABLE:
-- Relevant protocol excerpts will be provided in [PROTOCOLS]
-- Relevant outreach templates will be provided in [TEMPLATES]
-- Relevant case study excerpts will be provided in [CASE STUDIES]
-- Similar cases will be provided in [SIMILAR CASES] if available
-- The current case context (if attached) will be in [CASE CONTEXT]
-"""
-
-
-def _build_context_block(
-    query: str,
-    category: Optional[str],
-    case_context: Optional[dict],
-    similar_cases: list[dict],
-) -> str:
-    blocks = []
-
-    # RAG retrieval
-    protocol_chunks = search_protocols(query, n_results=3)
-    template_chunks = search_templates(query, n_results=2)
-    study_chunks = search_case_studies(query, n_results=2)
-
-    if protocol_chunks:
-        blocks.append("[PROTOCOLS]\n" + "\n---\n".join(protocol_chunks))
-    if template_chunks:
-        blocks.append("[TEMPLATES]\n" + "\n---\n".join(template_chunks))
-    if study_chunks:
-        blocks.append("[CASE STUDIES]\n" + "\n---\n".join(study_chunks))
-
-    if case_context:
-        signals = case_context.get("explanation_signals", {})
-        if isinstance(signals, str):
-            try:
-                signals = json.loads(signals)
-            except Exception:
-                signals = {}
-        blocks.append(
-            f"[CASE CONTEXT]\n"
-            f"Case ID: {case_context.get('case_id')}\n"
-            f"Category: {case_context.get('category')}\n"
-            f"Risk Score: {case_context.get('risk_score')}/5 ({case_context.get('priority', 'medium')} priority)\n"
-            f"Status: {case_context.get('status')}\n"
-            f"Assigned To: {case_context.get('assigned_to', 'unassigned')}\n"
-            f"Risk Summary: {signals.get('risk_summary', 'N/A')}\n"
-            f"Risk Indicators: {json.dumps(signals.get('risk_indicators', []))}\n"
-            f"Last Signal: {case_context.get('created_at')}\n"
-            f"Prior Signal: {case_context.get('last_signal_at', 'N/A')}"
+class SCSAssistant:
+    def __init__(self):
+        # Use OpenRouter with OpenAI-compatible client
+        self.client = OpenAI(
+            api_key=settings.openrouter_api_key,
+            base_url=settings.openrouter_base_url
         )
+        self.model = settings.openrouter_model
+        self.rag = RAGSystem(docs_path=settings.docs_dir, chroma_path=settings.chroma_persist_dir)
+        
+        # Ingest documents on initialization
+        print("Initializing SCS Assistant with RAG...")
+        self.rag.ingest_documents()
+        print("✓ SCS Assistant ready!")
+        
+        self.system_prompt = """You are the SCS (Singapore Children's Society) Recommendation Assistant, a specialized AI helper for youth social workers.
 
-    if similar_cases:
-        sim_text = "\n".join(
-            f"- {s['case_id']} | Cat: {s['category']} | Risk: {s['risk_score']}/5 | "
-            f"Escalated: {'Yes' if s['escalation_flag'] else 'No'} | Sim: {s['similarity_score']:.2f}"
-            for s in similar_cases
-        )
-        blocks.append(f"[SIMILAR CASES (top {len(similar_cases)})\n{sim_text}")
+**YOUR ROLE:**
+- Provide guidance based on official SCS protocols and best practices
+- Help workers make informed decisions about youth cases
+- Suggest appropriate interventions, outreach strategies, and escalation pathways
+- Maintain a trauma-informed, youth-centered approach
 
-    return "\n\n".join(blocks)
+**IMPORTANT PRINCIPLES:**
+1. You provide guidance and recommendations - the human worker makes all final decisions
+2. Always prioritize youth safety and wellbeing
+3. Maintain confidentiality and privacy protocols
+4. Use trauma-informed language and approaches
+5. Reference specific SCS protocols when relevant
 
+**YOUR CAPABILITIES:**
+You have access to the following tools via MCP (Model Context Protocol):
 
-def _parse_actions(text: str) -> tuple[str, list[dict]]:
-    """Extract proposed_actions from <ACTIONS>...</ACTIONS> and return cleaned text + actions."""
-    import re
-    pattern = r"<ACTIONS>(.*?)</ACTIONS>"
-    match = re.search(pattern, text, re.DOTALL)
-    if not match:
-        return text.strip(), []
+1. **update_checklist** - Update mandatory or custom checklist items for a case
+   - Parameters: case_id, item_id, done (boolean), notes (optional)
+   
+2. **add_checklist_item** - Add custom checklist item
+   - Parameters: case_id, label, notes (optional)
+   
+3. **add_comment** - Add a comment/note to a case
+   - Parameters: case_id, comment_text
+   
+4. **request_reassignment** - Request case reassignment with reasoning
+   - Parameters: case_id, reason, suggested_worker (optional)
+   
+5. **schedule_review** - Schedule a follow-up review reminder
+   - Parameters: case_id, review_date, review_type (follow_up/escalation/closure)
+   
+6. **query_case_details** - Get full case details from MongoDB
+   - Parameters: case_id
+   
+7. **query_instagram_data** - Query Instagram scraper data for patterns
+   - Parameters: youth_handle, date_range (optional)
+   
+8. **query_similar_cases** - Find similar historical cases from ChromaDB
+   - Parameters: case_description, category (optional), limit (default 3)
 
-    actions_json = match.group(1).strip()
-    clean_text = text[: match.start()].strip()
+**WHEN TO USE TOOLS:**
+- If user asks to "update checklist" → use update_checklist
+- If user says "add this to checklist" → use add_checklist_item
+- If user asks "schedule follow-up" or "set reminder" → use schedule_review
+- If user needs specific case data → use query_case_details
+- If user wants to find similar cases → use query_similar_cases
+- If case needs reassignment → use request_reassignment
 
-    try:
-        actions = json.loads(actions_json)
-        if not isinstance(actions, list):
-            actions = []
-    except Exception as e:
-        logger.warning(f"Failed to parse actions JSON: {e}")
-        actions = []
+**RESPONSE FORMAT:**
+When using tools, format your response as:
 
-    return clean_text, actions
-
-
-async def chat(
-    messages: list[dict],
-    case_context: Optional[dict] = None,
-    user_id: str = "unknown",
-    user_role: str = "Youth Helper",
-) -> dict:
-    """
-    Main chat entrypoint.
-    Returns: { response_text: str, proposed_actions: list[dict] }
-    """
-    if not settings.openai_api_key or settings.openai_api_key.startswith("sk-placeholder"):
-        # Graceful fallback without LLM
-        return _fallback_response(messages, case_context)
-
-    global _openai_client
-    if _openai_client is None:
-        _openai_client = AsyncOpenAI(api_key=settings.openai_api_key)
-
-    # Build user query from last message
-    last_user_msg = next(
-        (m["content"] for m in reversed(messages) if m["role"] == "user"), ""
-    )
-
-    # Get similar cases if case context provided
-    similar_cases: list[dict] = []
-    if case_context:
-        case_id = case_context.get("case_id")
-        if case_id:
-            try:
-                similar_cases = await get_similar_cases(case_id, top_k=5)
-            except Exception as e:
-                logger.warning(f"Similar cases fetch failed: {e}")
-
-    context_block = _build_context_block(
-        last_user_msg,
-        case_context.get("category") if case_context else None,
-        case_context,
-        similar_cases,
-    )
-
-    # Build message history for OpenAI
-    openai_messages = [
-        {"role": "system", "content": SYSTEM_PROMPT + "\n\n" + context_block},
-        {"role": "system", "content": f"Current user: {user_id} (role: {user_role})"},
-    ]
-    # Convert conversation history
-    for m in messages:
-        role = m.get("role", "user")
-        if role in ("user", "assistant"):
-            openai_messages.append({"role": role, "content": m["content"]})
-
-    try:
-        response = await _openai_client.chat.completions.create(
-            model=settings.openai_model,
-            messages=openai_messages,
-            temperature=0.3,
-            max_tokens=1200,
-        )
-        raw_text = response.choices[0].message.content or ""
-        response_text, proposed_actions = _parse_actions(raw_text)
-        return {
-            "response_text": response_text,
-            "proposed_actions": proposed_actions,
-            "similar_cases": similar_cases,
-        }
-    except Exception as e:
-        logger.error(f"OpenAI call failed: {e}")
-        return {
-            "response_text": (
-                "I'm unable to connect to the AI service right now. "
-                "Please review the SCS protocols directly or contact your team lead."
-            ),
-            "proposed_actions": [],
-            "similar_cases": similar_cases,
-        }
-
-
-def _fallback_response(messages: list[dict], case_context: Optional[dict]) -> dict:
-    """Static fallback when OpenAI key is not configured."""
-    last = next((m["content"] for m in reversed(messages) if m["role"] == "user"), "")
-    lower = last.lower()
-
-    protocol_matches = search_protocols(last, n_results=2)
-    template_matches = search_templates(last, n_results=1)
-
-    intro = ""
-    if case_context:
-        intro = (
-            f"Reviewing case {case_context.get('case_id')} "
-            f"({case_context.get('category')}, Risk {case_context.get('risk_score')}/5):\n\n"
-        )
-
-    if "escalat" in lower:
-        text = (
-            intro
-            + "**Escalation criteria (SCS Protocol):**\n\n"
-            "Escalate immediately if any apply:\n"
-            "- Youth expresses intent to self-harm or harm others\n"
-            "- Youth mentions feeling unsafe at home\n"
-            "- Risk score 4+ with no response within 48 hours\n"
-            "- Multiple high-risk signals across platforms\n"
-            "- Youth under 14 with any form of abuse\n\n"
-            "*When in doubt, escalate. Better safe than sorry.*"
-        )
-        actions = [
-            {
-                "action_type": "update_case_status",
-                "description": "Mark case as 'In Review' to flag for senior review",
-                "payload": {"status": "in_review"},
-            }
-        ]
-    elif "outreach" in lower or "message" in lower or "template" in lower:
-        text = (
-            intro
-            + "**Recommended outreach approach:**\n\n"
-            + (template_matches[0] if template_matches else
-               "Use a warm, low-pressure message. Keep the first contact brief (2–3 sentences). "
-               "Acknowledge feelings without mentioning how you detected the signals.")
-        )
-        actions = []
-    elif "follow" in lower:
-        text = (
-            intro
-            + "**Follow-up timelines (SCS Protocol):**\n\n"
-            "- Critical (5): 2h → 24h → 48h → 72h\n"
-            "- High (4): 6h → 48h → 72h → 1 week\n"
-            "- Medium (3): 24h → 3 days → 1 week\n"
-            "- Low-Med (2): 48h → 1 week → 2 weeks\n"
-            "- Low (1): 1 week → 2 weeks → monthly"
-        )
-        actions = [
-            {
-                "action_type": "schedule_followup",
-                "description": "Schedule a follow-up for this case",
-                "payload": {"note": "Follow-up as per SCS protocol"},
-            }
-        ]
-    elif "bully" in lower:
-        text = (
-            intro
-            + "**Approaching bullying cases:**\n\n"
-            + (protocol_matches[0] if protocol_matches else
-               "1. Assess severity — single incident or repeated pattern?\n"
-               "2. Do not confront the perpetrator directly.\n"
-               "3. Reach out with warmth — non-judgmental, acknowledge feelings.\n"
-               "4. Document everything in the checklist.\n"
-               "5. Coordinate with school liaison if school-based.")
-        )
-        actions = []
-    elif "resource" in lower:
-        text = (
-            intro
-            + "**Crisis resources:**\n\n"
-            "- Samaritans of Singapore: 1800-221-4444 (24/7)\n"
-            "- IMH Emergency: 6389 2222\n"
-            "- CHAT (youth mental health): 6493 6500\n"
-            "- SCS School Liaison Programme\n"
-            "- Family Service Centres (FSC)\n\n"
-            "*Always check with your team lead before sharing external resources.*"
-        )
-        actions = []
-    else:
-        text = (
-            intro
-            + "Based on SCS protocols, I recommend reviewing the case signals carefully "
-            "before deciding on next steps. All outreach decisions are yours — I'm here "
-            "to guide, not to act. Would you like help with a specific aspect of this case?"
-            + (f"\n\n**Relevant protocol context:**\n{protocol_matches[0]}" if protocol_matches else "")
-        )
-        actions = []
-
-    return {
-        "response_text": text,
-        "proposed_actions": actions,
-        "similar_cases": [],
+```json
+{
+  "tool_calls": [
+    {
+      "tool": "tool_name",
+      "parameters": {
+        "param1": "value1",
+        "param2": "value2"
+      }
     }
+  ],
+  "reasoning": "Why this action is recommended based on SCS protocols",
+  "next_steps": "What the worker should do next"
+}
+```
+
+When NOT using tools (just providing guidance), respond naturally with protocol references."""
+
+    def get_context_from_rag(self, query: str, case_info: Optional[Dict] = None) -> str:
+        """Retrieve relevant protocol context"""
+        # Enhanced query with case context
+        enhanced_query = query
+        if case_info:
+            enhanced_query = f"Case: {case_info.get('category', '')} Risk Level {case_info.get('riskLevel', '')}. Query: {query}"
+        
+        results = self.rag.retrieve(enhanced_query, n_results=3)
+        
+        context = "**Relevant SCS Protocols:**\n\n"
+        for i, result in enumerate(results, 1):
+            context += f"**Reference {i}** (from {result['metadata']['source']}):\n"
+            context += f"{result['content']}\n\n"
+        
+        return context
+    
+    def chat(self, messages: List[Dict], case_info: Optional[Dict] = None) -> str:
+        """Process chat with RAG context"""
+        last_user_message = messages[-1]['content'] if messages else ""
+        
+        # Get RAG context
+        rag_context = self.get_context_from_rag(last_user_message, case_info)
+        
+        # Add case context if attached
+        case_context = ""
+        if case_info:
+            case_context = f"\n\n**Attached Case Context:**\n- Case ID: {case_info.get('code')}\n- Category: {case_info.get('category')}\n- Risk Level: {case_info.get('riskLevel')}/5\n- Status: {case_info.get('status')}\n- Signals: {', '.join(case_info.get('signals', []))}\n\n"
+        
+        # Build full prompt
+        full_system_prompt = self.system_prompt + case_context + rag_context
+        
+        # Convert messages format for OpenAI-compatible API
+        formatted_messages = [
+            {"role": "system", "content": full_system_prompt}
+        ] + messages
+        
+        # Call LLM via OpenRouter
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=formatted_messages,
+            max_tokens=2000,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content

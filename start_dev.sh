@@ -96,15 +96,27 @@ log "Launching services…"
 start_service "case-service"    "$ROOT/case-service"    "${CASE_SERVICE_PORT:-8001}"    "app.main:app"
 sleep 2   # give case-service time to seed before chatbot tries to fetch cases
 
-start_service "chatbot-service" "$ROOT/chatbot-service" "${CHATBOT_SERVICE_PORT:-8002}"  "app.main:app"
+start_service "chatbot-service" "$ROOT/chatbot-service" "${CHATBOT_SERVICE_PORT:-8000}"  "app.main:app"
 start_service "mcp-service"     "$ROOT/mcp-service"     "${MCP_SERVICE_PORT:-8003}"      "app.main:app"
 
 echo ""
 ok "All services running:"
 ok "  case-service    → http://localhost:${CASE_SERVICE_PORT:-8001}/docs"
-ok "  chatbot-service → http://localhost:${CHATBOT_SERVICE_PORT:-8002}/docs"
+ok "  chatbot-service → http://localhost:${CHATBOT_SERVICE_PORT:-8000}/docs"
 ok "  mcp-service     → http://localhost:${MCP_SERVICE_PORT:-8003}/docs"
+echo ""
+log "Waiting for services to be ready..."
+sleep 3
+
+# Health check
+log "Testing service health..."
+curl -s http://localhost:8001/health > /dev/null && ok "✓ case-service healthy" || err "✗ case-service not responding"
+curl -s http://localhost:8000/health > /dev/null && ok "✓ chatbot-service healthy" || err "✗ chatbot-service not responding"  
+curl -s http://localhost:8003/health > /dev/null && ok "✓ mcp-service healthy" || err "✗ mcp-service not responding"
 echo ""
 log "Frontend: cd $(basename $ROOT) && npm run dev"
 log "Stop all: bash start_dev.sh stop"
-log "Tail logs: tail -f logs/case-service.log"
+log "Run tests: bash run_tests.sh"
+log "Tail logs: tail -f logs/case-service.log logs/chatbot-service.log logs/mcp-service.log"
+echo ""
+ok "🚀 All systems ready!"

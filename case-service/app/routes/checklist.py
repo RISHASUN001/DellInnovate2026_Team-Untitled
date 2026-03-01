@@ -51,14 +51,16 @@ async def add_checklist_item(case_id: str, request: Request):
     parent_id = body.get("parent_id")
     mandatory = 1 if body.get("mandatory", False) else 0
     created_by = body.get("created_by", "human")  # 'agent' | 'human'
+    item_type = body.get("item_type", "task")  # 'task' | 'outreach_draft' | 'escalation_draft'
+    if item_type not in ("task", "outreach_draft", "escalation_draft"):
+        item_type = "task"
 
     await db.execute(
-        """INSERT INTO checklist_items (case_id, parent_id, label, status, mandatory, created_by, created_at)
-           VALUES (?,?,?,?,?,?,?)""",
-        (case_id, parent_id, label, "Not Started", mandatory, created_by, _now_iso()),
+        """INSERT INTO checklist_items (case_id, parent_id, label, status, item_type, mandatory, created_by, created_at)
+           VALUES (?,?,?,?,?,?,?,?)""",
+        (case_id, parent_id, label, "Not Started", item_type, mandatory, created_by, _now_iso()),
     )
     await db.commit()
-    # Return the new item
     async with db.execute(
         "SELECT * FROM checklist_items WHERE case_id = ? ORDER BY id DESC LIMIT 1", (case_id,)
     ) as cur:
@@ -95,11 +97,12 @@ async def update_checklist_item_status(case_id: str, item_id: int, request: Requ
         (new_status, item_id),
     )
 
-    # Persist the required comment
+    # Persist the required comment with author name
+    author_name = body.get("author_name", user.user_id)
     await db.execute(
-        """INSERT INTO case_notes (case_id, checklist_item_id, author_id, content, created_at)
-           VALUES (?,?,?,?,?)""",
-        (case_id, item_id, user.user_id, comment, _now_iso()),
+        """INSERT INTO case_notes (case_id, checklist_item_id, author_id, author_name, content, created_at)
+           VALUES (?,?,?,?,?,?)""",
+        (case_id, item_id, user.user_id, author_name, comment, _now_iso()),
     )
 
     # If any item is Needs Review → flag the case
@@ -121,6 +124,33 @@ async def update_checklist_item_status(case_id: str, item_id: int, request: Requ
 
     await db.commit()
     return {"item_id": item_id, "status": new_status, "comment_saved": True}
+
+
+# ─── Update sub_state on outreach/escalation draft items ────────────────────
+@router.patch("/{item_id}/sub-state")
+async def update_checklist_sub_state(case_id: str, item_id: int, request: Request):
+    user = get_current_user(request)
+    db = await get_db()
+    await _assert_case_access(db, case_id, user)
+
+    body = await request.json()
+    sub_state = (body.get("sub_state") or "").strip()
+    valid = {"draft", "reviewed", "sent", "followup_scheduled", ""}
+    if sub_state not in valid:
+        raise HTTPException(400, f"sub_state must be one of {valid}")
+
+    async with db.execute(
+        "SELECT id FROM checklist_items WHERE id = ? AND case_id = ?", (item_id, case_id)
+    ) as cur:
+        if not await cur.fetchone():
+            raise HTTPException(404, "Checklist item not found")
+
+    await db.execute(
+        "UPDATE checklist_items SET sub_state = ? WHERE id = ?",
+        (sub_state or None, item_id),
+    )
+    await db.commit()
+    return {"item_id": item_id, "sub_state": sub_state or None}
 
 
 # ─── Get notes for a case (optionally filtered by checklist item) ─────────────

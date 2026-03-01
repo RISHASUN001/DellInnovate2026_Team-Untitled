@@ -1,3 +1,16 @@
+"""
+Audit logging for all MCP tool calls (read and write).
+
+Every log entry captures:
+  request_id        — correlates a chain of calls
+  case_id           — the case being acted on (empty for list operations)
+  approved_plan_hash — populated only for write tools executed via /execute-approved-plan
+  tool_name         — the MCP tool invoked
+  actor_id / role   — who triggered the call
+  payload           — arguments (write payloads truncated to 500 chars for PII safety)
+  result            — tool outcome
+  created_at        — UTC ISO8601
+"""
 import json
 from datetime import datetime, timezone
 from .database import get_db
@@ -13,16 +26,31 @@ async def audit_log(
     actor_role: str,
     payload: dict,
     result: dict,
+    *,
+    request_id: str = "",
+    case_id: str = "",
+    approved_plan_hash: str = "",
 ) -> None:
     db = await get_db()
+    # Truncate large payloads (e.g. outreach message bodies)
+    payload_str = json.dumps(payload)
+    if len(payload_str) > 500:
+        payload_str = payload_str[:497] + "..."
+
     await db.execute(
-        "INSERT INTO audit_log (tool_name, actor_id, actor_role, payload, result, created_at) VALUES (?,?,?,?,?,?)",
+        """INSERT INTO audit_log
+           (tool_name, actor_id, actor_role, payload, result, request_id,
+            case_id, approved_plan_hash, created_at)
+           VALUES (?,?,?,?,?,?,?,?,?)""",
         (
             tool_name,
             actor_id,
             actor_role,
-            json.dumps(payload),
+            payload_str,
             json.dumps(result),
+            request_id,
+            case_id,
+            approved_plan_hash,
             _now_iso(),
         ),
     )

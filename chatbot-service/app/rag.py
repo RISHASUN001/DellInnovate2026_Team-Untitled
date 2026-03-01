@@ -1,140 +1,138 @@
-"""
-ChromaDB RAG manager.
-On startup: reads doc files, chunks them, embeds with sentence-transformers,
-and persists to ChromaDB. Re-uses existing embeddings if collection non-empty.
-"""
 import os
-from pathlib import Path
-from typing import Optional
-from loguru import logger
-
+from typing import List, Dict
 import chromadb
-from chromadb.config import Settings as ChromaSettings
+from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
+import re
 
-from .config import settings
-
-# ─── ChromaDB client (module-level, initialised on startup) ─────────────────
-_chroma_client: Optional[chromadb.PersistentClient] = None
-_embedder: Optional[SentenceTransformer] = None
-
-COLLECTIONS = {
-    "protocols": "docs/protocols.txt",
-    "templates": "docs/outreach_templates.txt",
-    "case_studies": "docs/case_studies.txt",
-}
-
-CHUNK_SIZE = 400  # characters
-CHUNK_OVERLAP = 40
-
-
-def _chunk_text(text: str) -> list[str]:
-    """Split text into overlapping chunks."""
-    chunks = []
-    start = 0
-    while start < len(text):
-        end = min(start + CHUNK_SIZE, len(text))
-        # Try to end at a sentence boundary
-        if end < len(text):
-            boundary = text.rfind(". ", start, end)
-            if boundary > start:
-                end = boundary + 1
-        chunk = text[start:end].strip()
-        if chunk:
-            chunks.append(chunk)
-        start = end - CHUNK_OVERLAP
-        if start >= len(text):
-            break
-    return chunks
-
-
-def _get_embedder() -> SentenceTransformer:
-    global _embedder
-    if _embedder is None:
-        logger.info(f"Loading sentence-transformer: {settings.embedding_model}")
-        _embedder = SentenceTransformer(settings.embedding_model)
-    return _embedder
-
-
-def get_chroma_client() -> chromadb.PersistentClient:
-    global _chroma_client
-    if _chroma_client is None:
-        os.makedirs(settings.chroma_persist_dir, exist_ok=True)
-        _chroma_client = chromadb.PersistentClient(
-            path=settings.chroma_persist_dir,
-            settings=ChromaSettings(anonymized_telemetry=False),
+class RAGSystem:
+    def __init__(self, docs_path: str = "./docs", chroma_path: str = "../data/chromadb"):
+        self.docs_path = docs_path
+        self.chroma_path = chroma_path
+        
+        # Initialize sentence transformer
+        print("Loading sentence transformer model...")
+        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        
+        # Initialize ChromaDB
+        print(f"Connecting to ChromaDB at {chroma_path}...")
+        self.client = chromadb.PersistentClient(
+            path=chroma_path,
+            settings=Settings(anonymized_telemetry=False, allow_reset=True)
         )
-    return _chroma_client
-
-
-async def ingest_documents() -> None:
-    """Chunk, embed, and store all protocol/template/case-study documents."""
-    client = get_chroma_client()
-    embedder = _get_embedder()
-
-    docs_base = Path(settings.docs_dir)
-
-    for collection_name, rel_path in COLLECTIONS.items():
-        doc_path = docs_base / Path(rel_path).name
-        if not doc_path.exists():
-            logger.warning(f"Document not found: {doc_path}")
-            continue
-
-        collection = client.get_or_create_collection(
-            name=collection_name,
-            metadata={"hnsw:space": "cosine"},
+        
+        # Get or create collection
+        self.collection = self.client.get_or_create_collection(
+            name="scs_protocols",
+            metadata={"hnsw:space": "cosine"}
         )
-
-        # Skip if already populated
-        if collection.count() > 0:
-            logger.info(f"Collection '{collection_name}' already has {collection.count()} chunks — skipping ingest.")
-            continue
-
-        text = doc_path.read_text(encoding="utf-8")
-        chunks = _chunk_text(text)
-        logger.info(f"Ingesting '{collection_name}': {len(chunks)} chunks from {doc_path.name}")
-
-        embeddings = embedder.encode(chunks, show_progress_bar=False).tolist()
-
-        batch_size = 50
-        for i in range(0, len(chunks), batch_size):
-            batch_chunks = chunks[i : i + batch_size]
-            batch_embeddings = embeddings[i : i + batch_size]
-            batch_ids = [f"{collection_name}_{i + j}" for j in range(len(batch_chunks))]
-            collection.add(
-                documents=batch_chunks,
-                embeddings=batch_embeddings,
-                ids=batch_ids,
-            )
-
-        logger.info(f"Collection '{collection_name}' ingested: {collection.count()} chunks stored.")
-
-
-def search_rag(query: str, collection_name: str, n_results: int = 4) -> list[str]:
-    """Return top n_results relevant chunks from the specified collection."""
-    client = get_chroma_client()
-    embedder = _get_embedder()
-
-    try:
-        collection = client.get_collection(collection_name)
-    except Exception:
-        return []
-
-    query_embedding = embedder.encode([query])[0].tolist()
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=min(n_results, collection.count() or 1),
-    )
-    return results.get("documents", [[]])[0]
-
-
-def search_protocols(query: str, n_results: int = 4) -> list[str]:
-    return search_rag(query, "protocols", n_results)
-
-
-def search_templates(query: str, n_results: int = 3) -> list[str]:
-    return search_rag(query, "templates", n_results)
-
-
-def search_case_studies(query: str, n_results: int = 3) -> list[str]:
-    return search_rag(query, "case_studies", n_results)
+        print(f"✓ ChromaDB ready. Collection has {self.collection.count()} documents.")
+        
+    def chunk_text(self, text: str, chunk_size: int = 500, overlap: int = 100) -> List[str]:
+        """Split text into overlapping chunks"""
+        # Split by paragraphs first
+        paragraphs = text.split('\n\n')
+        chunks = []
+        current_chunk = ""
+        
+        for para in paragraphs:
+            if len(current_chunk) + len(para) < chunk_size:
+                current_chunk += para + "\n\n"
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk.strip())
+                current_chunk = para + "\n\n"
+        
+        if current_chunk:
+            chunks.append(current_chunk.strip())
+        
+        # Add overlap
+        overlapped_chunks = []
+        for i, chunk in enumerate(chunks):
+            if i > 0:
+                # Add last sentences from previous chunk
+                prev_sentences = chunks[i-1].split('.')[-3:]
+                chunk = '. '.join(prev_sentences) + '. ' + chunk
+            overlapped_chunks.append(chunk)
+        
+        return overlapped_chunks
+    
+    def ingest_documents(self):
+        """Ingest all documents from docs folder into ChromaDB"""
+        print("Starting document ingestion...")
+        
+        # Check if already ingested
+        if self.collection.count() > 0:
+            print(f"Collection already has {self.collection.count()} documents. Skipping ingestion.")
+            return
+        
+        all_chunks = []
+        all_metadatas = []
+        all_ids = []
+        
+        doc_id = 0
+        
+        for filename in os.listdir(self.docs_path):
+            if not filename.endswith('.txt'):
+                continue
+                
+            filepath = os.path.join(self.docs_path, filename)
+            print(f"Processing {filename}...")
+            
+            with open(filepath, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Extract category from filename
+            category = filename.replace('.txt', '').replace('_', ' ').title()
+            
+            # Chunk the document
+            chunks = self.chunk_text(content)
+            
+            for i, chunk in enumerate(chunks):
+                all_chunks.append(chunk)
+                all_metadatas.append({
+                    'source': filename,
+                    'category': category,
+                    'chunk_id': i
+                })
+                all_ids.append(f"{filename}_{i}")
+                doc_id += 1
+        
+        print(f"Generated {len(all_chunks)} chunks from {len(os.listdir(self.docs_path))} documents")
+        
+        # Generate embeddings
+        print("Generating embeddings...")
+        embeddings = self.embedding_model.encode(all_chunks, show_progress_bar=True).tolist()
+        
+        # Add to ChromaDB
+        print("Adding to ChromaDB...")
+        self.collection.add(
+            embeddings=embeddings,
+            documents=all_chunks,
+            metadatas=all_metadatas,
+            ids=all_ids
+        )
+        
+        print(f"✓ Ingestion complete! Added {len(all_chunks)} chunks to ChromaDB")
+    
+    def retrieve(self, query: str, n_results: int = 5) -> List[Dict]:
+        """Retrieve relevant chunks for a query"""
+        # Generate query embedding
+        query_embedding = self.embedding_model.encode([query])[0].tolist()
+        
+        # Query ChromaDB
+        results = self.collection.query(
+            query_embeddings=[query_embedding],
+            n_results=n_results
+        )
+        
+        # Format results
+        formatted_results = []
+        for i in range(len(results['documents'][0])):
+            formatted_results.append({
+                'content': results['documents'][0][i],
+                'metadata': results['metadatas'][0][i],
+                'distance': results['distances'][0][i] if 'distances' in results else None
+            })
+        
+        return formatted_results

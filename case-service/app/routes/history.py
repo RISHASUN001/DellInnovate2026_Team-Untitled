@@ -1,47 +1,46 @@
-import json
-from datetime import datetime, timezone
-from fastapi import APIRouter, HTTPException, Request
-from ..database import get_db
-from ..auth import get_current_user
+"""
+Case history/timeline endpoints - MongoDB version
+Returns ingestion history showing risk score evolution over time
+"""
+from fastapi import APIRouter, HTTPException, Query
+from ..database import get_db, serialize_doc
+from typing import Optional
 
-router = APIRouter(prefix="/cases/{case_id}/history", tags=["history"])
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+router = APIRouter(prefix="/history", tags=["history"])
 
 
-# ─── Full ingestion history (timeline) ───────────────────────────────────────
-@router.get("")
-async def get_case_history(case_id: str, request: Request):
-    user = get_current_user(request)
+@router.get("/cases/{case_id}")
+async def get_case_history(
+    case_id: str,
+    limit: Optional[int] = Query(None, description="Limit number of history entries returned")
+):
+    """
+    Get case history (ingestion timeline) from scs_case_history collection.
+    Returns entries in chronological order (oldest first).
+    
+    Each entry shows:
+    - ingestion_date: When this snapshot was taken
+    - risk_score: Risk score at that time (0-100)
+    - category: Case category
+    - ai_explanation: AI explanation/signals at that time
+    - model_version: AI model version used
+    """
     db = await get_db()
-
-    async with db.execute("SELECT assigned_to FROM cases WHERE case_id = ?", (case_id,)) as cur:
-        row = await cur.fetchone()
-    if not row:
-        raise HTTPException(404, "Case not found")
-
-    # Admins see all; helpers see history only for their assigned cases
-    if user.is_helper and row["assigned_to"] != user.user_id:
-        raise HTTPException(403, "Not your assigned case")
-
-    async with db.execute(
-        """SELECT id, case_id, risk_score, category, explanation_snapshot,
-                  frequency_metrics, action_taken, escalation_flag, timestamp
-           FROM case_history WHERE case_id = ? ORDER BY timestamp ASC""",
-        (case_id,),
-    ) as cur:
-        rows = await cur.fetchall()
-
-    result = []
-    for r in rows:
-        d = dict(r)
-        for field in ("explanation_snapshot", "frequency_metrics"):
-            if isinstance(d.get(field), str):
-                try:
-                    d[field] = json.loads(d[field])
-                except Exception:
-                    pass
-        result.append(d)
-    return result
+    history_col = db['scs_case_history']
+    
+    # Verify case exists
+    cases_col = db['scs_cases']
+    case = await cases_col.find_one({"case_id": case_id})
+    if not case:
+        raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+    
+    # Fetch history entries, sorted chronologically (oldest first)
+    query = {"case_id": case_id}
+    cursor = history_col.find(query).sort("ingestion_date", 1)
+    
+    if limit:
+        cursor = cursor.limit(limit)
+    
+    entries = await cursor.to_list(length=None)
+    
+    return [serialize_doc(entry) for entry in entries]

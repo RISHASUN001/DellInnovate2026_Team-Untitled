@@ -1,50 +1,73 @@
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 
 from .config import settings
 from .database import get_db, close_db
-from .schema import SCHEMA_SQL
-from .seed import seed
-from .routes import cases, checklist, history, notes
+from .routes import cases_mongo, checklist, history, users
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    logger.info("case-service starting up...")
-    db = await get_db()
-    # Create all tables
-    await db.executescript(SCHEMA_SQL)
-    await db.commit()
-    # Seed mock data (idempotent)
-    await seed(db)
-    yield
-    await close_db()
-    logger.info("case-service shut down.")
+# Use new MongoDB-based routes
+from .routes import cases_mongo as cases
 
 
 app = FastAPI(
     title="SCS Case Service",
-    description="Core case management API for SCS Youth Case Dashboard",
-    version="1.0.0",
-    lifespan=lifespan,
+    description="Core case management API for SCS Youth Case Dashboard (MongoDB)",
+    version="2.0.0",
 )
-
-origins = [o.strip() for o in settings.allowed_origins.split(",")]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Register MongoDB-based routes
 app.include_router(cases.router)
 app.include_router(checklist.router)
 app.include_router(history.router)
-app.include_router(notes.router)
+app.include_router(users.router)
+
+
+@app.on_event("startup")
+async def startup():
+    logger.info("SCS Case Service starting (MongoDB mode)...")
+    # Test MongoDB connection
+    try:
+        db = await get_db()
+        logger.info(f"✅ Connected to MongoDB database: {settings.scs_db_name}")
+    except Exception as e:
+        logger.error(f"❌ Failed to connect to MongoDB: {e}")
+        raise
+
+
+@app.on_event("shutdown")
+async def shutdown():
+    await close_db()
+    logger.info("SCS Case Service shut down.")
+
+
+@app.get("/")
+async def root():
+    return {
+        "service": "SCS Case Service",
+        "version": "2.0.0",
+        "database": "MongoDB",
+        "status": "running"
+    }
+
+
+@app.get("/health")
+async def health():
+    try:
+        db = await get_db()
+        # Test DB connection
+        await db.command("ping")
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return {"status": "unhealthy", "error": str(e)}
 
 
 @app.get("/health")

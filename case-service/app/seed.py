@@ -8,6 +8,7 @@ Seed data: mirrors what the risk-assessment pipeline would produce.
   - cases.last_signal_at = prior ingestion timestamp (NULL when only 1 snapshot)
 """
 import json
+from loguru import logger
 from datetime import datetime, timedelta, timezone
 
 NOW = datetime(2026, 2, 27, 6, 0, 0, tzinfo=timezone.utc)
@@ -532,7 +533,6 @@ async def seed(db) -> None:
     if count > 0:
         return  # idempotent
 
-    from loguru import logger
     logger.info("Seeding mock risk-assessment data...")
 
     helper_users = {
@@ -550,24 +550,43 @@ async def seed(db) -> None:
         created_at = history_rows[-1]["timestamp"]
         last_signal_at = history_rows[-2]["timestamp"] if len(history_rows) >= 2 else None
 
+        # Derive case_status and work_status from legacy fields
+        assigned = case.get("assigned_to")
+        legacy_status = case["status"]
+        case_status = "assigned" if assigned else "unassigned"
+        if legacy_status == "new":
+            work_status = "not_started"
+        elif legacy_status in ("in_progress", "outreach", "followup"):
+            work_status = "in_progress"
+        elif legacy_status == "in_review":
+            work_status = "to_review"
+        elif legacy_status in ("completed", "closed"):
+            work_status = "completed"
+        else:
+            work_status = "not_started"
+        needs_review = 1 if work_status == "to_review" else 0
+
         await db.execute(
             """
             INSERT INTO cases
               (case_id, user_id, assigned_to, risk_score, category,
-               explanation_signals, status, priority, needs_review,
+               explanation_signals, case_status, work_status,
+               status, priority, needs_review,
                created_at, last_signal_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 case["case_id"],
                 case["user_id"],
-                case.get("assigned_to"),
+                assigned,
                 case["risk_score"],
                 case["category"],
                 json.dumps(case["explanation_signals"]),
-                case["status"],
+                case_status,
+                work_status,
+                legacy_status,
                 case.get("priority", "medium"),
-                0,
+                needs_review,
                 created_at,
                 last_signal_at,
             ),
@@ -596,17 +615,25 @@ async def seed(db) -> None:
         # Seed default checklist items for the category
         defaults = CHECKLIST_DEFAULTS.get(case["category"], [])
         for label, mandatory, created_by in defaults:
+            # Mark outreach/escalation items with correct item_type
+            if "outreach" in label.lower() or "reach out" in label.lower():
+                item_type = "outreach_draft"
+            elif "escalat" in label.lower() or "crisis" in label.lower() or "refer" in label.lower():
+                item_type = "escalation_draft"
+            else:
+                item_type = "task"
             await db.execute(
                 """
                 INSERT INTO checklist_items
-                  (case_id, parent_id, label, status, mandatory, created_by, created_at)
-                VALUES (?,?,?,?,?,?,?)
+                  (case_id, parent_id, label, status, item_type, mandatory, created_by, created_at)
+                VALUES (?,?,?,?,?,?,?,?)
                 """,
                 (
                     case["case_id"],
                     None,
                     label,
                     "Not Started",
+                    item_type,
                     1 if mandatory else 0,
                     created_by,
                     created_at,
@@ -615,3 +642,42 @@ async def seed(db) -> None:
 
     await db.commit()
     logger.info(f"Seeded {len(CASES_RAW)} cases with history and checklists.")
+    await seed_users(db)
+
+
+# ─── Users seed ───────────────────────────────────────────────────────────────
+# Mirrors src/auth/mockAuth.js MOCK_USERS so the Admin assignment dropdown
+# always reflects the same staff roster as the fake-auth module.
+# AUTH_SERVICE_CALL: In production, populate this table from the real identity
+# provider (e.g. Azure AD / Entra sync) — remove this seed function entirely.
+
+USERS_RAW = [
+    {"employee_id": "AD-001", "user_id": "admin1",   "name": "Admin User",  "email": "admin@scs.org.sg",     "role": "Admin",        "department": "Operations",        "avatar_initials": "AU"},
+    {"employee_id": "AD-002", "user_id": "admin2",   "name": "Admin Two",   "email": "admin2@scs.org.sg",    "role": "Admin",        "department": "Operations",        "avatar_initials": "AT"},
+    {"employee_id": "YH-001", "user_id": "sarah_l",  "name": "Sarah Lim",   "email": "sarah@scs.org.sg",     "role": "Youth Helper", "department": "Youth Outreach",    "avatar_initials": "SL"},
+    {"employee_id": "YH-002", "user_id": "michael_t","name": "Michael Tan", "email": "michael@scs.org.sg",   "role": "Youth Helper", "department": "Youth Outreach",    "avatar_initials": "MT"},
+    {"employee_id": "YH-003", "user_id": "rachel_w", "name": "Rachel Wong", "email": "rachel@scs.org.sg",    "role": "Youth Helper", "department": "Community Care",    "avatar_initials": "RW"},
+    {"employee_id": "YH-004", "user_id": "james_k",  "name": "James Koh",   "email": "james@scs.org.sg",     "role": "Youth Helper", "department": "Community Care",    "avatar_initials": "JK"},
+    {"employee_id": "YH-005", "user_id": "priya_m",  "name": "Priya Menon", "email": "priya@scs.org.sg",     "role": "Youth Helper", "department": "Family Services",   "avatar_initials": "PM"},
+]
+
+
+async def seed_users(db) -> None:
+    existing = await db.execute("SELECT COUNT(*) FROM users")
+    row = await existing.fetchone()
+    if row and row[0] > 0:
+        logger.info("Users table already seeded, skipping.")
+        return
+    for u in USERS_RAW:
+        await db.execute(
+            """
+            INSERT OR IGNORE INTO users
+              (employee_id, user_id, name, email, role, department, avatar_initials, created_at)
+            VALUES (?,?,?,?,?,?,?,?)
+            """,
+            (u["employee_id"], u["user_id"], u["name"], u["email"],
+             u["role"], u["department"], u["avatar_initials"],
+             "2026-01-01T00:00:00Z"),
+        )
+    await db.commit()
+    logger.info(f"Seeded {len(USERS_RAW)} users.")

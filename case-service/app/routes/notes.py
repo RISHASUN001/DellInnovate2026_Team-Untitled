@@ -38,11 +38,12 @@ async def add_note(case_id: str, request: Request):
     content = body.get("content", "").strip()
     if not content:
         raise HTTPException(400, "content required")
+    author_name = body.get("author_name", user.user_id)
     db = await get_db()
     await _assert_access(db, case_id, user)
     await db.execute(
-        "INSERT INTO case_notes (case_id, checklist_item_id, author_id, content, created_at) VALUES (?,?,?,?,?)",
-        (case_id, None, user.user_id, content, _now_iso()),
+        "INSERT INTO case_notes (case_id, checklist_item_id, author_id, author_name, content, created_at) VALUES (?,?,?,?,?,?)",
+        (case_id, None, user.user_id, author_name, content, _now_iso()),
     )
     await db.commit()
     return {"case_id": case_id, "saved": True}
