@@ -112,6 +112,10 @@ class ImageRecord:
     error_ocr: Optional[str] = None
     error_emotion: Optional[str] = None
 
+    # New fields for VLM-based emotional reasoning and fusion
+    vlm_emotion_description: Optional[str] = None
+    fused_emotion_assessment: Optional[str] = None
+
     # ------------------------------------------------------------------
     # Convenience accessors used by the storage adapter
     # ------------------------------------------------------------------

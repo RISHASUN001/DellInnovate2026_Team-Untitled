@@ -110,51 +110,123 @@ class ProcessSingleImage:
 
 
     def execute(self, job: ImageJob) -> ImageRecord:
-        """Run both pipelines and return an ``ImageRecord``.
-
-        Failures in either pipeline are recorded in the record's error
-        fields; the other pipeline continues regardless.
-        """
+        """Run the full multi-stage emotional reasoning pipeline and return an ImageRecord."""
         record = ImageRecord(job=job, processed_at=datetime.utcnow())
 
-        # ---- Pipeline A: Vision-Language (SmolVLM) → Sentiment ---------
+        # --- 1. VLM Text Extraction ---
+        TEXT_EXTRACTION_PROMPT = (
+            """
+            Extract all visible text from this image exactly as written.
+            Do not summarize.
+            Do not interpret.
+            Return only the raw text.
+            If no text is visible, return: NONE.
+            """
+        )
         try:
-            # Use SmolVLM to describe the image and extract text
-            prompt_text = "Extract all visible text from this image."
-            extracted_text = self._smolvlm.describe_images([str(job.image_path)], prompt_text)
-            if extracted_text:
-                from domain.entities import OcrResult
+            extracted_text = self._smolvlm.describe_images(
+                [str(job.image_path)], TEXT_EXTRACTION_PROMPT.strip()
+            )
+            from domain.entities import OcrResult
+            if extracted_text and extracted_text.strip().upper() != "NONE":
                 ocr_result = OcrResult(
                     ocr_text_raw=extracted_text,
                     ocr_text_clean=extracted_text.strip(),
                     ocr_char_count=len(extracted_text),
                     ocr_word_count=len(extracted_text.split()),
-                    ocr_detected_bool=bool(extracted_text.strip()),
+                    ocr_detected_bool=True,
                 )
                 record.ocr_result = ocr_result
-                record.sentiment_result = self._sentiment.analyze(ocr_result.ocr_text_clean)
             else:
-                from domain.entities import OcrResult
                 record.ocr_result = OcrResult(
-                    ocr_text_raw="",
-                    ocr_text_clean="",
+                    ocr_text_raw="NONE",
+                    ocr_text_clean="NONE",
                     ocr_char_count=0,
                     ocr_word_count=0,
                     ocr_detected_bool=False,
                 )
-        except Exception as exc:  # noqa: BLE001
-            msg = f"Vision-language/sentiment pipeline error: {exc}"
+        except Exception as exc:
+            msg = f"VLM text extraction error: {exc}"
             logger.error("[%s] %s", job.image_path.name, msg)
             record.error_ocr = msg
 
-        # ---- Pipeline B: Face → Emotion ---------------------------------
+        # --- 2. Sentiment Analysis (only if text exists) ---
+        try:
+            if record.ocr_result and record.ocr_result.ocr_detected_bool and record.ocr_result.ocr_text_clean.upper() != "NONE":
+                record.sentiment_result = self._sentiment.analyze(record.ocr_result.ocr_text_clean)
+        except Exception as exc:
+            msg = f"Sentiment analysis error: {exc}"
+            logger.error("[%s] %s", job.image_path.name, msg)
+            record.error_ocr = (record.error_ocr or "") + f" | {msg}"
+
+        # --- 3. VLM Emotional Visual Reasoning ---
+        EMOTION_REASONING_PROMPT = (
+            """
+            Analyze this image carefully.
+
+            Focus specifically on:
+            - Facial expression (eyes, tears, redness, gaze direction)
+            - Mouth tension
+            - Facial muscle activation
+            - Posture and body language
+            - Contextual emotional cues
+
+            Determine the emotional state of the person.
+
+            If the person appears:
+            - Sad
+            - Distressed
+            - Crying
+            - Depressed
+            - Hopeless
+
+            Explain clearly which visual cues support your conclusion.
+
+            If no person is visible, state that clearly.
+            Be explicit and structured in your reasoning.
+            """
+        )
+        try:
+            vlm_emotion_desc = self._smolvlm.describe_images(
+                [str(job.image_path)], EMOTION_REASONING_PROMPT.strip()
+            )
+            record.vlm_emotion_description = vlm_emotion_desc
+        except Exception as exc:
+            msg = f"VLM emotional reasoning error: {exc}"
+            logger.error("[%s] %s", job.image_path.name, msg)
+            record.vlm_emotion_description = f"ERROR: {msg}"
+
+        # --- 4. Face Classifier (Upgraded) ---
         try:
             emotion_image = self._preprocessor.load_for_emotion(job.image_path)
             record.emotion_result = self._emotion.detect(emotion_image)
-        except Exception as exc:  # noqa: BLE001
-            msg = f"Emotion pipeline error: {exc}"
+        except Exception as exc:
+            msg = f"Emotion classifier error: {exc}"
             logger.error("[%s] %s", job.image_path.name, msg)
             record.error_emotion = msg
+
+        # --- 5. Fusion Layer: VLM + Classifier ---
+        try:
+            emotion_label = record.emotion_result.emotion_label if record.emotion_result else "NONE"
+            emotion_conf = record.emotion_result.emotion_score if record.emotion_result else 0.0
+            fusion_prompt = f"""
+            An emotion classifier predicted:
+            Label: {emotion_label}
+            Confidence: {emotion_conf}
+
+            Re-evaluate the image.
+            Do you agree or disagree with this classification?
+            Provide a refined emotional assessment.
+            If the classifier may be wrong, explain why.
+            """
+            fused_assessment = self._smolvlm.describe_images(
+                [str(job.image_path)], fusion_prompt.strip()
+            )
+            record.fused_emotion_assessment = fused_assessment
+        except Exception as exc:
+            msg = f"Fusion VLM error: {exc}"
+            logger.error("[%s] %s", job.image_path.name, msg)
+            record.fused_emotion_assessment = f"ERROR: {msg}"
 
         return record
 

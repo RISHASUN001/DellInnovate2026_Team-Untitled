@@ -52,6 +52,8 @@ FACE_EMOTION_COLUMNS = [
     "emotion_label",
     "emotion_score",
     "model_name",
+    "vlm_emotion_description",
+    "fused_emotion_assessment",
     "processed_at",
 ]
 
@@ -124,6 +126,8 @@ class CsvStorageAdapter(StoragePort):
                     "emotion_label": em.emotion_label if em else "",
                     "emotion_score": em.emotion_score if em else 0.0,
                     "model_name": em.model_name if em else "",
+                    "vlm_emotion_description": rec.vlm_emotion_description or "",
+                    "fused_emotion_assessment": rec.fused_emotion_assessment or "",
                     "processed_at": rec.processed_at.isoformat(),
                 }
                 writer.writerow(row)

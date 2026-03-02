@@ -6,15 +6,15 @@ from PIL import Image
 logger = logging.getLogger(__name__)
 
 
+
 class SmolVLMAdapter:
-    """Vision-language adapter backed by HuggingFaceTB/SmolVLM-Instruct.
-
-    All heavy imports (torch, transformers) are deferred to __init__ so the
-    FastAPI app can be imported quickly by uvicorn before models are loaded.
-
-    Note: AutoModelForVision2Seq was renamed to AutoModelForImageTextToText
-    in transformers 5.x.
     """
+    Vision-language adapter for HuggingFaceTB/SmolVLM-Instruct.
+    Loads model on GPU if available, otherwise CPU.
+    All heavy imports (torch, transformers) are deferred to __init__ for fast startup.
+    Uses AutoModelForImageTextToText (transformers >=5.x).
+    """
+
 
     def __init__(self, device: str | None = None) -> None:
         # Lazy imports — deferred to avoid slow transformers module scan at startup
@@ -25,14 +25,18 @@ class SmolVLMAdapter:
         self._torch = _torch
         self._load_image = _load_image
 
-        self.device = device or ("cuda" if _torch.cuda.is_available() else "cpu")
+        # Prefer GPU if available
+        if device:
+            self.device = device
+        else:
+            self.device = "cuda" if _torch.cuda.is_available() else "cpu"
         logger.info("Loading SmolVLM model 'HuggingFaceTB/SmolVLM-Instruct' on %s…", self.device)
 
         self.processor = AutoProcessor.from_pretrained("HuggingFaceTB/SmolVLM-Instruct")
         self.model = AutoModelForImageTextToText.from_pretrained(
             "HuggingFaceTB/SmolVLM-Instruct",
-            torch_dtype=_torch.bfloat16,
-            _attn_implementation="flash_attention_2" if self.device == "cuda" else "eager",
+            dtype=_torch.bfloat16 if self.device == "cuda" else _torch.float32,
+            attn_implementation="eager",   # 👈 FORCE disable flash attention
         ).to(self.device)
         logger.info("SmolVLM model ready.")
 

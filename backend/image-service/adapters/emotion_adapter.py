@@ -1,7 +1,8 @@
 """
 HuggingFaceEmotionAdapter — concrete implementation of EmotionPort.
 
-Model: dima806/facial_emotions_image_detection  (ViT-based classifier)
+
+# Model: vit-face-expression (stronger ViT-based classifier)
 
 Pipeline:
   1. Face detection via OpenCV Haar cascade (lightweight, no extra deps).
@@ -46,13 +47,12 @@ class HuggingFaceEmotionAdapter(EmotionPort):
         self._np = _np
         self._torch = _torch
 
+
+        # Use the model specified in settings (now dima806/facial_emotions_image_detection)
         model_name = settings.emotion_model
         logger.info("Loading emotion model '%s'…", model_name)
 
         self._model_name = model_name
-        # dima806/facial_emotions_image_detection is a ViT image classifier;
-        # AutoImageProcessor is the correct preprocessor (AutoFeatureExtractor
-        # only works for audio/multimodal models).
         self._extractor = AutoImageProcessor.from_pretrained(model_name)
         self._model = AutoModelForImageClassification.from_pretrained(model_name)
         self._model.eval()

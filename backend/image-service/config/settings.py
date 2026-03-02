@@ -48,6 +48,7 @@ class Settings(BaseSettings):
     # Model identifiers
     # ------------------------------------------------------------------
     sentiment_model: str = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+    # Use a stronger default facial emotion classifier
     emotion_model: str = "dima806/facial_emotions_image_detection"
 
     # ------------------------------------------------------------------
