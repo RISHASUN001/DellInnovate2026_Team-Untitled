@@ -1,41 +1,38 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useAuth } from "./auth/AuthContext.jsx";
+import { Icon } from "./components/Icons.jsx";
+import { caseAPI, historyAPI } from "./services/api.js";
+
+// ─── SERVICE URLS (proxied via Vite dev server in dev; adjust for prod) ───────
+const CASE_SERVICE_URL   = "http://localhost:8001";
+const CHATBOT_SERVICE_URL = "http://localhost:8000";
+const MCP_SERVICE_URL     = "http://localhost:8003";
+
+// ─── CURRENT USER FALLBACK — used only if no auth prop provided ───────────────
+// AUTH_SERVICE_CALL: In production this object comes from the auth context;
+// the prop passed by main.jsx (AppRouter) always takes precedence.
+const CURRENT_USER_FALLBACK = { user_id: "sarah_l", name: "Sarah Lim", role: "Youth Helper", avatar_initials: "SL", employee_id: "YH-001" };
 
 // ─── DATA ────────────────────────────────────────────────────────────
-const MOCK_CASES = [
-  { id: 1, code: "YD-2026-0412", riskLevel: 3, category: "Bullying", platform: "Instagram", lastSignal: "2026-02-03 06:12 AM", status: "Active", assignedTo: "Sarah L.", assignedToMe: true, youth: { name: "Emma Chen", age: 15, avatar: "🧑‍🦱", handle: "@emma_chen_15", instagramUrl: "https://instagram.com/emma_chen_15" }, signals: ["Repeated negative comments in DMs detected", "Sentiment shift: positive → negative over 72h", "Keyword cluster: isolation, worthless, alone"], summary: "Adolescent showing linguistic markers consistent with peer-directed harassment. Sentiment analysis flagged a sharp downward shift over three days." },
-  { id: 2, code: "YD-2026-0411", riskLevel: 5, category: "Self-Harm Ideation", platform: "Instagram", lastSignal: "2026-02-03 06:08 AM", status: "Escalated", assignedTo: "Sarah L.", assignedToMe: true, youth: { name: "Aiden Tan", age: 16, avatar: "👦", handle: "@aiden.tan", instagramUrl: "https://instagram.com/aiden.tan" }, signals: ["High-frequency distress keywords detected", "Cross-platform signal correlation with Reddit activity", "Temporal pattern: late-night clustering (11 PM – 2 AM)"], summary: "Multiple high-risk signals across platforms. Late-night activity pattern with elevated distress language. Flagged for urgent review." },
-  { id: 3, code: "YD-2026-0409", riskLevel: 2, category: "Loneliness / Isolation", platform: "Instagram", lastSignal: "2026-02-03 00:15 AM", status: "Active", assignedTo: "Michael T.", assignedToMe: false, youth: { name: "Sophie Lim", age: 14, avatar: "👧", handle: "@sophie_lim", instagramUrl: "https://instagram.com/sophie_lim" }, signals: ["Decreased posting frequency over 30 days", "Shift to passive consumption behaviour", "Withdrawal from group interactions"], summary: "Gradual disengagement pattern noted. Posting frequency has declined significantly; interaction with peers has dropped." },
-  { id: 4, code: "YD-2026-0408", riskLevel: 1, category: "Academic Stress", platform: "Instagram", lastSignal: "2026-02-02 18:40 PM", status: "Monitoring", assignedTo: "Rachel W.", assignedToMe: false, youth: { name: "Ryan Ng", age: 17, avatar: "🧑", handle: "@ryan.ng.17", instagramUrl: "https://instagram.com/ryan.ng.17" }, signals: ["Stress-related language uptick", "Mentions of deadlines and pressure"], summary: "Mild stress indicators around upcoming exams. Currently at watch level only." },
-  { id: 5, code: "YD-2026-0405", riskLevel: 4, category: "Family Conflict", platform: "Instagram", lastSignal: "2026-02-03 04:50 AM", status: "Active", assignedTo: "Sarah L.", assignedToMe: true, youth: { name: "Maya Patel", age: 15, avatar: "👩", handle: "@maya.patel", instagramUrl: "https://instagram.com/maya.patel" }, signals: ["Escalation in emotional language over 48h", "Mentions of feeling unsafe", "Repeated mentions of 'leaving home'"], summary: "Elevated signals around domestic instability. Youth has expressed feeling unsafe. Requires careful, trauma-informed approach." },
-  { id: 6, code: "YD-2026-0401", riskLevel: 2, category: "Bullying", platform: "Instagram", lastSignal: "2026-02-01 22:00 PM", status: "Pending", assignedTo: "—", assignedToMe: false, youth: { name: "Lucas Wong", age: 13, avatar: "🧒", handle: "@lucas_w", instagramUrl: "https://instagram.com/lucas_w" }, signals: ["Repetitive negative peer interactions flagged", "Keyword cluster: excluded, mocked"], summary: "Early-stage bullying indicators. Not yet assigned to a helper." },
-  { id: 7, code: "YD-2026-0398", riskLevel: 3, category: "Cyberbullying", platform: "Instagram", lastSignal: "2026-02-02 10:30 AM", status: "Active", assignedTo: "Michael T.", assignedToMe: false, youth: { name: "Chloe Teo", age: 16, avatar: "👩‍🦰", handle: "@chloe.teo", instagramUrl: "https://instagram.com/chloe.teo" }, signals: ["Comment-thread toxicity score elevated", "Target account activity dip post-incident"], summary: "Toxic comment cluster targeting youth content. AI flagged cross-video pattern." },
-  { id: 8, code: "YD-2026-0415", riskLevel: 5, category: "Self-Harm Ideation", platform: "Instagram", lastSignal: "2026-02-03 07:30 AM", status: "Active", assignedTo: "Sarah L.", assignedToMe: true, youth: { name: "Daniel Lee", age: 15, avatar: "🧑‍🦲", handle: "@daniel_lee_sg", instagramUrl: "https://instagram.com/daniel_lee_sg" }, signals: ["Direct mentions of self-harm methods", "Farewell messages to friends detected", "Profile bio changed to concerning content"], summary: "Critical risk signals detected. Multiple explicit references to self-harm. Immediate intervention required." },
-  { id: 9, code: "YD-2026-0413", riskLevel: 4, category: "Cyberbullying", platform: "Instagram", lastSignal: "2026-02-03 05:45 AM", status: "Active", assignedTo: "Michael T.", assignedToMe: false, youth: { name: "Priya Kumar", age: 14, avatar: "👧🏾", handle: "@priya.k.14", instagramUrl: "https://instagram.com/priya.k.14" }, signals: ["Targeted harassment from multiple accounts", "Doxxing attempts detected", "Coordinated negative comments across posts"], summary: "Organized cyberbullying campaign identified. Multiple perpetrators coordinating attacks. Youth has stopped posting." },
-  { id: 10, code: "YD-2026-0410", riskLevel: 3, category: "Family Conflict", platform: "Instagram", lastSignal: "2026-02-03 02:15 AM", status: "Active", assignedTo: "Rachel W.", assignedToMe: false, youth: { name: "Ethan Goh", age: 16, avatar: "🧑‍🎓", handle: "@ethan_goh", instagramUrl: "https://instagram.com/ethan_goh" }, signals: ["Frequent mentions of family arguments", "Posts about 'wanting to run away'", "Late-night emotional venting posts"], summary: "Ongoing family tension. Youth expressing desire to leave home. Needs family counseling referral." },
-  { id: 11, code: "YD-2026-0407", riskLevel: 2, category: "Academic Stress", platform: "Instagram", lastSignal: "2026-02-02 23:30 PM", status: "Monitoring", assignedTo: "—", assignedToMe: false, youth: { name: "Isabella Chan", age: 17, avatar: "👩‍💼", handle: "@bella.chan", instagramUrl: "https://instagram.com/bella.chan" }, signals: ["Increased stress language around exams", "Sleep deprivation mentions", "Performance anxiety indicators"], summary: "Academic pressure mounting as exams approach. Monitoring for escalation signs." },
-  { id: 12, code: "YD-2026-0406", riskLevel: 3, category: "Loneliness / Isolation", platform: "Instagram", lastSignal: "2026-02-02 20:10 PM", status: "Monitoring", assignedTo: "—", assignedToMe: false, youth: { name: "Marcus Loh", age: 15, avatar: "🧑‍🦳", handle: "@marcus.loh", instagramUrl: "https://instagram.com/marcus.loh" }, signals: ["Zero interaction with peers in 2 weeks", "Stories about feeling invisible", "Posts about not being invited to events"], summary: "Social isolation pattern. Youth feels excluded from peer groups. Low engagement on posts." },
-  { id: 13, code: "YD-2026-0404", riskLevel: 4, category: "Bullying", platform: "Instagram", lastSignal: "2026-02-02 16:45 PM", status: "Active", assignedTo: "Michael T.", assignedToMe: false, youth: { name: "Zara Ahmed", age: 14, avatar: "👧🏽", handle: "@zara.ahmed", instagramUrl: "https://instagram.com/zara.ahmed" }, signals: ["Physical threats mentioned in comments", "Screenshots of threatening DMs shared", "Fear-related language in recent posts"], summary: "Bullying escalated to threats of physical harm. School coordination needed urgently." },
-  { id: 14, code: "YD-2026-0403", riskLevel: 1, category: "Academic Stress", platform: "Instagram", lastSignal: "2026-02-02 14:20 PM", status: "Monitoring", assignedTo: "—", assignedToMe: false, youth: { name: "Oliver Tan", age: 16, avatar: "🧑‍🔬", handle: "@oliver.tan.sg", instagramUrl: "https://instagram.com/oliver.tan.sg" }, signals: ["Mild complaints about homework load", "Time management concerns"], summary: "Normal academic stress levels. No intervention needed at this time." },
-  { id: 15, code: "YD-2026-0402", riskLevel: 2, category: "Loneliness / Isolation", platform: "Instagram", lastSignal: "2026-02-02 11:30 AM", status: "Monitoring", assignedTo: "—", assignedToMe: false, youth: { name: "Amelia Koh", age: 13, avatar: "👧🏻", handle: "@amelia.koh", instagramUrl: "https://instagram.com/amelia.koh" }, signals: ["Reduced friend interactions", "Posts about feeling left out", "Declining social activity"], summary: "Early signs of social withdrawal. Monitoring for further decline." },
-];
+// MOCK_CASES removed - now fetching from MongoDB via API
 
 const RISK_COLORS = { 1: { bg: "#d1fae5", text: "#065f46", label: "Low" }, 2: { bg: "#dbeafe", text: "#1e40af", label: "Low-Med" }, 3: { bg: "#fef3c7", text: "#92400e", label: "Medium" }, 4: { bg: "#ffedd5", text: "#c2410c", label: "High" }, 5: { bg: "#fee2e2", text: "#991b1b", label: "Critical" } };
 
 const PRESET_QUESTIONS = [
-  { icon: "🛡️", label: "How to approach a bullying case", q: "How should I approach a case involving bullying? What's the recommended first step?" },
-  { icon: "✉️", label: "Recommended outreach messages", q: "Can you suggest recommended outreach message templates I can adapt for initial contact?" },
-  { icon: "📈", label: "Escalation criteria", q: "What are the escalation criteria? When should I escalate a case?" },
-  { icon: "📅", label: "Follow-up timelines", q: "What are the recommended follow-up timelines for active cases?" },
-  { icon: "📚", label: "Resources to share", q: "What resources and referral links are available to share with youth or their families?" },
+  { label: "How to approach a bullying case", q: "How should I approach a case involving bullying? What's the recommended first step?" },
+  { label: "Recommended outreach messages", q: "Can you suggest recommended outreach message templates I can adapt for initial contact?" },
+  { label: "Escalation criteria", q: "What are the escalation criteria? When should I escalate a case?" },
+  { label: "Follow-up timelines", q: "What are the recommended follow-up timelines for active cases?" },
+  { label: "Resources to share", q: "What resources and referral links are available to share with youth or their families?" },
 ];
 
 const CHATBOT_RESPONSES = {
   default: "Thank you for your question. Based on SCS protocols, I recommend reviewing the case signals carefully before deciding on next steps. All outreach decisions are yours — I'm here to guide, not to act. Would you like help with a specific aspect of this case?",
-  bullying: "**Approaching Bullying Cases:**\n\n1. **Assess severity** — Is it a single incident or a repeated pattern? Check the AI signals for frequency and escalation.\n2. **Do not confront the perpetrator directly** — Focus on the youth's wellbeing first.\n3. **Reach out with warmth** — Use a non-judgmental, empathetic tone. Acknowledge their feelings before offering support.\n4. **Document everything** — Use the checklist to note your outreach attempt and response.\n5. **Involve school or platform** — If the bullying is on a school platform, coordinate with SCS school liaison.\n\n⚠️ *Remember: You decide whether and how to reach out. AI assists prioritisation only.*",
-  outreach: "**Recommended Outreach Message Templates:**\n\n📝 *Template A (General):*\n\"Hi [Name], I'm [Your Name] from YOUTH(TH)CARE. I wanted to check in with you. You don't have to share anything you're not comfortable with — I'm just here to listen if you need.\"\n\n📝 *Template B (After a difficult event):*\n\"I heard things have been a bit tough lately. Please know there are people who care, and support is available whenever you're ready.\"\n\n📝 *Template C (Follow-up):*\n\"Just wanted to let you know I'm still here. No pressure — take your time. 😊\"\n\n⚠️ *Always personalise these. You know the context best.*",
-  escalation: "**Escalation Criteria (SCS Protocol):**\n\nEscalate a case if **any** of the following apply:\n- 🔴 Youth expresses intent to self-harm or harm others\n- 🔴 Youth mentions feeling unsafe at home\n- 🟠 Risk score is 4 or above AND outreach has not received a response within 48 hours\n- 🟠 Multiple high-risk signals across different platforms\n- 🟡 Youth is under 14 and the case involves any form of abuse\n\n**To escalate:** Use the 'Escalation considered' checklist item, add your notes, and notify your team lead.\n\n⚠️ *When in doubt, escalate. Better safe than sorry.*",
-  followup: "**Follow-Up Timelines (SCS Protocol):**\n\n| Risk Level | First Outreach | Follow-Up 1 | Follow-Up 2 | Review |\n|---|---|---|---|---|\n| Critical (5) | Within 2 hours | 24 hours | 48 hours | 72 hours |\n| High (4) | Within 6 hours | 48 hours | 72 hours | 1 week |\n| Medium (3) | Within 24 hours | 3 days | 1 week | 2 weeks |\n| Low-Med (2) | Within 48 hours | 1 week | 2 weeks | 1 month |\n| Low (1) | Within 1 week | 2 weeks | 1 month | Quarterly |\n\n⚠️ *These are guidelines. Adjust based on the youth's response and comfort level.*",
-  resources: "**Resources & Referrals Available:**\n\n🏥 **Samaritans of Singapore** — 1800-221-4444 (24/7)\n🧠 **Childcare Link** — counselling & mental health support\n🏫 **School Liaison Programme** — coordinate with school counsellors\n📱 **Youthline (Hong Kong, for cross-regional cases)** — 2382 0000\n🌐 **SCS Online Support Portal** — secure messaging platform for youth\n📋 **Community Mental Health Teams** — for home visits if needed\n\n⚠️ *Always check with your team lead before sharing external resources. Ensure the youth and family consent.*",
+  bullying: "**Approaching Bullying Cases:**\n\n1. **Assess severity** — Is it a single incident or a repeated pattern? Check the AI signals for frequency and escalation.\n2. **Do not confront the perpetrator directly** — Focus on the youth's wellbeing first.\n3. **Reach out with warmth** — Use a non-judgmental, empathetic tone. Acknowledge their feelings before offering support.\n4. **Document everything** — Use the checklist to note your outreach attempt and response.\n5. **Involve school or platform** — If the bullying is on a school platform, coordinate with SCS school liaison.\n\n*Remember: You decide whether and how to reach out. AI assists prioritisation only.*",
+  outreach: "**Recommended Outreach Message Templates:**\n\n*Template A (General):*\n\"Hi [Name], I'm [Your Name] from YOUTH(TH)CARE. I wanted to check in with you. You don't have to share anything you're not comfortable with — I'm just here to listen if you need.\"\n\n*Template B (After a difficult event):*\n\"I heard things have been a bit tough lately. Please know there are people who care, and support is available whenever you're ready.\"\n\n*Template C (Follow-up):*\n\"Just wanted to let you know I'm still here. No pressure — take your time.\"\n\n*Always personalise these. You know the context best.*",
+  escalation: "**Escalation Criteria (SCS Protocol):**\n\nEscalate a case if **any** of the following apply:\n- Youth expresses intent to self-harm or harm others\n- Youth mentions feeling unsafe at home\n- Risk score is 4 or above AND outreach has not received a response within 48 hours\n- Multiple high-risk signals across different platforms\n- Youth is under 14 and the case involves any form of abuse\n\n**To escalate:** Use the 'Escalation considered' checklist item, add your notes, and notify your team lead.\n\n*When in doubt, escalate. Better safe than sorry.*",
+  followup: "**Follow-Up Timelines (SCS Protocol):**\n\n| Risk Level | First Outreach | Follow-Up 1 | Follow-Up 2 | Review |\n|---|---|---|---|---|\n| Critical (5) | Within 2 hours | 24 hours | 48 hours | 72 hours |\n| High (4) | Within 6 hours | 48 hours | 72 hours | 1 week |\n| Medium (3) | Within 24 hours | 3 days | 1 week | 2 weeks |\n| Low-Med (2) | Within 48 hours | 1 week | 2 weeks | 1 month |\n| Low (1) | Within 1 week | 2 weeks | 1 month | Quarterly |\n\n*These are guidelines. Adjust based on the youth's response and comfort level.*",
+  resources: "**Resources & Referrals Available:**\n\n**Samaritans of Singapore** — 1800-221-4444 (24/7)\n**Childcare Link** — counselling & mental health support\n**School Liaison Programme** — coordinate with school counsellors\n**Youthline (Hong Kong, for cross-regional cases)** — 2382 0000\n**SCS Online Support Portal** — secure messaging platform for youth\n**Community Mental Health Teams** — for home visits if needed\n\n*Always check with your team lead before sharing external resources. Ensure the youth and family consent.*",
 };
 
 function getChatbotResponse(input, attachedCase) {
@@ -48,31 +45,33 @@ function getChatbotResponse(input, attachedCase) {
   else if (lower.includes("resource") || lower.includes("referral")) key = "resources";
 
   let prefix = "";
-  if (attachedCase) prefix = `📎 *Reviewing case ${attachedCase.code} (${attachedCase.category}, Risk ${attachedCase.riskLevel}/5):*\n\n`;
+  if (attachedCase) prefix = `Reviewing case ${attachedCase.code} (${attachedCase.category}, Risk ${attachedCase.current_risk_score?.toFixed(1) ?? attachedCase.riskLevel}%):\n\n`;
   return prefix + CHATBOT_RESPONSES[key];
 }
 
 // ─── ONBOARDING STEPS ────────────────────────────────────────────────
 const ONBOARDING_STEPS = [
-  { title: "Welcome to SCS Youth Helper Dashboard", desc: "This guided walkthrough will teach you how to use the dashboard. All decisions about youth outreach remain yours — AI is here only to help you prioritise and guide.", target: "hero-welcome", img: "🏠", step: 1, total: 12 },
-  { title: "1. The All Cases Dashboard", desc: "This is your global view organized by category columns. Each column shows cases of the same type (Self-Harm, Bullying, etc.), ordered by priority (highest risk first). Each card shows risk level (colour-coded 1–5), platform, last signal time, status, and assigned helper. The top-right shows when data was last ingested (every 6 hours) for privacy and platform compliance. Original social media content is never stored.", target: "tab-all", img: "📊", step: 2, total: 12 },
-  { title: "2. Understanding Risk Levels", desc: "Risk levels range from 1 (Low - green) to 5 (Critical - red). These color-coded badges help you quickly identify priority cases. Critical (5) requires immediate attention within 2 hours, while Low (1) can be monitored weekly. The AI calculates risk based on language patterns, frequency, and sentiment shifts.", target: "risk-badge", img: "🎯", step: 3, total: 12, highlight: "risk-badge" },
-  { title: "3. Case Status Indicators", desc: "Status badges show the current state: Active (needs attention), Escalated (flagged for urgent review), Monitoring (being watched), or Pending (unassigned). Escalated cases (red badge) require immediate team lead notification and appear at the top of your queue.", target: "status-badge", img: "🏷️", step: 4, total: 12, highlight: "status-badge" },
-  { title: "4. Assigning & Accessing Cases", desc: "Unassigned cases show '—' in the helper column. When a case is assigned to you, it appears in your 'Assigned to Me' tab with full details. Summary-only visibility (All Cases) vs. full access (Assigned to Me) is a key privacy boundary.", target: "tab-assigned", img: "🔐", step: 5, total: 12 },
-  { title: "5. Your Primary Workspace", desc: "The 'Assigned to Me' tab is where you'll spend most of your time. Here you can see your cases and open them for detailed review. Click any case card to begin.", target: "workspace-panel", img: "💼", step: 6, total: 12 },
-  { title: "6. Drag & Drop Reordering", desc: "In the 'Assigned to Me' tab, you can reorder cases by dragging and dropping them, just like in Jira. This helps you organize your workload according to your own priorities. The order you set is saved for your use.", target: "workspace-panel", img: "🔄", step: 7, total: 12 },
-  { title: "7. Youth Profile & Contact Info", desc: "Each case shows the youth's profile with their name, age, Instagram handle, and avatar. This helps you understand who you're supporting. The profile includes all necessary contact information while maintaining privacy protocols.", target: "youth-profile", img: "👤", step: 8, total: 12, highlight: "youth-profile" },
-  { title: "8. Reach Out Button", desc: "The 'Reach Out via Instagram' button lets you initiate contact with the youth. Click this when you're ready to make contact after reviewing the case. IMPORTANT: Always review SCS outreach protocols and use trauma-informed language before reaching out.", target: "reach-out-button", img: "📩", step: 9, total: 12, highlight: "reach-out-button" },
-  { title: "9. AI Signals & Risk Assessment", desc: "AI signals explain why a case was flagged. Each numbered signal shows specific patterns detected: distress keywords, sentiment shifts, temporal patterns, or behavioral changes. These are insights to guide your decision - you determine the appropriate action.", target: "case-detail-area", img: "🔍", step: 10, total: 12 },
-  { title: "10. The Checklist & Comments", desc: "Use the checklist to track mandatory steps: outreach attempted, response received, follow-up scheduled, escalation considered, and case closed. You can add comments and custom checklist items. Only you can see your edits.", target: "checklist-panel", img: "✅", step: 11, total: 12 },
-  { title: "11. The Recommendation Chatbot", desc: "The chatbot at the bottom-right offers guidance based on SCS protocols. Use the 📎 icon to attach one of your assigned cases for context. Try the quick-action preset buttons for common questions. Remember: AI guides, you decide.", target: "chatbot-area", img: "💬", step: 12, total: 12 },
+  { title: "Welcome to SCS Youth Helper Dashboard", desc: "This guided walkthrough will teach you how to use the dashboard. All decisions about youth outreach remain yours — AI is here only to help you prioritise and guide.", target: "hero-welcome", step: 1, total: 12 },
+  { title: "1. The All Cases Dashboard", desc: "This is your global view organized by category columns. Each column shows cases of the same type (Self-Harm, Bullying, etc.), ordered by priority (highest risk first). Each card shows risk level (colour-coded 1–5), platform, last signal time, status, and assigned helper. The top-right shows when data was last ingested (every 6 hours) for privacy and platform compliance. Original social media content is never stored.", target: "tab-all", step: 2, total: 12 },
+  { title: "2. Understanding Risk Levels", desc: "Risk levels range from 1 (Low - green) to 5 (Critical - red). These color-coded badges help you quickly identify priority cases. Critical (5) requires immediate attention within 2 hours, while Low (1) can be monitored weekly. The AI calculates risk based on language patterns, frequency, and sentiment shifts.", target: "risk-badge", step: 3, total: 12, highlight: "risk-badge" },
+  { title: "3. Case Status Indicators", desc: "Status badges show the current state: Active (needs attention), Escalated (flagged for urgent review), Monitoring (being watched), or Pending (unassigned). Escalated cases (red badge) require immediate team lead notification and appear at the top of your queue.", target: "status-badge", step: 4, total: 12, highlight: "status-badge" },
+  { title: "4. Assigning & Accessing Cases", desc: "Unassigned cases show '—' in the helper column. When a case is assigned to you, it appears in your 'Assigned to Me' tab with full details. Summary-only visibility (All Cases) vs. full access (Assigned to Me) is a key privacy boundary.", target: "tab-assigned", step: 5, total: 12 },
+  { title: "5. Your Primary Workspace", desc: "The 'Assigned to Me' tab is where you'll spend most of your time. Here you can see your cases and open them for detailed review. Click any case card to begin.", target: "workspace-panel", step: 6, total: 12 },
+  { title: "6. Drag & Drop Reordering", desc: "In the 'Assigned to Me' tab, you can reorder cases by dragging and dropping them, just like in Jira. This helps you organize your workload according to your own priorities. The order you set is saved for your use.", target: "workspace-panel", step: 7, total: 12 },
+  { title: "7. Youth Profile & Contact Info", desc: "Each case shows the youth's profile with their name, age, Instagram handle, and avatar. This helps you understand who you're supporting. The profile includes all necessary contact information while maintaining privacy protocols.", target: "youth-profile", step: 8, total: 12, highlight: "youth-profile" },
+  { title: "8. Reach Out Button", desc: "The 'Reach Out via Instagram' button lets you initiate contact with the youth. Click this when you're ready to make contact after reviewing the case. IMPORTANT: Always review SCS outreach protocols and use trauma-informed language before reaching out.", target: "reach-out-button", step: 9, total: 12, highlight: "reach-out-button" },
+  { title: "9. AI Signals & Risk Assessment", desc: "AI signals explain why a case was flagged. Each numbered signal shows specific patterns detected: distress keywords, sentiment shifts, temporal patterns, or behavioral changes. These are insights to guide your decision - you determine the appropriate action.", target: "case-detail-area", step: 10, total: 12 },
+  { title: "10. The Checklist & Comments", desc: "Use the checklist to track mandatory steps: outreach attempted, response received, follow-up scheduled, escalation considered, and case closed. You can add comments and custom checklist items. Only you can see your edits.", target: "checklist-panel", step: 11, total: 12 },
+  { title: "11. The Recommendation Chatbot", desc: "The chatbot at the bottom-right offers guidance based on SCS protocols. Use the paperclip icon to attach one of your assigned cases for context. Try the quick-action preset buttons for common questions. Remember: AI guides, you decide.", target: "chatbot-area", step: 12, total: 12 },
 ];
 
 // ─── COMPONENTS ──────────────────────────────────────────────────────
 
-function RiskBadge({ level }) {
-  const c = RISK_COLORS[level];
-  return <span style={{ background: c.bg, color: c.text, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>{c.label} ({level})</span>;
+function RiskBadge({ level, score }) {
+  const c = RISK_COLORS[level] || { bg: "#f3f4f6", text: "#4b5563", label: "Unknown" };
+  if (!level && !score) return null;
+  const displayScore = score ? `${score.toFixed(1)}%` : `${c.label} (${level})`;
+  return <span style={{ background: c.bg, color: c.text, padding: "3px 10px", borderRadius: 20, fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }}>{displayScore}</span>;
 }
 
 function StatusBadge({ status }) {
@@ -85,7 +84,7 @@ function DataFreshnessIndicator({ highlight }) {
   return (
     <div id="freshness-indicator" style={{ display: "flex", alignItems: "center", gap: 10, background: highlight ? "#fef3c7" : "rgba(255,255,255,0.08)", border: highlight ? "2px solid #f59e0b" : "1px solid rgba(255,255,255,0.15)", borderRadius: 10, padding: "8px 14px", transition: "all 0.4s" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-        <span style={{ fontSize: 14 }}>🔄</span>
+        <Icon.RefreshCw size={14} color={highlight ? "#92400e" : "#cbd5e1"} />
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: highlight ? "#92400e" : "#cbd5e1", letterSpacing: "0.5px" }}>LAST INGESTION</div>
           <div style={{ fontSize: 12, color: highlight ? "#78350f" : "#94a3b8" }}>Today, 06:12 AM · Next in ~3h 48m</div>
@@ -100,41 +99,217 @@ function DataFreshnessIndicator({ highlight }) {
 }
 
 function CaseCard({ c, onClick, highlight, isAssignedView }) {
+  const riskColor = RISK_COLORS[c.riskLevel] || { bg: "#f3f4f6", text: "#4b5563", label: "Unknown" };
+  
   return (
-    <div id={`case-card-${c.id}`} onClick={() => onClick(c)} style={{ background: "#fff", borderRadius: 12, border: highlight ? "2px solid #6366f1" : "1px solid #e2e8f0", padding: "14px 16px", cursor: "pointer", transition: "all 0.2s", boxShadow: highlight ? "0 0 0 3px rgba(99,102,241,0.25)" : "0 1px 3px rgba(0,0,0,0.06)", position: "relative" }} onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.1)"} onMouseLeave={e => e.currentTarget.style.boxShadow = highlight ? "0 0 0 3px rgba(99,102,241,0.25)" : "0 1px 3px rgba(0,0,0,0.06)"}>
-      {!isAssignedView && c.assignedToMe && <div style={{ position: "absolute", top: 8, right: 8, background: "#6366f1", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>MINE</div>}
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-        <span style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>{c.code}</span>
-        <RiskBadge level={c.riskLevel} />
+    <div 
+      id={`case-card-${c.id}`} 
+      onClick={() => onClick(c)} 
+      style={{ 
+        background: "#fff", 
+        borderRadius: 10, 
+        border: highlight ? "2px solid #6366f1" : "1px solid #e2e8f0", 
+        padding: "14px 16px",
+        cursor: "pointer", 
+        transition: "all 0.2s", 
+        boxShadow: highlight ? "0 0 0 3px rgba(99,102,241,0.2)" : "0 1px 3px rgba(0,0,0,0.06)",
+        position: "relative"
+      }} 
+      onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)"} 
+      onMouseLeave={e => e.currentTarget.style.boxShadow = highlight ? "0 0 0 3px rgba(99,102,241,0.2)" : "0 1px 3px rgba(0,0,0,0.06)"}
+    >
+      {!isAssignedView && c.assignedToMe && (
+        <div style={{ position: "absolute", top: 8, right: 8, background: "#6366f1", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 10 }}>
+          MINE
+        </div>
+      )}
+      
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+        <span style={{ fontWeight: 700, fontSize: 13, color: "#1e293b", fontFamily: "monospace" }}>{c.code}</span>
+        <RiskBadge level={c.riskLevel} score={c.current_risk_score} />
         <StatusBadge status={c.status} />
       </div>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", fontSize: 12, color: "#64748b", marginBottom: 6 }}>
-        <span>🏷️ {c.category}</span>
-        <span>📱 {c.platform}</span>
-        <span>🕐 {c.lastSignal}</span>
-        <span>👤 {c.assignedTo}</span>
+      
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 10, fontSize: 11 }}>
+        <div>
+          <div style={{ color: "#94a3b8", fontSize: 10, marginBottom: 2 }}>Category</div>
+          <div style={{ color: "#475569", fontWeight: 600 }}>{c.category}</div>
+        </div>
+        <div>
+          <div style={{ color: "#94a3b8", fontSize: 10, marginBottom: 2 }}>Priority</div>
+          <div style={{ 
+            color: c.priority === "critical" ? "#dc2626" : c.priority === "high" ? "#f59e0b" : c.priority === "medium" ? "#3b82f6" : "#10b981", 
+            fontWeight: 700,
+            textTransform: "capitalize"
+          }}>
+            {c.priority || "Medium"}
+          </div>
+        </div>
+        <div>
+          <div style={{ color: "#94a3b8", fontSize: 10, marginBottom: 2 }}>Last Signal</div>
+          <div style={{ color: "#475569", fontWeight: 600 }}>{c.lastSignal ? new Date(c.lastSignal).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : "—"}</div>
+        </div>
+        <div>
+          <div style={{ color: "#94a3b8", fontSize: 10, marginBottom: 2 }}>Platform</div>
+          <div style={{ color: "#475569", fontWeight: 600 }}>{c.platform}</div>
+        </div>
       </div>
-      <div style={{ fontSize: 12, color: "#475569", lineHeight: 1.45, borderTop: "1px solid #f1f5f9", paddingTop: 6, marginTop: 4 }}>{c.summary}</div>
+      
+      <div style={{ 
+        fontSize: 12, 
+        color: "#64748b", 
+        lineHeight: 1.4,
+        borderTop: "1px solid #f1f5f9",
+        paddingTop: 10,
+        display: "-webkit-box",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
+        overflow: "hidden"
+      }}>
+        {c.summary}
+      </div>
     </div>
   );
 }
 
-// ─── MAIN APP ────────────────────────────────────────────────────────
-export default function App() {
+function CaseStatusBadge({ caseStatus }) {
+  const cfg = {
+    new:        { bg: "#eef2ff", text: "#3730a3", label: "New" },
+    unassigned: { bg: "#fffbeb", text: "#92400e", label: "Unassigned" },
+    assigned:   { bg: "#d1fae5", text: "#065f46", label: "Assigned" },
+    reassigned: { bg: "#fce7f3", text: "#9d174d", label: "Pending Reassignment" },
+  };
+  const c = cfg[caseStatus] || { bg: "#f3f4f6", text: "#4b5563", label: caseStatus || "—" };
+  return <span style={{ background: c.bg, color: c.text, padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{c.label}</span>;
+}
+
+function WorkStatusBadge({ workStatus }) {
+  const cfg = {
+    not_started:  { bg: "#f3f4f6", text: "#4b5563", label: "Not Started" },
+    in_progress:  { bg: "#dbeafe", text: "#1e40af", label: "In Progress" },
+    to_review:    { bg: "#fee2e2", text: "#991b1b", label: "To Review" },
+    completed:    { bg: "#d1fae5", text: "#065f46", label: "Completed" },
+  };
+  const c = cfg[workStatus] || { bg: "#f3f4f6", text: "#4b5563", label: workStatus || "—" };
+  return <span style={{ background: c.bg, color: c.text, padding: "2px 9px", borderRadius: 20, fontSize: 11, fontWeight: 600 }}>{c.label}</span>;
+}
+
+// ─── MAIN APP (Youth Helper Dashboard) ──────────────────────────────
+export default function YouthHelperDashboard({ currentUser: propUser }) {
+  const { logout } = useAuth();
+  // Prefer the prop from the router; fall back to local const for standalone use
+  const currentUser = propUser || CURRENT_USER_FALLBACK;
   const [activeTab, setActiveTab] = useState("all");
   const [selectedCase, setSelectedCase] = useState(null);
+  const [detailTab, setDetailTab] = useState("overview"); // 'overview' | 'timeline'
+  const [accessDeniedCase, setAccessDeniedCase] = useState(null); // case that triggered access denied
+  // Work status state for open case
+  const [workStatus, setWorkStatus] = useState(null);
+  const [showToReviewPopup, setShowToReviewPopup] = useState(false);
+  const [toReviewReason, setToReviewReason] = useState("");
+  const [workStatusSaving, setWorkStatusSaving] = useState(false);
+  // Reassignment request state
+  const [showReassignPopup, setShowReassignPopup] = useState(false);
+  const [reassignReason, setReassignReason] = useState("");
+  const [reassignSaving, setReassignSaving] = useState(false);
+  const [reassignMsg, setReassignMsg] = useState("");
   const [onboardingStep, setOnboardingStep] = useState(0); // 0 = show welcome modal
   const [onboardingActive, setOnboardingActive] = useState(true);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [showChatbot, setShowChatbot] = useState(false);
   const [showHelpMenu, setShowHelpMenu] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState(null);
-  const [assignedCasesOrder, setAssignedCasesOrder] = useState(MOCK_CASES.filter(c => c.assignedToMe).map(c => c.id));
+  const [isDragging, setIsDragging] = useState(false);
 
-  const myAssignedCases = assignedCasesOrder.map(id => MOCK_CASES.find(c => c.id === id)).filter(Boolean);
-  
+  // ── Live case data from MongoDB API ──
+  const [cases, setCases] = useState([]);
+  const [helpers, setHelpers] = useState([]); // Youth helpers from scs_users
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const loadCases = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await caseAPI.getAllCases();
+        
+        // Fetch helpers to map assigned_to
+        let helpersData = [];
+        try {
+          const { default: { userAPI } } = await import('./services/api.js');
+          helpersData = await userAPI.getYouthHelpers();
+          setHelpers(helpersData.map(h => ({
+            user_id: h.user_id,
+            name: h.username,
+            employee_id: h.user_id,
+            department: h.role,
+            avatar_initials: h.username?.split(' ').map(n => n[0]).join('') || h.user_id?.substring(0, 2).toUpperCase()
+          })));
+        } catch (err) {
+          console.warn("Could not fetch helpers:", err);
+        }
+        
+        // Transform API data to match the component's expected format
+        const transformed = data.map(c => ({
+          id: c.case_id,
+          code: c.case_id,
+          case_id: c.case_id,
+          riskLevel: c.current_risk_score ? Math.round(c.current_risk_score / 20) : 3,
+          current_risk_score: c.current_risk_score,
+          category: c.category || "Unknown",
+          platform: c.platform || "Instagram",
+          lastSignal: c.last_signal_at || c.updated_at || "—",
+          status: c.case_status || "Active",
+          case_status: c.case_status,
+          work_status: c.work_status,
+          priority: c.priority || "medium",
+          assigned_to: c.assigned_to,
+          assignedTo: c.assigned_to || "—",
+          assignedToMe: c.assigned_to === (currentUser.user_id || currentUser.id),
+          created_at: c.created_at,
+          updated_at: c.updated_at,
+          user_id: c.user_id,
+          youth: {
+            name: c.user_id || "Unknown Youth",
+            age: "—",
+            avatar: "U",
+            handle: `@${c.user_id || "unknown"}`,
+            instagramUrl: `https://instagram.com/${c.user_id || "unknown"}`
+          },
+          signals: c.ai_explanation ? c.ai_explanation.split('\n').filter(s => s.trim() && (s.includes('•') || s.includes('-') || s.length > 20)).map(s => s.replace(/^[•\-]\s*/, '').trim()).filter(s => s) : [],
+          summary: c.ai_explanation || "No summary available",
+          ai_explanation: c.ai_explanation,
+          needs_review: c.needs_review || false,
+        }));
+        
+        setCases(transformed);
+      } catch (err) {
+        setError(err.message || "Failed to load cases");
+        console.error("Error loading cases:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCases();
+  }, [currentUser]);
+
+  const [assignedCasesOrder, setAssignedCasesOrder] = useState([]);
+  // Keep order in sync when cases update
+  useEffect(() => {
+    const assignedIds = cases.filter(c => c.assignedToMe).map(c => c.id);
+    setAssignedCasesOrder(prev => {
+      const merged = [...new Set([...prev, ...assignedIds])].filter(id => assignedIds.includes(id));
+      return merged;
+    });
+  }, [cases]);
+
+  const myAssignedCases = assignedCasesOrder.map(id => cases.find(c => c.id === id)).filter(Boolean);
+  const needsReviewCases = cases.filter(c => c.needs_review || c.needsReview);
+
   // Group cases by category for All Cases view
-  const casesByCategory = MOCK_CASES.reduce((acc, c) => {
+  const casesByCategory = cases.reduce((acc, c) => {
     if (!acc[c.category]) acc[c.category] = [];
     acc[c.category].push(c);
     return acc;
@@ -153,8 +328,12 @@ export default function App() {
   });
   
   // Drag and drop handlers
-  const handleDragStart = (index) => {
-    setDraggedIndex(index);
+  const handleDragStart = (index, e) => {
+    // Add slight delay to distinguish clicks from drags
+    setTimeout(() => {
+      setDraggedIndex(index);
+      setIsDragging(true);
+    }, 100);
   };
   
   const handleDragOver = (e, index) => {
@@ -172,6 +351,112 @@ export default function App() {
   
   const handleDragEnd = () => {
     setDraggedIndex(null);
+    setTimeout(() => setIsDragging(false), 50);
+  };
+  
+  const handleCaseClick = (c) => {
+    // Only open case if not actively dragging
+    if (!isDragging) {
+      setSelectedCase(c);
+    }
+  };
+
+  // Sync workStatus when case changes
+  useEffect(() => {
+    if (selectedCase) {
+      setWorkStatus(selectedCase.work_status || selectedCase.workStatus || "not_started");
+      setDetailTab("overview");
+    }
+  }, [selectedCase?.case_id || selectedCase?.id]);
+
+  const openCase = (c) => {
+    // Strict: helpers may not open cases not assigned to them
+    const isAssigned = c.assignedToMe || (c.assigned_to && c.assigned_to === currentUser.user_id);
+    if (!isAssigned && currentUser.role !== "Admin") {
+      setAccessDeniedCase(c);
+      return;
+    }
+    setSelectedCase(c);
+  };
+
+  const saveWorkStatus = async (newWs, reason = "") => {
+    setWorkStatusSaving(true);
+    const caseId = selectedCase.case_id || selectedCase.code;
+    try {
+      const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}/work-status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": currentUser.user_id,
+          "X-User-Role": currentUser.role,
+        },
+        body: JSON.stringify({ work_status: newWs, reason }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setWorkStatus(data.work_status);
+        setSelectedCase(prev => ({
+          ...prev,
+          work_status: data.work_status,
+          needs_review: data.needs_review ?? prev.needs_review,
+        }));
+        // Refresh case list for admin indicator
+        setCases(prev => prev.map(c =>
+          (c.case_id || c.code) === caseId
+            ? { ...c, work_status: data.work_status, needs_review: data.needs_review ?? c.needs_review }
+            : c
+        ));
+      }
+    } catch { /* silent — optimistic update already done */ } finally {
+      setWorkStatusSaving(false);
+    }
+  };
+
+  const handleWorkStatusChange = (newWs) => {
+    if (newWs === "to_review") {
+      setToReviewReason("");
+      setShowToReviewPopup(true);
+    } else {
+      setWorkStatus(newWs);
+      saveWorkStatus(newWs);
+    }
+  };
+
+  const submitToReview = async () => {
+    if (!toReviewReason.trim()) return;
+    setWorkStatus("to_review");
+    await saveWorkStatus("to_review", toReviewReason.trim());
+    setShowToReviewPopup(false);
+    setToReviewReason("");
+  };
+
+  const submitReassignRequest = async () => {
+    if (!reassignReason.trim()) return;
+    setReassignSaving(true);
+    const caseId = selectedCase.case_id || selectedCase.code;
+    try {
+      const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}/reassignment-request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": currentUser.user_id,
+          "X-User-Role": currentUser.role,
+        },
+        body: JSON.stringify({ reason: reassignReason.trim() }),
+      });
+      if (res.ok) {
+        setReassignMsg("Reassignment request submitted. Admin will review your request.");
+        setSelectedCase(prev => ({ ...prev, case_status: "reassigned" }));
+      } else {
+        setReassignMsg("Request saved locally (API unavailable).");
+      }
+    } catch {
+      setReassignMsg("Request noted locally (API unavailable).");
+    } finally {
+      setReassignSaving(false);
+      setShowReassignPopup(false);
+      setReassignReason("");
+    }
   };
 
   // Auto-advance onboarding context
@@ -179,16 +464,16 @@ export default function App() {
     if (!onboardingActive || onboardingDone) return;
     if (onboardingStep === 1) setActiveTab("all");
     if (onboardingStep === 2) setActiveTab("all");
-    if (onboardingStep === 3) { setActiveTab("all"); setSelectedCase(MOCK_CASES[1]); } // Show case to highlight risk badge
-    if (onboardingStep === 4) { setActiveTab("all"); setSelectedCase(MOCK_CASES[1]); } // Show case to highlight status badge
+    if (onboardingStep === 3) { setActiveTab("all"); if (cases.length > 0) setSelectedCase(cases[0]); }
+    if (onboardingStep === 4) { setActiveTab("all"); if (cases.length > 0) setSelectedCase(cases[0]); }
     if (onboardingStep === 5) setActiveTab("assigned");
     if (onboardingStep === 6) setActiveTab("assigned");
     if (onboardingStep === 7) setActiveTab("assigned");
-    if (onboardingStep === 8) { setActiveTab("assigned"); setSelectedCase(myAssignedCases[0]); } // Youth profile
-    if (onboardingStep === 9) { setActiveTab("assigned"); setSelectedCase(myAssignedCases[0]); } // Reach out button
-    if (onboardingStep === 10) { setActiveTab("assigned"); setSelectedCase(myAssignedCases[0]); } // AI signals
-    if (onboardingStep === 11) { setActiveTab("assigned"); setSelectedCase(myAssignedCases[0]); } // Checklist
-    if (onboardingStep === 12) { setSelectedCase(myAssignedCases[0]); setShowChatbot(true); } // Chatbot
+    if (onboardingStep === 8) { setActiveTab("assigned"); if (myAssignedCases.length > 0) setSelectedCase(myAssignedCases[0]); }
+    if (onboardingStep === 9) { setActiveTab("assigned"); if (myAssignedCases.length > 0) setSelectedCase(myAssignedCases[0]); }
+    if (onboardingStep === 10) { setActiveTab("assigned"); if (myAssignedCases.length > 0) setSelectedCase(myAssignedCases[0]); }
+    if (onboardingStep === 11) { setActiveTab("assigned"); if (myAssignedCases.length > 0) setSelectedCase(myAssignedCases[0]); }
+    if (onboardingStep === 12) { if (myAssignedCases.length > 0) setSelectedCase(myAssignedCases[0]); setShowChatbot(true); }
   }, [onboardingStep]);
 
   const highlightTarget = onboardingActive && !onboardingDone ? ONBOARDING_STEPS[onboardingStep]?.highlight || ONBOARDING_STEPS[onboardingStep]?.target : null;
@@ -198,7 +483,7 @@ export default function App() {
       {/* ── TOP NAV ── */}
       <nav style={{ background: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", color: "#fff", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, position: "relative", zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <div style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🌟</div>
+          <div style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", width: 36, height: 36, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon.Shield size={20} color="#fff" /></div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: "0.3px" }}>Singapore Children's Society</div>
             <div style={{ fontSize: 10, color: "#94a3b8", letterSpacing: "1.2px", textTransform: "uppercase" }}>YOUTH<sup>TH</sup>CARE</div>
@@ -207,39 +492,122 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <DataFreshnessIndicator highlight={highlightTarget === "tab-all"} />
           <div style={{ position: "relative" }}>
-            <button onClick={() => setShowHelpMenu(!showHelpMenu)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}>❓ Help</button>
+            <button onClick={() => setShowHelpMenu(!showHelpMenu)} style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "#fff", borderRadius: 8, padding: "6px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 6 }}><Icon.AlertCircle size={14} color="#fff" /> Help</button>
             {showHelpMenu && (
               <div style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, background: "#fff", borderRadius: 12, boxShadow: "0 8px 30px rgba(0,0,0,0.18)", width: 220, zIndex: 100, overflow: "hidden" }}>
                 <div style={{ padding: "6px 0" }}>
-                  <button onClick={() => { setOnboardingActive(true); setOnboardingDone(false); setOnboardingStep(0); setShowHelpMenu(false); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#1e293b", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>🎓 Run Onboarding Walkthrough</button>
-                  <button onClick={() => { setShowHelpMenu(false); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#1e293b", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>📖 User Guide (PDF)</button>
-                  <button onClick={() => { setShowHelpMenu(false); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#1e293b", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}>📧 Contact Support</button>
+                  <button onClick={() => { setOnboardingActive(true); setOnboardingDone(false); setOnboardingStep(0); setShowHelpMenu(false); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#1e293b", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}><Icon.Monitor size={14} color="#475569"/> Run Onboarding</button>
+                  <button onClick={() => { setShowHelpMenu(false); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#1e293b", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}><Icon.FileText size={14} color="#475569"/> User Guide</button>
+                  <button onClick={() => { setShowHelpMenu(false); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#1e293b", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={e => e.currentTarget.style.background = "#f1f5f9"} onMouseLeave={e => e.currentTarget.style.background = "none"}><Icon.MessageSquare size={14} color="#475569"/> Contact Support</button>
+                  <div style={{ borderTop: "1px solid #f1f5f9", margin: "4px 0" }}/>
+                  <button onClick={() => { setShowHelpMenu(false); logout(); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", padding: "10px 16px", cursor: "pointer", fontSize: 13, color: "#dc2626", display: "flex", alignItems: "center", gap: 10 }} onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"} onMouseLeave={e => e.currentTarget.style.background = "none"}><Icon.LogOut size={14} color="#dc2626"/> Sign Out</button>
                 </div>
               </div>
             )}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.08)", padding: "5px 12px", borderRadius: 20, border: "1px solid rgba(255,255,255,0.15)" }}>
-            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>SL</div>
-            <span style={{ fontSize: 13 }}>Sarah L.</span>
+            <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#6366f1,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff" }}>{currentUser.avatar_initials || currentUser.name?.split(" ").map(n=>n[0]).join("").slice(0,2) || "?"}</div>
+            <div>
+              <div style={{ fontSize: 13 }}>{currentUser.name}</div>
+              <div style={{ fontSize: 10, color: "#94a3b8" }}>{currentUser.employee_id || ""} · {currentUser.role}</div>
+            </div>
           </div>
         </div>
       </nav>
 
       {/* ── PRIVACY BANNER ── */}
       <div style={{ background: "#eef2ff", borderBottom: "1px solid #c7d2fe", padding: "6px 24px", fontSize: 11.5, color: "#4338ca", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        <span>🔒</span> <strong>Privacy Notice:</strong> This dashboard displays AI-generated risk assessments only. Original social media content is never stored or displayed. All outreach decisions are made by you. Your edits and interactions are private to your account.
+        <Icon.Lock size={12} color="#4338ca"/> <strong>Privacy Notice:</strong> This dashboard displays AI-generated risk assessments only. Original social media content is never stored or displayed. All outreach decisions are made by you. Your edits and interactions are private to your account.
       </div>
+
+      {/* ── ACCESS DENIED MODAL ── */}
+      {accessDeniedCase && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.7)", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:"#fff", borderRadius:18, width:420, padding:36, textAlign:"center", boxShadow:"0 24px 60px rgba(0,0,0,0.3)" }}>
+            <div style={{ width:60, height:60, background:"#fef2f2", borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 18px" }}>
+              <Icon.Lock size={26} color="#dc2626"/>
+            </div>
+            <h3 style={{ margin:"0 0 8px", fontSize:19, color:"#1e293b", fontWeight:700 }}>Access Denied</h3>
+            <p style={{ margin:"0 0 18px", fontSize:14, color:"#64748b", lineHeight:1.6 }}>This case is not assigned to you.<br/>You cannot view its details.</p>
+            <div style={{ background:"#f8fafc", borderRadius:10, padding:"10px 16px", marginBottom:22, fontSize:12, color:"#475569", textAlign:"left", border:"1px solid #e2e8f0" }}>
+              <div><strong>Case:</strong> {accessDeniedCase.code || accessDeniedCase.case_id}</div>
+              <div><strong>Youth:</strong> {accessDeniedCase.youth?.name || accessDeniedCase.youthName || "—"}</div>
+              <div><strong>Assigned to:</strong> {accessDeniedCase.assignedTo || accessDeniedCase.assigned_to || "Unassigned"}</div>
+            </div>
+            <button onClick={() => setAccessDeniedCase(null)} style={{ background:"linear-gradient(135deg,#6366f1,#8b5cf6)", color:"#fff", border:"none", borderRadius:10, padding:"11px 32px", fontSize:14, fontWeight:600, cursor:"pointer", boxShadow:"0 4px 14px rgba(99,102,241,0.35)" }}>Close</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── TO-REVIEW REASON POPUP ── */}
+      {showToReviewPopup && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.65)", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:"#fff", borderRadius:18, width:460, padding:36, boxShadow:"0 24px 60px rgba(0,0,0,0.28)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
+              <div style={{ width:44, height:44, background:"#fef2f2", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Icon.AlertTriangle size={20} color="#dc2626"/>
+              </div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:16, color:"#1e293b" }}>Submit for Review</div>
+                <div style={{ fontSize:12, color:"#94a3b8" }}>This will notify the Admin for case review</div>
+              </div>
+            </div>
+            <p style={{ fontSize:13, color:"#475569", margin:"0 0 14px", lineHeight:1.6 }}>Please provide a reason why this case needs review. This will be audited and visible to the Admin.</p>
+            <textarea
+              value={toReviewReason}
+              onChange={e => setToReviewReason(e.target.value)}
+              placeholder="e.g. Youth requires urgent escalation – risk level has increased significantly..."
+              style={{ width:"100%", minHeight:90, padding:"10px 12px", borderRadius:10, border:"1.5px solid #e2e8f0", fontSize:13, color:"#1e293b", resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"inherit", lineHeight:1.5 }}
+            />
+            <div style={{ display:"flex", gap:10, marginTop:16, justifyContent:"flex-end" }}>
+              <button onClick={() => { setShowToReviewPopup(false); setToReviewReason(""); }} style={{ background:"#f1f5f9", color:"#64748b", border:"none", borderRadius:10, padding:"9px 22px", fontSize:13, cursor:"pointer" }}>Cancel</button>
+              <button onClick={submitToReview} disabled={!toReviewReason.trim() || workStatusSaving} style={{ background: toReviewReason.trim() ? "linear-gradient(135deg,#dc2626,#ef4444)" : "#e2e8f0", color: toReviewReason.trim() ? "#fff" : "#94a3b8", border:"none", borderRadius:10, padding:"9px 24px", fontSize:13, fontWeight:600, cursor: toReviewReason.trim() ? "pointer" : "not-allowed" }}>
+                {workStatusSaving ? "Submitting…" : "Submit for Review"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── REASSIGNMENT REQUEST POPUP ── */}
+      {showReassignPopup && (
+        <div style={{ position:"fixed", inset:0, background:"rgba(15,23,42,0.65)", zIndex:500, display:"flex", alignItems:"center", justifyContent:"center" }}>
+          <div style={{ background:"#fff", borderRadius:18, width:460, padding:36, boxShadow:"0 24px 60px rgba(0,0,0,0.28)" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:14 }}>
+              <div style={{ width:44, height:44, background:"#fffbeb", borderRadius:12, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                <Icon.User size={20} color="#d97706"/>
+              </div>
+              <div>
+                <div style={{ fontWeight:700, fontSize:16, color:"#1e293b" }}>Request Reassignment</div>
+                <div style={{ fontSize:12, color:"#94a3b8" }}>Route case to Admin for reassignment approval</div>
+              </div>
+            </div>
+            <p style={{ fontSize:13, color:"#475569", margin:"0 0 14px", lineHeight:1.6 }}>Provide a reason for requesting this case to be reassigned. Admin will review and approve or reject your request.</p>
+            <textarea
+              value={reassignReason}
+              onChange={e => setReassignReason(e.target.value)}
+              placeholder="e.g. I am unable to continue due to scheduling conflicts / conflict of interest…"
+              style={{ width:"100%", minHeight:90, padding:"10px 12px", borderRadius:10, border:"1.5px solid #e2e8f0", fontSize:13, color:"#1e293b", resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"inherit", lineHeight:1.5 }}
+            />
+            <div style={{ display:"flex", gap:10, marginTop:16, justifyContent:"flex-end" }}>
+              <button onClick={() => { setShowReassignPopup(false); setReassignReason(""); }} style={{ background:"#f1f5f9", color:"#64748b", border:"none", borderRadius:10, padding:"9px 22px", fontSize:13, cursor:"pointer" }}>Cancel</button>
+              <button onClick={submitReassignRequest} disabled={!reassignReason.trim() || reassignSaving} style={{ background: reassignReason.trim() ? "linear-gradient(135deg,#d97706,#f59e0b)" : "#e2e8f0", color: reassignReason.trim() ? "#fff" : "#94a3b8", border:"none", borderRadius:10, padding:"9px 24px", fontSize:13, fontWeight:600, cursor: reassignReason.trim() ? "pointer" : "not-allowed" }}>
+                {reassignSaving ? "Submitting…" : "Request Reassignment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── ONBOARDING WELCOME MODAL ── */}
       {onboardingActive && !onboardingDone && onboardingStep === 0 && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.7)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ background: "#fff", borderRadius: 20, maxWidth: 520, width: "90%", padding: 40, textAlign: "center", boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
-            <div style={{ fontSize: 52, marginBottom: 12 }}>🎓</div>
             <h2 style={{ margin: "0 0 8px", fontSize: 22, color: "#1e293b" }}>Welcome to the SCS Youth Helper Dashboard</h2>
             <p style={{ margin: "0 0 8px", color: "#64748b", fontSize: 14, lineHeight: 1.6 }}>This short walkthrough will guide you through every feature — from viewing cases to using the recommendation chatbot.</p>
             <p style={{ margin: "0 0 24px", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>AI assists prioritisation and guidance. All outreach decisions are yours.</p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button onClick={() => setOnboardingStep(1)} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 32px", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}>Start Walkthrough →</button>
+              <button onClick={() => setOnboardingStep(1)} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, padding: "11px 32px", fontSize: 14, fontWeight: 600, cursor: "pointer", boxShadow: "0 4px 14px rgba(99,102,241,0.4)" }}>Start Walkthrough</button>
               <button onClick={() => { setOnboardingActive(false); setOnboardingDone(true); }} style={{ background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 10, padding: "11px 22px", fontSize: 13, cursor: "pointer" }}>Skip for now</button>
             </div>
           </div>
@@ -270,20 +638,19 @@ export default function App() {
           <div style={{ position: "fixed", ...pos, zIndex: 201, pointerEvents: "auto", width: 380, background: "#fff", borderRadius: 16, boxShadow: "0 16px 48px rgba(0,0,0,0.28)", overflow: "hidden" }}>
             <div style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ color: "#fff", fontSize: 13, fontWeight: 600 }}>Step {step.step} of {step.total}</span>
-              <button onClick={() => { setOnboardingActive(false); setOnboardingDone(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>✕</button>
+              <button onClick={() => { setOnboardingActive(false); setOnboardingDone(true); }} style={{ background: "rgba(255,255,255,0.2)", border: "none", color: "#fff", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon.X size={14} /></button>
             </div>
             <div style={{ padding: "18px 20px 20px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
-                <div style={{ fontSize: 28 }}>{step.img}</div>
+              <div style={{ marginBottom: 10 }}>
                 <h3 style={{ margin: 0, fontSize: 15, color: "#1e293b", lineHeight: 1.3 }}>{step.title}</h3>
               </div>
               <p style={{ margin: "0 0 16px", fontSize: 13, color: "#64748b", lineHeight: 1.55 }}>{step.desc}</p>
               {/* Visual example box */}
               <div style={{ background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
-                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>👁️ Look for</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Look for:</div>
                 <div style={{ fontSize: 12, color: "#475569" }}>
                   {step.step === 1 && "The dashboard header and privacy banner at the top."}
-                  {step.step === 2 && "Cases organized into category columns (Self-Harm, Bullying, etc.), with highest priority cases at the top of each column. Risk badges (green → red) and the 🔄 data freshness indicator top-right."}
+                  {step.step === 2 && "Cases organized into category columns (Self-Harm, Bullying, etc.), with highest priority cases at the top of each column. Risk badges (green to red) and the data freshness indicator top-right."}
                   {step.step === 3 && "The highlighted RISK BADGE showing the color-coded risk level (1-5). Notice how Critical (5) is red, Medium (3) is yellow, and Low (1) is green."}
                   {step.step === 4 && "The highlighted STATUS BADGE next to the risk level. Active = blue, Escalated = red, Monitoring = gray, Pending = yellow."}
                   {step.step === 5 && "The 'Assigned to Me' tab — cases here show a 'MINE' badge in All Cases view."}
@@ -296,11 +663,11 @@ export default function App() {
                 </div>
               </div>
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                {onboardingStep > 1 && <button onClick={() => setOnboardingStep(s => s - 1)} style={{ background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, cursor: "pointer" }}>← Back</button>}
+                {onboardingStep > 1 && <button onClick={() => setOnboardingStep(s => s - 1)} style={{ background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 8, padding: "8px 18px", fontSize: 13, cursor: "pointer" }}>Back</button>}
                 {onboardingStep < 11 ? (
-                  <button onClick={() => setOnboardingStep(s => s + 1)} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Next →</button>
+                  <button onClick={() => setOnboardingStep(s => s + 1)} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Next</button>
                 ) : (
-                  <button onClick={() => { setOnboardingActive(false); setOnboardingDone(true); }} style={{ background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>✓ Done</button>
+                  <button onClick={() => { setOnboardingActive(false); setOnboardingDone(true); }} style={{ background: "linear-gradient(135deg, #10b981, #059669)", color: "#fff", border: "none", borderRadius: 8, padding: "8px 22px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Done</button>
                 )}
               </div>
             </div>
@@ -310,16 +677,49 @@ export default function App() {
 
       {/* ── MAIN BODY ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* ── LEFT: TAB NAVIGATION + CASE LIST ── */}
+        {/* Loading State */}
+        {loading && (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#1e293b", marginBottom: 8 }}>Loading cases from database...</div>
+              <div style={{ fontSize: 13, color: "#94a3b8" }}>Connecting to MongoDB</div>
+            </div>
+          </div>
+        )}
+        
+        {/* Error State */}
+        {!loading && error && (
+          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}>
+            <div style={{ textAlign: "center", maxWidth: 400 }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#dc2626", marginBottom: 8 }}>Failed to load cases</div>
+              <div style={{ fontSize: 13, color: "#64748b", marginBottom: 20 }}>{error}</div>
+              <button 
+                onClick={() => window.location.reload()} 
+                style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, padding: "10px 24px", fontSize: 14, fontWeight: 600, cursor: "pointer" }}
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+        
+        {/* Main Content - only show when not loading and no error */}
+        {!loading && !error && (
         <div id="workspace-panel" style={{ width: selectedCase ? 380 : "100%", minWidth: selectedCase ? 340 : undefined, maxWidth: selectedCase ? 420 : undefined, background: "#fff", borderRight: "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflow: "hidden", transition: "width 0.3s ease" }}>
           {/* Tabs */}
-          <div id="tab-all" style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "#eef2ff" : "#fff", transition: "background 0.3s", border: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "2px solid #6366f1" : "none", borderBottom: "1px solid #e2e8f0", borderRadius: "0 0 0 0" }}>
+          <div id="tab-all" style={{ display: "flex", background: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "#eef2ff" : "#fff", transition: "background 0.3s", border: highlightTarget === "tab-all" || highlightTarget === "tab-assigned" ? "2px solid #6366f1" : "none", borderBottom: "1px solid #e2e8f0", borderRadius: "0 0 0 0" }}>
             <button onClick={() => { setActiveTab("all"); setSelectedCase(null); }} style={{ flex: 1, padding: "13px 0", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeTab === "all" ? 700 : 500, color: activeTab === "all" ? "#6366f1" : "#64748b", borderBottom: activeTab === "all" ? "3px solid #6366f1" : "3px solid transparent", transition: "all 0.2s" }}>
-              📋 All Cases <span style={{ background: "#e0e7ff", color: "#4338ca", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{MOCK_CASES.length}</span>
+              <Icon.List size={13} color={activeTab === "all" ? "#6366f1" : "#94a3b8"} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }}/>All Cases <span style={{ background: "#e0e7ff", color: "#4338ca", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{cases.length}</span>
             </button>
             <button id="tab-assigned" onClick={() => { setActiveTab("assigned"); setSelectedCase(null); }} style={{ flex: 1, padding: "13px 0", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeTab === "assigned" ? 700 : 500, color: activeTab === "assigned" ? "#6366f1" : "#64748b", borderBottom: activeTab === "assigned" ? "3px solid #6366f1" : "3px solid transparent", transition: "all 0.2s" }}>
-              👤 Assigned to Me <span style={{ background: "#ddd6fe", color: "#5b21b6", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{myAssignedCases.length}</span>
+              <Icon.User size={13} color={activeTab === "assigned" ? "#6366f1" : "#94a3b8"} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }}/>Assigned to Me <span style={{ background: "#ddd6fe", color: "#5b21b6", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{myAssignedCases.length}</span>
             </button>
+            {currentUser.role === "Admin" && (
+              <button onClick={() => { setActiveTab("review"); setSelectedCase(null); }} style={{ flex: 1, padding: "13px 0", background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: activeTab === "review" ? 700 : 500, color: activeTab === "review" ? "#dc2626" : "#64748b", borderBottom: activeTab === "review" ? "3px solid #dc2626" : "3px solid transparent", transition: "all 0.2s" }}>
+                <Icon.AlertTriangle size={13} color={activeTab === "review" ? "#dc2626" : "#94a3b8"} style={{ display: "inline", verticalAlign: "middle", marginRight: 6 }}/>Needs Review {needsReviewCases.length > 0 && <span style={{ background: "#fee2e2", color: "#991b1b", borderRadius: 10, padding: "1px 8px", fontSize: 11, marginLeft: 4 }}>{needsReviewCases.length}</span>}
+              </button>
+            )}
           </div>
           {/* Case list */}
           {activeTab === "all" ? (
@@ -332,97 +732,188 @@ export default function App() {
                     <span style={{ background: "rgba(255,255,255,0.2)", borderRadius: 12, padding: "2px 8px", fontSize: 11 }}>{casesByCategory[category].length}</span>
                   </div>
                   {casesByCategory[category].map(c => (
-                    <CaseCard key={c.id} c={c} isAssignedView={false} highlight={highlightTarget === "workspace-panel" && c.id === myAssignedCases[0]?.id} onClick={c => { if (!c.assignedToMe) return alert("📌 This case is not assigned to you. Only summary view is available.\\n\\nTo access full details, the case must be assigned to you."); setSelectedCase(c); }} />
+                    <CaseCard key={c.id} c={c} isAssignedView={false} highlight={highlightTarget === "workspace-panel" && c.id === myAssignedCases[0]?.id} onClick={openCase} />
                   ))}
                 </div>
               ))}
             </div>
-          ) : (
+          ) : activeTab === "assigned" ? (
             // List view with drag-and-drop for Assigned to Me
             <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
               {myAssignedCases.map((c, index) => (
                 <div 
                   key={c.id} 
                   draggable 
-                  onDragStart={() => handleDragStart(index)}
+                  onDragStart={(e) => handleDragStart(index, e)}
                   onDragOver={(e) => handleDragOver(e, index)}
                   onDragEnd={handleDragEnd}
                   style={{ 
-                    cursor: "move",
+                    cursor: isDragging ? "move" : "pointer",
                     opacity: draggedIndex === index ? 0.5 : 1,
                     transition: "opacity 0.2s"
                   }}
                 >
-                  <CaseCard c={c} isAssignedView={true} highlight={highlightTarget === "workspace-panel" && c.id === myAssignedCases[0]?.id} onClick={c => setSelectedCase(c)} />
+                  <CaseCard c={c} isAssignedView={true} highlight={highlightTarget === "workspace-panel" && c.id === myAssignedCases[0]?.id} onClick={handleCaseClick} />
                 </div>
+              ))}
+            </div>
+          ) : (
+            // Needs Review list (admin only)
+            <div style={{ flex: 1, overflowY: "auto", padding: 12, display: "flex", flexDirection: "column", gap: 10 }}>
+              {needsReviewCases.length === 0 ? (
+                <div style={{ textAlign: "center", marginTop: 40, color: "#94a3b8" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>No cases need review</div>
+                </div>
+              ) : needsReviewCases.map(c => (
+                <CaseCard key={c.id} c={c} isAssignedView={false} highlight={false} onClick={c => setSelectedCase(c)} />
               ))}
             </div>
           )}
         </div>
-
+        )}
+  
         {/* ── RIGHT: CASE DETAIL PANEL ── */}
-        {selectedCase && (
+        {selectedCase && !loading && !error && (
           <div id="case-detail-area" style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", background: "#f0f4f8", position: "relative" }}>
             {/* Case header */}
             <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                <button onClick={() => setSelectedCase(null)} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", fontSize: 18, color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center" }}>←</button>
+                <button onClick={() => setSelectedCase(null)} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 34, height: 34, cursor: "pointer", fontSize: 18, color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon.ArrowLeft size={16} /></button>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontWeight: 700, fontSize: 16 }}>{selectedCase.code}</span>
-                    <RiskBadge level={selectedCase.riskLevel} />
+                    <RiskBadge level={selectedCase.riskLevel} score={selectedCase.current_risk_score} />
                     <StatusBadge status={selectedCase.status} />
                   </div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>📱 {selectedCase.platform} · 🕐 Last signal: {selectedCase.lastSignal}</div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{selectedCase.platform} · Last signal: {selectedCase.lastSignal}</div>
                 </div>
               </div>
-              <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#92400e", display: "flex", alignItems: "center", gap: 6 }}>🔒 Your edits are private</div>
+              <div style={{ background: "#fef3c7", border: "1px solid #f59e0b", borderRadius: 8, padding: "6px 12px", fontSize: 11, color: "#92400e", display: "flex", alignItems: "center", gap: 6 }}><Icon.Lock size={11} /> Your edits are private</div>
+            </div>
+
+            {/* Work Status + Case Status bar */}
+            <div style={{ padding: "10px 20px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>CASE STATUS</span>
+                <CaseStatusBadge caseStatus={selectedCase.case_status || (selectedCase.assignedToMe ? "assigned" : "unassigned")} />
+              </div>
+              <div style={{ width: 1, height: 20, background: "#e2e8f0" }}></div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: 11, color: "#64748b", fontWeight: 600 }}>WORK STATUS</span>
+                <WorkStatusBadge workStatus={workStatus || selectedCase.work_status || "not_started"} />
+                <select
+                  value={workStatus || selectedCase.work_status || "not_started"}
+                  onChange={e => handleWorkStatusChange(e.target.value)}
+                  disabled={workStatusSaving}
+                  style={{ fontSize: 11, padding: "3px 8px", borderRadius: 8, border: "1px solid #c7d2fe", background: "#eef2ff", color: "#3730a3", cursor: "pointer", fontWeight: 600 }}
+                >
+                  <option value="not_started">Not Started</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="to_review">To Review</option>
+                  <option value="completed">Completed</option>
+                </select>
+                {workStatusSaving && <span style={{ fontSize: 11, color: "#94a3b8" }}>Saving…</span>}
+              </div>
+              {reassignMsg && (
+                <div style={{ marginLeft: "auto", fontSize: 11, color: "#065f46", background: "#d1fae5", borderRadius: 8, padding: "4px 12px", border: "1px solid #6ee7b7" }}>{reassignMsg}</div>
+              )}
+            </div>
+
+            {/* Detail-view tab row */}
+            <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #e2e8f0", background: "#fff", flexShrink: 0 }}>
+              {[
+                { id: "overview", label: "Overview" },
+                { id: "timeline", label: "Case Timeline" },
+                { id: "reassign", label: "Request Reassign" },
+              ].map(t => (
+                <button key={t.id} onClick={() => setDetailTab(t.id)} style={{ padding: "10px 18px", fontSize: 13, fontWeight: detailTab === t.id ? 700 : 500, color: detailTab === t.id ? "#6366f1" : "#64748b", background: "none", border: "none", borderBottom: detailTab === t.id ? "2px solid #6366f1" : "2px solid transparent", cursor: "pointer", transition: "all 0.15s" }}>
+                  {t.label}
+                </button>
+              ))}
             </div>
 
             {/* Detail content */}
             <div style={{ flex: 1, display: "flex", gap: 0, overflow: "hidden" }}>
+              {detailTab === "overview" && (<>
               {/* Left col: AI signals + summary */}
               <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
                 {/* Privacy disclaimer */}
                 <div style={{ background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 10, padding: "10px 14px", marginBottom: 16, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                  <span style={{ fontSize: 18, flexShrink: 0 }}>🛡️</span>
+                  <Icon.Shield size={18} style={{ flexShrink: 0, color: "#6366f1" }} />
                   <div style={{ fontSize: 12, color: "#4338ca", lineHeight: 1.5 }}><strong>Privacy Disclaimer:</strong> This view shows AI-generated risk signals only. No raw social media posts, messages, or personal content is stored or displayed. The AI processes anonymised patterns.</div>
+                </div>
+
+                {/* Case Information Card */}
+                <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Icon.FileText size={14} /> Case Information</div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Case ID</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{selectedCase.case_id || selectedCase.code}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Priority</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: selectedCase.priority === "critical" ? "#dc2626" : selectedCase.priority === "high" ? "#f59e0b" : selectedCase.priority === "medium" ? "#3b82f6" : "#10b981", textTransform: "capitalize" }}>{selectedCase.priority || "Medium"}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Created</div>
+                      <div style={{ fontSize: 13, color: "#475569" }}>{selectedCase.created_at ? new Date(selectedCase.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "—"}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Last Updated</div>
+                      <div style={{ fontSize: 13, color: "#475569" }}>{selectedCase.updated_at ? new Date(selectedCase.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "—"}</div>
+                    </div>
+                    <div style={{ gridColumn: "1 / -1" }}>
+                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Assigned To</div>
+                      {(() => {
+                        const helperObj = helpers.find(h => h.user_id === selectedCase.assigned_to);
+                        return helperObj ? (
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{helperObj.avatar_initials}</div>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{helperObj.name}</div>
+                              <div style={{ fontSize: 11, color: "#94a3b8" }}>{helperObj.employee_id}</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Not assigned</div>
+                        );
+                      })()}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Youth Profile Card */}
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>👤 Youth Profile</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Icon.User size={14} /> Youth Profile</div>
                   <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-                    <div style={{ fontSize: 48, width: 64, height: 64, background: "linear-gradient(135deg, #ddd6fe, #e0e7ff)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>{selectedCase.youth.avatar}</div>
+                    <div style={{ fontSize: 48, width: 64, height: 64, background: "linear-gradient(135deg, #ddd6fe, #e0e7ff)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>{selectedCase.youth?.avatar ?? "U"}</div>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 2 }}>{selectedCase.youth.name}</div>
-                      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>Age: {selectedCase.youth.age} · Instagram: {selectedCase.youth.handle}</div>
-                      <button onClick={() => window.open(selectedCase.youth.instagramUrl, '_blank')} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginTop: 6 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
-                        📩 Reach Out via Instagram
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 2 }}>{selectedCase.youth?.name ?? "—"}</div>
+                      <div style={{ fontSize: 13, color: "#64748b", marginBottom: 4 }}>Age: {selectedCase.youth?.age ?? "—"} · Instagram: {selectedCase.youth?.handle ?? "—"}</div>
+                      <button onClick={() => window.open(selectedCase.youth?.instagramUrl ?? "#", '_blank')} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 8, padding: "6px 14px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6, marginTop: 6 }} onMouseEnter={e => e.currentTarget.style.opacity = "0.9"} onMouseLeave={e => e.currentTarget.style.opacity = "1"}>
+                        <Icon.Send size={12} /> Reach Out via Instagram
                       </button>
                     </div>
                   </div>
                   <div style={{ background: "#fef3c7", border: "1px solid #fbbf24", borderRadius: 8, padding: "8px 12px", fontSize: 11, color: "#92400e", display: "flex", alignItems: "flex-start", gap: 8 }}>
-                    <span>⚠️</span>
+                    <Icon.AlertTriangle size={14} style={{ flexShrink: 0 }} />
                     <div><strong>Important:</strong> Always use trauma-informed communication. Review SCS outreach protocols before initiating contact.</div>
                   </div>
                 </div>
 
                 {/* Risk meter */}
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13 }}>Risk Score</span>
-                    <span style={{ fontSize: 22, fontWeight: 800, color: RISK_COLORS[selectedCase.riskLevel].text }}>{selectedCase.riskLevel}<span style={{ fontSize: 14, fontWeight: 400, color: "#94a3b8" }}>/5</span></span>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Icon.TrendingUp size={14} /> Risk Assessment</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <span style={{ fontSize: 32, fontWeight: 800, color: (RISK_COLORS[selectedCase.riskLevel] || RISK_COLORS[3]).text }}>{selectedCase.current_risk_score?.toFixed(1) ?? "—"}<span style={{ fontSize: 18, fontWeight: 400, color: "#94a3b8" }}>%</span></span>
                   </div>
-                  <div style={{ display: "flex", gap: 4, height: 10, borderRadius: 5, overflow: "hidden" }}>
-                    {[1,2,3,4,5].map(i => <div key={i} style={{ flex: 1, background: i <= selectedCase.riskLevel ? RISK_COLORS[selectedCase.riskLevel].text : "#e2e8f0", borderRadius: 5 }}></div>)}
-                  </div>
-                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>{RISK_COLORS[selectedCase.riskLevel].label} risk · Category: {selectedCase.category}</div>
+                  <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>{(RISK_COLORS[selectedCase.riskLevel] || RISK_COLORS[3]).label} risk · Category: {selectedCase.category}</div>
                 </div>
 
                 {/* AI Explanation Signals */}
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>🤖 AI Explanation Signals <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 400 }}>(why this was flagged)</span></div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}><Icon.Activity size={14} color="#6366f1" /> AI Explanation Signals <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 400 }}>(why this was flagged)</span></div>
                   {selectedCase.signals.map((s, i) => (
                     <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderBottom: i < selectedCase.signals.length - 1 ? "1px solid #f1f5f9" : "none" }}>
                       <span style={{ background: "#eef2ff", color: "#6366f1", borderRadius: 6, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
@@ -433,22 +924,69 @@ export default function App() {
 
                 {/* Summary */}
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>📝 Case Summary</div>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Case Summary</div>
                   <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{selectedCase.summary}</p>
                 </div>
               </div>
 
               {/* Right col: Checklist */}
-              <ChecklistPanel caseId={selectedCase.id} highlight={highlightTarget === "checklist-panel"} />
+              <ChecklistPanel caseId={selectedCase.id} highlight={highlightTarget === "checklist-panel"} currentUser={currentUser} />
+              </>)}
+
+              {detailTab === "timeline" && (
+                <CaseTimeline caseId={selectedCase.case_id || selectedCase.code || selectedCase.id} currentUser={currentUser} />
+              )}
+
+              {detailTab === "reassign" && (
+                <div style={{ flex: 1, padding: 28, overflowY: "auto" }}>
+                  <div style={{ maxWidth: 520 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                      <div style={{ width: 44, height: 44, background: "#fffbeb", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <Icon.User size={20} color="#d97706"/>
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b" }}>Request Reassignment</div>
+                        <div style={{ fontSize: 12, color: "#94a3b8" }}>Case: {selectedCase.code || selectedCase.case_id}</div>
+                      </div>
+                    </div>
+                    {(selectedCase.case_status === "reassigned") ? (
+                      <div style={{ background: "#fffbeb", border: "1px solid #fbbf24", borderRadius: 12, padding: 18 }}>
+                        <div style={{ fontWeight: 600, fontSize: 14, color: "#92400e", marginBottom: 6 }}>⏳ Reassignment Pending</div>
+                        <p style={{ margin: 0, fontSize: 13, color: "#78350f", lineHeight: 1.6 }}>A reassignment request for this case is currently pending Admin review. You will be notified once a decision is made.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <p style={{ fontSize: 13, color: "#475569", marginBottom: 16, lineHeight: 1.6 }}>If you are unable to continue with this case, you can request a reassignment. The Admin will review your request and either approve or reject it.</p>
+                        <div style={{ marginBottom: 12 }}>
+                          <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6 }}>Reason for Reassignment *</label>
+                          <textarea
+                            value={reassignReason}
+                            onChange={e => setReassignReason(e.target.value)}
+                            placeholder="e.g. Conflict of interest, scheduling constraints, etc."
+                            style={{ width: "100%", minHeight: 100, padding: "10px 12px", borderRadius: 10, border: "1.5px solid #e2e8f0", fontSize: 13, color: "#1e293b", resize: "vertical", outline: "none", boxSizing: "border-box", fontFamily: "inherit", lineHeight: 1.5 }}
+                          />
+                        </div>
+                        <button
+                          onClick={submitReassignRequest}
+                          disabled={!reassignReason.trim() || reassignSaving}
+                          style={{ background: reassignReason.trim() ? "linear-gradient(135deg,#d97706,#f59e0b)" : "#e2e8f0", color: reassignReason.trim() ? "#fff" : "#94a3b8", border: "none", borderRadius: 10, padding: "11px 28px", fontSize: 14, fontWeight: 600, cursor: reassignReason.trim() ? "pointer" : "not-allowed" }}
+                        >
+                          {reassignSaving ? "Submitting…" : "Submit Request"}
+                        </button>
+                        {reassignMsg && <div style={{ marginTop: 12, fontSize: 12, color: "#065f46", background: "#d1fae5", borderRadius: 8, padding: "8px 14px" }}>{reassignMsg}</div>}
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
 
         {/* ── EMPTY STATE ── */}
-        {!selectedCase && activeTab === "assigned" && (
+        {!loading && !error && !selectedCase && activeTab === "assigned" && (
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8" }}>
             <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>👆</div>
               <div style={{ fontSize: 15, fontWeight: 600, color: "#64748b" }}>Select a case to view details</div>
               <div style={{ fontSize: 13, marginTop: 4 }}>Click any card in your assigned list</div>
             </div>
@@ -457,217 +995,832 @@ export default function App() {
       </div>
 
       {/* ── CHATBOT TOGGLE ── */}
-      <button onClick={() => setShowChatbot(s => !s)} style={{ position: "fixed", bottom: 24, right: 24, width: 56, height: 56, borderRadius: "50%", background: showChatbot ? "#dc2626" : "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", color: "#fff", cursor: "pointer", fontSize: 24, boxShadow: "0 4px 18px rgba(99,102,241,0.45)", zIndex: 150, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.2s" }} id="chatbot-area">
-        {showChatbot ? "✕" : "💬"}
+      <button onClick={() => setShowChatbot(s => !s)} style={{ position: "fixed", bottom: 24, right: showChatbot ? 404 : 24, width: 56, height: 56, borderRadius: "50%", background: showChatbot ? "#dc2626" : "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", color: "#fff", cursor: "pointer", fontSize: 22, boxShadow: "0 4px 18px rgba(99,102,241,0.45)", zIndex: 160, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.3s" }} id="chatbot-area">
+        {showChatbot ? <Icon.X size={20} color="#fff"/> : <Icon.MessageSquare size={22} color="#fff"/>}
       </button>
 
-      {/* ── CHATBOT PANEL ── */}
-      {showChatbot && <ChatbotPanel assignedCases={myAssignedCases} highlight={highlightTarget === "chatbot-area"} />}
+      {/* ── CHATBOT SLIDE-OUT PANEL ── */}
+      <ChatbotPanel
+        assignedCases={myAssignedCases}
+        highlight={highlightTarget === "chatbot-area"}
+        open={showChatbot}
+        onClose={() => setShowChatbot(false)}
+        selectedCase={selectedCase}
+        currentUser={currentUser}
+      />
     </div>
   );
 }
 
 // ─── CHECKLIST PANEL ─────────────────────────────────────────────────
-function ChecklistPanel({ caseId, highlight }) {
-  const [items, setItems] = useState([
-    { id: 1, label: "Outreach attempted", done: false, mandatory: true },
-    { id: 2, label: "Response received", done: false, mandatory: true },
-    { id: 3, label: "Follow-up scheduled", done: false, mandatory: true },
-    { id: 4, label: "Escalation considered", done: false, mandatory: true },
-    { id: 5, label: "Case closed", done: false, mandatory: true },
-  ]);
+const ITEM_STATUSES = ["Not Started", "In Progress", "Completed", "Needs Review"];
+const STATUS_STYLES = {
+  "Not Started":  { bg: "#f1f5f9", text: "#64748b" },
+  "In Progress":  { bg: "#dbeafe", text: "#1e40af" },
+  "Completed":    { bg: "#d1fae5", text: "#065f46" },
+  "Needs Review": { bg: "#fee2e2", text: "#991b1b" },
+};
+
+// ─── CASE TIMELINE ────────────────────────────────────────────────────────────
+function CaseTimeline({ caseId, currentUser }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!caseId) return;
+    
+    const loadHistory = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await historyAPI.getCaseHistory(caseId);
+        // Sort in reverse chronological order (newest first)
+        setHistory(data.reverse());
+      } catch (err) {
+        console.error("Failed to load case history:", err);
+        setError(err.message || "Failed to load history");
+      } finally {
+setLoading(false);
+      }
+    };
+
+    loadHistory();
+  }, [caseId]);
+
+  const formatDate = (dateStr) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-SG", { 
+        year: "numeric", 
+        month: "short", 
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const extractSignals = (aiExplanation) => {
+    if (!aiExplanation) return [];
+    const lines = aiExplanation.split('\n');
+    return lines
+      .filter(line => line.trim().startsWith('•') || line.trim().startsWith('-'))
+      .map(line => line.replace(/^[•\-]\s*/, '').trim())
+      .filter(line => line.length > 0);
+  };
+
+  const getRiskColor = (score) => {
+    if (score >= 90) return { bg: "#fee2e2", text: "#991b1b", label: "Critical" };
+    if (score >= 75) return { bg: "#ffedd5", text: "#c2410c", label: "High" };
+    if (score >= 50) return { bg: "#fef3c7", text: "#92400e", label: "Medium" };
+    if (score >= 25) return { bg: "#dbeafe", text: "#1e40af", label: "Low-Med" };
+    return { bg: "#d1fae5", text: "#065f46", label: "Low" };
+  };
+
+  if (loading) return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", padding: 40 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>⏳</div>
+        <div style={{ fontSize: 14, fontWeight: 600 }}>Loading case history...</div>
+      </div>
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: "#94a3b8", padding: 40 }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#dc2626" }}>Failed to load history</div>
+        <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>{error}</div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ flex: 1, padding: "24px 20px", overflowY: "auto", background: "#f8fafc" }}>
+      <div style={{ fontWeight: 700, fontSize: 16, color: "#1e293b", marginBottom: 20, display: "flex", alignItems: "center", gap: 8 }}>
+        <Icon.Clock size={18} color="#6366f1" />
+        Case History Timeline
+        <span style={{ fontSize: 12, fontWeight: 500, color: "#94a3b8", marginLeft: "auto" }}>
+          {history.length} {history.length === 1 ? "entry" : "entries"}
+        </span>
+      </div>
+
+      {history.length === 0 ? (
+        <div style={{ textAlign: "center", color: "#94a3b8", padding: "60px 20px", background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0" }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b", marginBottom: 12 }}>No History Available</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>No history entries yet</div>
+          <div style={{ fontSize: 12 }}>History will appear as the case is updated</div>
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {history.map((entry, index) => {
+            const signals = extractSignals(entry.ai_explanation);
+            const riskColor = getRiskColor(entry.risk_score);
+            const isLatest = index === 0;
+
+            return (
+              <div 
+                key={entry.history_id || index} 
+                style={{ 
+                  background: "#fff", 
+                  borderRadius: 12, 
+                  border: isLatest ? "2px solid #6366f1" : "1px solid #e2e8f0",
+                  boxShadow: isLatest ? "0 4px 12px rgba(99,102,241,0.15)" : "0 1px 3px rgba(0,0,0,0.06)",
+                  overflow: "hidden"
+                }}
+              >
+                {/* Header with date and risk score */}
+                <div style={{ 
+                  background: isLatest ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#f8fafc", 
+                  padding: "14px 18px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  borderBottom: "1px solid #e2e8f0"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <Icon.Calendar size={16} color={isLatest ? "#fff" : "#6366f1"} />
+                    <span style={{ 
+                      fontSize: 13, 
+                      fontWeight: 700, 
+                      color: isLatest ? "#fff" : "#1e293b"
+                    }}>
+                      {formatDate(entry.ingestion_date)}
+                    </span>
+                    {isLatest && (
+                      <span style={{ 
+                        background: "rgba(255,255,255,0.25)", 
+                        color: "#fff", 
+                        fontSize: 10, 
+                        fontWeight: 700, 
+                        padding: "2px 8px", 
+                        borderRadius: 10 
+                      }}>
+                        LATEST
+                      </span>
+                    )}
+                  </div>
+                  
+                  {/* Risk Score Badge */}
+                  <div style={{ 
+                    background: isLatest ? "rgba(255,255,255,0.95)" : riskColor.bg,
+                    color: riskColor.text,
+                    padding: "4px 12px",
+                    borderRadius: 20,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6
+                  }}>
+                    <span>{entry.risk_score.toFixed(1)}%</span>
+                    <span style={{ fontSize: 10, opacity: 0.7 }}>({riskColor.label})</span>
+                  </div>
+                </div>
+
+                {/* Category and Model Version */}
+                <div style={{ padding: "12px 18px", background: "#fafafa", borderBottom: "1px solid #e2e8f0" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11, color: "#64748b" }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                      <strong>Category:</strong> {entry.category}
+                    </span>
+                    {entry.model_version && (
+                      <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <strong>Model:</strong> {entry.model_version}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* AI Signals */}
+                {signals.length > 0 && (
+                  <div style={{ padding: "16px 18px" }}>
+                    <div style={{ 
+                      fontSize: 11, 
+                      fontWeight: 700, 
+                      color: "#6366f1", 
+                      textTransform: "uppercase", 
+                      letterSpacing: "0.5px", 
+                      marginBottom: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6
+                    }}>
+                      <Icon.Activity size={12} color="#6366f1" />
+                      AI Signals Detected
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                      {signals.map((signal, i) => (
+                        <div 
+                          key={i}
+                          style={{ 
+                            display: "flex", 
+                            gap: 10, 
+                            padding: "10px 12px",
+                            background: "#f8fafc",
+                            borderLeft: "3px solid #6366f1",
+                            borderRadius: "0 8px 8px 0"
+                          }}
+                        >
+                          <span style={{ 
+                            background: "#6366f1", 
+                            color: "#fff", 
+                            borderRadius: 6, 
+                            width: 22, 
+                            height: 22, 
+                            display: "flex", 
+                            alignItems: "center", 
+                            justifyContent: "center", 
+                            fontSize: 11, 
+                            fontWeight: 700,
+                            flexShrink: 0
+                          }}>
+                            {i + 1}
+                          </span>
+                          <span style={{ 
+                            fontSize: 12, 
+                            color: "#475569", 
+                            lineHeight: 1.6,
+                            flex: 1
+                          }}>
+                            {signal}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Full explanation (collapsed by default for older entries) */}
+                {!isLatest && signals.length === 0 && entry.ai_explanation && (
+                  <div style={{ padding: "16px 18px", fontSize: 12, color: "#64748b", lineHeight: 1.6, borderTop: "1px solid #f1f5f9" }}>
+                    {entry.ai_explanation.substring(0, 200)}...
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ChecklistPanel({ caseId, highlight, currentUser }) {
+  const displayName = currentUser?.name || "You";
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState([]);
   const [newItem, setNewItem] = useState("");
   const [newComment, setNewComment] = useState("");
   const [addingItem, setAddingItem] = useState(false);
 
-  const toggle = id => setItems(prev => prev.map(i => i.id === id ? { ...i, done: !i.done } : i));
-  const addItem = () => { if (newItem.trim()) { setItems(prev => [...prev, { id: Date.now(), label: newItem.trim(), done: false, mandatory: false }]); setNewItem(""); setAddingItem(false); } };
+  // Fetch real checklist data from MongoDB
+  useEffect(() => {
+    if (!caseId) return;
+    
+    const fetchChecklist = async () => {
+      try {
+        setLoading(true);
+        const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}`, {
+          headers: {
+            "X-User-Id": currentUser?.user_id || currentUser?.id || "admin",
+            "X-User-Role": currentUser?.role || "Admin"
+          }
+        });
+        if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
+        const caseData = await res.json();
+        
+        // Transform MongoDB checklist format to UI format
+        const checklistItems = (caseData.checklist || []).map(item => ({
+          id: item.checklist_item_id,
+          label: item.label,
+          status: item.completed ? "Completed" : "Not Started",
+          mandatory: item.is_mandatory,
+          comments: item.comments || []
+        }));
+        
+        setItems(checklistItems);
+      } catch (err) {
+        console.error('Failed to fetch checklist:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchChecklist();
+    
+    // Listen for checklist updates from MCP tool execution
+    const handleChecklistUpdate = () => fetchChecklist();
+    window.addEventListener('checklistUpdate', handleChecklistUpdate);
+    return () => window.removeEventListener('checklistUpdate', handleChecklistUpdate);
+  }, [caseId, currentUser]);
+
+  // Status popup state
+  const [popup, setPopup] = useState(null); // { item } | null
+  const [popupStatus, setPopupStatus] = useState("Completed");
+  const [popupComment, setPopupComment] = useState("");
+
+  const openPopup = (item) => {
+    setPopup(item);
+    setPopupStatus(item.status === "Not Started" ? "Completed" : item.status);
+    setPopupComment("");
+  };
+
+  const confirmStatusChange = () => {
+    if (!popupComment.trim()) return;
+    setItems(prev => prev.map(i => i.id === popup.id ? { ...i, status: popupStatus } : i));
+    setComments(prev => [...prev, {
+      id: Date.now(),
+      text: `[${popup.label}] → ${popupStatus}: ${popupComment.trim()}`,
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    }]);
+    setPopup(null);
+    setPopupComment("");
+  };
+
+  const addItem = () => { if (newItem.trim()) { setItems(prev => [...prev, { id: Date.now(), label: newItem.trim(), status: "Not Started", mandatory: false }]); setNewItem(""); setAddingItem(false); } };
   const addComment = () => { if (newComment.trim()) { setComments(prev => [...prev, { id: Date.now(), text: newComment.trim(), time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }]); setNewComment(""); } };
 
-  const mandatoryDone = items.filter(i => i.mandatory).every(i => i.done);
-  const progress = Math.round((items.filter(i => i.done).length / items.length) * 100);
+  const mandatoryDone = items.filter(i => i.mandatory).every(i => i.status === "Completed");
+  const completedCount = items.filter(i => i.status === "Completed").length;
+  const progress = items.length ? Math.round((completedCount / items.length) * 100) : 0;
+
+  const renderItem = (item, accent = "#6366f1") => {
+    const s = STATUS_STYLES[item.status] || STATUS_STYLES["Not Started"];
+    const done = item.status === "Completed";
+    return (
+      <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid #f8fafc" }}>
+        <div
+          onClick={() => openPopup(item)}
+          style={{ width: 20, height: 20, borderRadius: 5, border: done ? "none" : "2px solid #d1d5db", background: done ? accent : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}
+        >
+          {done && <Icon.Check size={12} style={{ color: "#fff" }} />}
+        </div>
+        <span style={{ flex: 1, fontSize: 13, color: done ? "#94a3b8" : "#1e293b", textDecoration: done ? "line-through" : "none" }}>{item.label}</span>
+        <button onClick={() => openPopup(item)} style={{ background: s.bg, color: s.text, border: "none", borderRadius: 10, padding: "2px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}>{item.status}</button>
+      </div>
+    );
+  };
 
   return (
-    <div id="checklist-panel" style={{ width: 320, background: "#fff", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0, border: highlight ? "2px solid #6366f1" : undefined, boxShadow: highlight ? "0 0 0 3px rgba(99,102,241,0.2)" : undefined, transition: "all 0.3s" }}>
-      {/* Header */}
-      <div style={{ padding: "14px 18px", borderBottom: "1px solid #e2e8f0", background: "#fafafa" }}>
-        <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>✅ Case Checklist</div>
-        {/* Progress bar */}
-        <div style={{ background: "#e2e8f0", borderRadius: 4, height: 6, overflow: "hidden" }}>
-          <div style={{ width: `${progress}%`, height: "100%", background: mandatoryDone ? "#10b981" : "#6366f1", borderRadius: 4, transition: "width 0.4s" }}></div>
-        </div>
-        <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{items.filter(i => i.done).length}/{items.length} complete {mandatoryDone && "· ✓ All mandatory items done"}</div>
-      </div>
+    <>
+      {/* ── Status-change popup modal ── */}
+      {popup && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.5)", zIndex: 300, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", borderRadius: 16, width: 360, padding: 24, boxShadow: "0 16px 48px rgba(0,0,0,0.25)" }}>
+            <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 4 }}>Update checklist status</div>
+            <div style={{ fontSize: 13, color: "#64748b", marginBottom: 14 }}>"{popup.label}"</div>
 
-      {/* Mandatory items */}
-      <div style={{ padding: "12px 18px 0" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>🔹 Mandatory Steps</div>
-        {items.filter(i => i.mandatory).map(item => (
-          <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderBottom: "1px solid #f1f5f9" }}>
-            <div onClick={() => toggle(item.id)} style={{ width: 20, height: 20, borderRadius: 5, border: item.done ? "none" : "2px solid #d1d5db", background: item.done ? "#6366f1" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
-              {item.done && <span style={{ color: "#fff", fontSize: 13 }}>✓</span>}
-            </div>
-            <span style={{ fontSize: 13, color: item.done ? "#94a3b8" : "#1e293b", textDecoration: item.done ? "line-through" : "none", flex: 1 }}>{item.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Custom items */}
-      {items.filter(i => !i.mandatory).length > 0 && (
-        <div style={{ padding: "12px 18px 0" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 6 }}>📌 Custom Items</div>
-          {items.filter(i => !i.mandatory).map(item => (
-            <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0" }}>
-              <div onClick={() => toggle(item.id)} style={{ width: 20, height: 20, borderRadius: 5, border: item.done ? "none" : "2px solid #d1d5db", background: item.done ? "#8b5cf6" : "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                {item.done && <span style={{ color: "#fff", fontSize: 13 }}>✓</span>}
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.6px" }}>New Status</div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {ITEM_STATUSES.map(s => (
+                  <button key={s} onClick={() => setPopupStatus(s)} style={{ background: popupStatus === s ? STATUS_STYLES[s].bg : "#f1f5f9", color: popupStatus === s ? STATUS_STYLES[s].text : "#64748b", border: popupStatus === s ? `2px solid ${STATUS_STYLES[s].text}40` : "2px solid transparent", borderRadius: 20, padding: "4px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}>{s}</button>
+                ))}
               </div>
-              <span style={{ fontSize: 13, color: item.done ? "#94a3b8" : "#1e293b", textDecoration: item.done ? "line-through" : "none" }}>{item.label}</span>
             </div>
-          ))}
+
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.6px" }}>Comment <span style={{ color: "#dc2626" }}>*</span> (required)</div>
+              <textarea
+                autoFocus
+                value={popupComment}
+                onChange={e => setPopupComment(e.target.value)}
+                placeholder="Describe what happened or why this status changed…"
+                rows={3}
+                style={{ width: "100%", padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
+              />
+            </div>
+
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button onClick={() => setPopup(null)} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "8px 16px", cursor: "pointer", fontSize: 13, color: "#64748b" }}>Cancel</button>
+              <button onClick={confirmStatusChange} disabled={!popupComment.trim()} style={{ background: popupComment.trim() ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#e2e8f0", color: popupComment.trim() ? "#fff" : "#94a3b8", border: "none", borderRadius: 8, padding: "8px 20px", cursor: popupComment.trim() ? "pointer" : "default", fontSize: 13, fontWeight: 600, transition: "all 0.2s" }}>Save Status</button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Add custom item */}
-      <div style={{ padding: "10px 18px" }}>
-        {addingItem ? (
-          <div style={{ display: "flex", gap: 6 }}>
-            <input autoFocus value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder="New checklist item..." style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
-            <button onClick={addItem} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}>+</button>
-            <button onClick={() => { setAddingItem(false); setNewItem(""); }} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "4px 8px", cursor: "pointer", color: "#64748b" }}>✕</button>
+      <div id="checklist-panel" style={{ width: 320, background: "#fff", borderLeft: "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0, border: highlight ? "2px solid #6366f1" : "1px solid #e2e8f0", boxShadow: highlight ? "0 0 0 3px rgba(99,102,241,0.2)" : undefined, transition: "all 0.3s" }}>
+        {/* Header */}
+        <div style={{ padding: "14px 18px", borderBottom: "1px solid #e2e8f0", background: "#fafafa", flexShrink: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><Icon.CheckSquare size={14} /> Case Checklist</div>
+          <div style={{ background: "#e2e8f0", borderRadius: 4, height: 6, overflow: "hidden" }}>
+            <div style={{ width: `${progress}%`, height: "100%", background: mandatoryDone ? "#10b981" : "#6366f1", borderRadius: 4, transition: "width 0.4s" }} />
+          </div>
+          <div style={{ fontSize: 11, color: "#64748b", marginTop: 4 }}>{completedCount}/{items.length} complete{mandatoryDone && " · All mandatory done"}</div>
+        </div>
+
+        {loading ? (
+          <div style={{ padding: "40px 18px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
+            <div style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⏳</div>
+            <div style={{ marginTop: 8 }}>Loading checklist...</div>
           </div>
         ) : (
-          <button onClick={() => setAddingItem(true)} style={{ width: "100%", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "7px", cursor: "pointer", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>+ Add custom item</button>
+          <>
+            {/* Mandatory items */}
+            <div style={{ padding: "10px 18px 0" }}>
+              <div style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Mandatory Steps</div>
+              {items.filter(i => i.mandatory).length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", padding: "8px 0" }}>No mandatory items yet.</div>}
+              {items.filter(i => i.mandatory).map(item => renderItem(item, "#6366f1"))}
+            </div>
+        {/* Custom items */}
+        {items.filter(i => !i.mandatory).length > 0 && (
+          <div style={{ padding: "10px 18px 0" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Custom Items</div>
+            {items.filter(i => !i.mandatory).map(item => renderItem(item, "#8b5cf6"))}
+          </div>
+        )}
+          </>
+        )}
+
+        {/* Add custom item */}
+        {!loading && (
+        <div style={{ padding: "10px 18px" }}>
+          {addingItem ? (
+            <div style={{ display: "flex", gap: 6 }}>
+              <input autoFocus value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder="New checklist item…" style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
+              <button onClick={addItem} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}>+</button>
+              <button onClick={() => { setAddingItem(false); setNewItem(""); }} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "4px 8px", cursor: "pointer", color: "#64748b" }}><Icon.X size={14} /></button>
+            </div>
+          ) : (
+            <button onClick={() => setAddingItem(true)} style={{ width: "100%", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "7px", cursor: "pointer", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>+ Add custom item</button>
+          )}
+        </div>
+        )}
+
+        {/* Comments */}
+        {!loading && (
+        <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 18px", flex: 1 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}><Icon.MessageCircle size={11} style={{ display: "inline-block", marginRight: 4 }} /> Comments</div>
+          <div style={{ maxHeight: 150, overflowY: "auto", marginBottom: 8 }}>
+            {comments.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>No comments yet.</div>}
+            {comments.map(c => (
+              <div key={c.id} style={{ background: "#f8fafc", borderRadius: 8, padding: "7px 10px", marginBottom: 6, border: "1px solid #f1f5f9" }}>
+                <div style={{ fontSize: 12, color: "#475569" }}>{c.text}</div>
+                <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{c.time} · {displayName}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && addComment()} placeholder="Add a comment…" style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 12, outline: "none" }} />
+            <button onClick={addComment} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}><Icon.Send size={13} /></button>
+          </div>
+        </div>
         )}
       </div>
-
-      {/* Comments */}
-      <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 18px", flex: 1 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}>💬 Comments</div>
-        <div style={{ maxHeight: 120, overflowY: "auto", marginBottom: 8 }}>
-          {comments.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>No comments yet.</div>}
-          {comments.map(c => (
-            <div key={c.id} style={{ background: "#f8fafc", borderRadius: 8, padding: "8px 10px", marginBottom: 6, border: "1px solid #f1f5f9" }}>
-              <div style={{ fontSize: 12, color: "#475569" }}>{c.text}</div>
-              <div style={{ fontSize: 10, color: "#94a3b8", marginTop: 3 }}>{c.time} · Sarah L.</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: 6 }}>
-          <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && addComment()} placeholder="Add a comment..." style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 12, outline: "none" }} />
-          <button onClick={addComment} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}>→</button>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }
 
-// ─── CHATBOT PANEL ───────────────────────────────────────────────────
-function ChatbotPanel({ assignedCases, highlight }) {
-  const [messages, setMessages] = useState([{ role: "bot", text: "👋 Hello! I'm the SCS Recommendation Assistant. I can help you with case guidance based on SCS protocols.\n\nUse the 📎 icon to attach one of your cases, or try a quick-action question below.\n\n⚠️ *I assist with guidance only. All outreach decisions are yours.*" }]);
+// ─── CHATBOT PANEL (right-side slide-out) ────────────────────────────
+function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: ctxCase, currentUser: cpUser }) {
+  const currentUser = cpUser || { user_id: "unknown", id: "unknown", role: "Youth Helper" };
+  const [messages, setMessages] = useState([{
+    role: "bot",
+    text: "Hello! I'm the SCS Recommendation Assistant with **full access to SCS protocols and case data**.\n\nI can help you with:\n- Updating checklists\n- Adding case notes\n- Scheduling follow-ups\n- Requesting reassignments\n- Finding similar cases\n\nAttach a case using the button, then ask me anything!\n\n*I provide guidance and can execute actions with your approval. All final decisions are yours.*",
+    actions: [],
+  }]);
   const [input, setInput] = useState("");
   const [attachedCase, setAttachedCase] = useState(null);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
+  const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
 
+  // Auto-attach the case currently open in the detail panel
+  useEffect(() => {
+    if (ctxCase && assignedCases.some(c => c.id === ctxCase.id)) {
+      setAttachedCase(ctxCase);
+    }
+  }, [ctxCase]);
+
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  const send = (text) => {
+  const send = async (text) => {
     const t = text || input;
-    if (!t.trim()) return;
+    if (!t.trim() || loading) return;
     setMessages(prev => [...prev, { role: "user", text: t, attached: attachedCase }]);
     setInput("");
-    setTimeout(() => {
-      setMessages(prev => [...prev, { role: "bot", text: getChatbotResponse(t, attachedCase) }]);
-    }, 600);
+    setLoading(true);
+    try {
+      const res = await fetch(`${CHATBOT_SERVICE_URL}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": currentUser.user_id || currentUser.id,
+          "X-User-Role": currentUser.role,
+        },
+        body: JSON.stringify({
+          message: t,
+          case_id: attachedCase?.code || null,
+          case_info: attachedCase ? {
+            code: attachedCase.code,
+            category: attachedCase.category,
+            riskLevel: attachedCase.riskLevel,
+            status: attachedCase.status,
+            signals: attachedCase.signals || [],
+          } : null,
+          user_id: currentUser.user_id || currentUser.id,
+          execute_tools: false, // Never auto-execute, require approval
+          conversation_history: messages.slice(-6).map(m => ({ 
+            role: m.role === "user" ? "user" : "assistant", 
+            content: m.text 
+          })),
+        }),
+      });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      
+      // Check if response includes tool calls (agentic actions)
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        // Convert tool_calls to actions format for existing UI
+        const actions = data.tool_calls.map(tc => ({
+          action_type: tc.tool,
+          payload: tc.parameters,
+          reasoning: data.reasoning || "Recommended based on SCS protocols",
+        }));
+        
+        let responseText = data.response || "";
+        if (data.reasoning) {
+          responseText = `**Recommended Actions:**\n\n${data.reasoning}${data.next_steps ? '\n\n**Next Steps:**\n' + data.next_steps : ''}`;
+        }
+        
+        setMessages(prev => [...prev, {
+          role: "bot",
+          text: responseText || "I've prepared some actions for you to review.",
+          actions: actions,
+          similar: data.similar_cases || [],
+          toolCalls: data.tool_calls,
+        }]);
+      } else {
+        // Regular guidance response
+        setMessages(prev => [...prev, {
+          role: "bot",
+          text: data.response || data.response_text || data.message || "Done.",
+          actions: data.proposed_actions || [],
+          similar: data.similar_cases || [],
+        }]);
+      }
+    } catch (err) {
+      console.error('Chatbot error:', err);
+      // Fallback: static response
+      setMessages(prev => [...prev, {
+        role: "bot",
+        text: getChatbotResponse(t, attachedCase),
+        actions: [],
+      }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const executeAction = async (action) => {
+    const toolMap = {
+      add_checklist_item: "add_checklist_item",
+      update_checklist_item_status: "update_checklist_item_status",
+      add_case_note: "add_case_note",
+      schedule_followup: "schedule_followup",
+      update_case_status: "update_case_status",
+      update_priority: "update_priority",
+      request_reassignment: "request_reassignment",
+      assign_case: "assign_case",
+      update_checklist: "update_checklist_item_status",
+      add_comment: "add_case_note",
+      schedule_review: "schedule_followup",
+      query_case_details: "query_case_details",
+      query_instagram_data: "query_instagram_data",
+      query_similar_cases: "get_similar_cases",
+    };
+    const tool = toolMap[action.action_type] || action.action_type;
+    try {
+      const res = await fetch(`${MCP_SERVICE_URL}/tools/${tool}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": currentUser.user_id || currentUser.id,
+          "X-User-Role": currentUser.role,
+        },
+        body: JSON.stringify(action.payload || {}),
+      });
+      const data = await res.json();
+      
+      // Handle UI updates based on action type
+      if (res.ok && data) {
+        if (tool === "update_checklist_item_status" || tool === "add_checklist_item") {
+          // Trigger checklist refresh event
+          window.dispatchEvent(new CustomEvent('checklistUpdate', { detail: data }));
+        } else if (tool === "schedule_followup") {
+          // Show notification
+          const reviewDate = action.payload?.review_date || action.payload?.followup_date;
+          if (reviewDate) {
+            setTimeout(() => alert(`Review scheduled for ${reviewDate}`), 100);
+          }
+        } else if (tool === "request_reassignment") {
+          // Show confirmation
+          setTimeout(() => alert('Reassignment request submitted to team lead'), 100);
+        }
+      }
+      
+      return { ok: res.ok, data };
+    } catch (e) {
+      console.error('MCP tool execution error:', e);
+      return { ok: false, data: { error: String(e) } };
+    }
   };
 
   const renderText = (text) => {
     return text.split("\n").map((line, i) => {
       let rendered = line
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
         .replace(/\*(.+?)\*/g, '<em style="color:#94a3b8">$1</em>');
       if (line.startsWith("| ")) {
-        // Table row
         const cells = line.split("|").filter(c => c.trim());
-        if (i > 0 && text.split("\n")[i - 1]?.startsWith("|---")) return null;
         if (line.includes("---")) return null;
-        const isHeader = i === 0 || (text.split("\n").indexOf(line) === 0);
         return (
-          <div key={i} style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: isHeader ? "#f1f5f9" : "transparent" }}>
-            {cells.map((c, j) => <div key={j} style={{ flex: 1, padding: "4px 6px", fontSize: 11, fontWeight: isHeader ? 600 : 400, color: "#475569" }}>{c.trim()}</div>)}
+          <div key={i} style={{ display: "flex", borderBottom: "1px solid #e2e8f0", background: i === 1 ? "#f1f5f9" : "transparent" }}>
+            {cells.map((c, j) => <div key={j} style={{ flex: 1, padding: "4px 6px", fontSize: 11, color: "#475569" }}>{c.trim()}</div>)}
           </div>
         );
       }
-      return <div key={i} style={{ fontSize: 13, color: "#475569", lineHeight: 1.55, minHeight: line === "" ? 10 : "auto" }} dangerouslySetInnerHTML={{ __html: rendered }}></div>;
+      return <div key={i} style={{ fontSize: 13, color: "#475569", lineHeight: 1.55, minHeight: line === "" ? 10 : "auto" }} dangerouslySetInnerHTML={{ __html: rendered }} />;
     });
   };
 
   return (
-    <div id="chatbot-area" style={{ position: "fixed", bottom: 80, right: 24, width: 400, height: 520, background: "#fff", borderRadius: 18, boxShadow: "0 12px 48px rgba(0,0,0,0.2)", border: highlight ? "2px solid #6366f1" : "1px solid #e2e8f0", display: "flex", flexDirection: "column", overflow: "hidden", zIndex: 150, transition: "border 0.3s" }}>
-      {/* Header */}
-      <div style={{ background: "linear-gradient(135deg, #1e293b, #0f172a)", color: "#fff", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16 }}>🤖</div>
-          <div>
-            <div style={{ fontWeight: 600, fontSize: 14 }}>SCS Recommendation Assistant</div>
-            <div style={{ fontSize: 10, color: "#94a3b8" }}>Guidance based on SCS Protocols</div>
-          </div>
-        </div>
-      </div>
+    <>
+      {/* Backdrop */}
+      {open && <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,0.3)", zIndex: 155, transition: "opacity 0.3s" }} />}
 
-      {/* Attached case badge */}
-      {attachedCase && (
-        <div style={{ background: "#eef2ff", padding: "6px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #c7d2fe" }}>
-          <div style={{ fontSize: 12, color: "#4338ca" }}>📎 <strong>{attachedCase.code}</strong> — {attachedCase.category} (Risk {attachedCase.riskLevel})</div>
-          <button onClick={() => setAttachedCase(null)} style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 13 }}>✕</button>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
-        {messages.map((m, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-            <div style={{ maxWidth: "85%", background: m.role === "user" ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#f8fafc", color: m.role === "user" ? "#fff" : "#1e293b", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 14px", border: m.role === "bot" ? "1px solid #e2e8f0" : "none" }}>
-              {m.attached && m.role === "user" && <div style={{ fontSize: 10, color: m.role === "user" ? "rgba(255,255,255,0.7)" : "#94a3b8", marginBottom: 3 }}>📎 {m.attached.code}</div>}
-              {m.role === "user" ? <div style={{ fontSize: 13 }}>{m.text}</div> : <div>{renderText(m.text)}</div>}
+      {/* Slide-out panel */}
+      <div id="chatbot-area" style={{
+        position: "fixed", top: 0, right: 0, height: "100vh", width: 390,
+        background: "#fff", boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
+        border: highlight ? "2px solid #6366f1" : "none",
+        display: "flex", flexDirection: "column", overflow: "hidden",
+        zIndex: 156, transition: "transform 0.35s cubic-bezier(0.4,0,0.2,1)",
+        transform: open ? "translateX(0)" : "translateX(100%)",
+      }}>
+        {/* Header */}
+        <div style={{ background: "linear-gradient(135deg, #1e293b, #0f172a)", color: "#fff", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon.MessageCircle size={16} style={{ color: "#fff" }} /></div>
+            <div>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>SCS Recommendation Assistant</div>
+              <div style={{ fontSize: 10, color: "#94a3b8" }}>Advisory + Agentic · RAG-backed</div>
             </div>
           </div>
-        ))}
-        <div ref={bottomRef}></div>
-      </div>
+          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", borderRadius: 8, width: 30, height: 30, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon.X size={16} /></button>
+        </div>
 
-      {/* Quick actions */}
-      <div style={{ padding: "8px 12px 0", borderTop: "1px solid #f1f5f9", display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
-        {PRESET_QUESTIONS.map((p, i) => (
-          <button key={i} onClick={() => send(p.q)} style={{ whiteSpace: "nowrap", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 12px", fontSize: 11, cursor: "pointer", color: "#475569", display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }} onMouseEnter={e => e.currentTarget.style.background = "#e0e7ff"} onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}>
-            {p.icon} {p.label}
-          </button>
-        ))}
-      </div>
+        {/* Attached case badge */}
+        {attachedCase && (
+          <div style={{ background: "#eef2ff", padding: "6px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #c7d2fe", flexShrink: 0 }}>
+            <div style={{ fontSize: 12, color: "#4338ca" }}><Icon.Paperclip size={12} style={{ display: "inline", marginRight: 4 }} /><strong>{attachedCase.code}</strong> — {attachedCase.category} (Risk {attachedCase.current_risk_score?.toFixed(1) ?? attachedCase.riskLevel}%)</div>
+            <button onClick={() => setAttachedCase(null)} style={{ background: "none", border: "none", color: "#6366f1", cursor: "pointer", fontSize: 13 }}><Icon.X size={13} /></button>
+          </div>
+        )}
 
-      {/* Input */}
-      <div style={{ padding: "8px 12px 12px", display: "flex", gap: 8, alignItems: "center" }}>
-        {/* Paperclip */}
-        <div style={{ position: "relative" }}>
-          <button onClick={() => setShowAttachMenu(!showAttachMenu)} style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, color: attachedCase ? "#6366f1" : "#94a3b8" }} title="Attach a case">📎</button>
-          {showAttachMenu && (
-            <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "#fff", borderRadius: 12, boxShadow: "0 8px 30px rgba(0,0,0,0.18)", width: 240, zIndex: 10, overflow: "hidden" }}>
-              <div style={{ padding: "8px 12px 4px", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.8px" }}>Attach a case</div>
-              {assignedCases.map(c => (
-                <button key={c.id} onClick={() => { setAttachedCase(c); setShowAttachMenu(false); }} style={{ width: "100%", textAlign: "left", background: attachedCase?.id === c.id ? "#eef2ff" : "none", border: "none", padding: "8px 12px", cursor: "pointer", fontSize: 12, color: "#1e293b", display: "flex", alignItems: "center", gap: 8 }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = attachedCase?.id === c.id ? "#eef2ff" : "none"}>
-                  <RiskBadge level={c.riskLevel} />
-                  <span style={{ fontWeight: 600 }}>{c.code}</span>
-                  <span style={{ color: "#94a3b8" }}>{c.category}</span>
-                </button>
-              ))}
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: "auto", padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.role === "user" ? "flex-end" : "flex-start", gap: 8 }}>
+              <div style={{ maxWidth: "90%", background: m.role === "user" ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#f8fafc", color: m.role === "user" ? "#fff" : "#1e293b", borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px", padding: "10px 14px", border: m.role === "bot" ? "1px solid #e2e8f0" : "none" }}>
+                {m.attached && m.role === "user" && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.7)", marginBottom: 3 }}><Icon.Paperclip size={10} style={{ display: "inline", marginRight: 3 }} /> {m.attached.code}</div>}
+                {m.role === "user" ? <div style={{ fontSize: 13 }}>{m.text}</div> : <div>{renderText(m.text)}</div>}
+              </div>
+
+              {/* Proposed action cards */}
+              {m.role === "bot" && m.actions?.length > 0 && (
+                <div style={{ maxWidth: "95%", display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                    <Icon.Zap size={11} /> Proposed Actions — review before approving
+                  </div>
+                  {m.actions.map((action, ai) => (
+                    <ActionCard key={ai} action={action} onApprove={executeAction} />
+                  ))}
+                </div>
+              )}
+
+              {/* Similar cases */}
+              {m.role === "bot" && m.similar?.length > 0 && (
+                <div style={{ maxWidth: "95%", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: 10, padding: "8px 12px" }}>
+                  <div style={{ fontSize: 11, color: "#15803d", fontWeight: 600, marginBottom: 4 }}><Icon.Link size={11} style={{ display: "inline", marginRight: 3 }} /> Similar Cases</div>
+                  {m.similar.map((s, si) => (
+                    <div key={si} style={{ fontSize: 12, color: "#475569", padding: "2px 0" }}>
+                      <strong>{s.case_id}</strong> — {s.category} (Risk {s.risk_level}) · {s.reason || ""}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+          {loading && (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#94a3b8", fontSize: 13 }}>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[0,1,2].map(i => <div key={i} style={{ width: 6, height: 6, borderRadius: "50%", background: "#6366f1", animation: `bounce ${0.6 + i * 0.15}s infinite alternate`, opacity: 0.7 }} />)}
+              </div>
+              Assistant is thinking…
             </div>
           )}
+          <div ref={bottomRef} />
         </div>
-        <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask for guidance..." style={{ flex: 1, padding: "8px 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
-        <button onClick={() => send()} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>→</button>
+
+        {/* Quick actions */}
+        <div style={{ padding: "6px 12px 0", borderTop: "1px solid #f1f5f9", display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, flexShrink: 0 }}>
+          {PRESET_QUESTIONS.map((p, i) => (
+            <button key={i} onClick={() => send(p.q)} style={{ whiteSpace: "nowrap", background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 20, padding: "5px 12px", fontSize: 11, cursor: "pointer", color: "#475569", display: "flex", alignItems: "center", gap: 3, flexShrink: 0, fontWeight: 500 }} onMouseEnter={e => e.currentTarget.style.background = "#e0e7ff"} onMouseLeave={e => e.currentTarget.style.background = "#f1f5f9"}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Input row */}
+        <div style={{ padding: "8px 12px 16px", display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+          <div style={{ position: "relative" }}>
+            <button onClick={() => setShowAttachMenu(!showAttachMenu)} title="Attach case" style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 8, width: 36, height: 36, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: attachedCase ? "#6366f1" : "#94a3b8" }}><Icon.Paperclip size={16} /></button>
+            {showAttachMenu && (
+              <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, background: "#fff", borderRadius: 12, boxShadow: "0 8px 30px rgba(0,0,0,0.18)", width: 250, zIndex: 10, overflow: "hidden" }}>
+                <div style={{ padding: "8px 12px 4px", fontSize: 11, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.8px" }}>Attach a case</div>
+                {assignedCases.map(c => (
+                  <button key={c.id} onClick={() => { setAttachedCase(c); setShowAttachMenu(false); }} style={{ width: "100%", textAlign: "left", background: attachedCase?.id === c.id ? "#eef2ff" : "none", border: "none", padding: "8px 12px", cursor: "pointer", fontSize: 12, color: "#1e293b", display: "flex", alignItems: "center", gap: 8 }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = attachedCase?.id === c.id ? "#eef2ff" : "none"}>
+                    <RiskBadge level={c.riskLevel} score={c.current_risk_score} />
+                    <span style={{ fontWeight: 600 }}>{c.code}</span>
+                    <span style={{ color: "#94a3b8", fontSize: 11 }}>{c.category}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === "Enter" && send()} placeholder="Ask for guidance…" style={{ flex: 1, padding: "8px 12px", borderRadius: 10, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
+          <button onClick={() => send()} disabled={loading} style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, width: 36, height: 36, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center", opacity: loading ? 0.6 : 1 }}><Icon.Send size={16} /></button>
+        </div>
       </div>
+    </>
+  );
+}
+
+// ─── ACTION CARD (approve / edit / cancel a proposed action) ──────────────────
+function ActionCard({ action, onApprove }) {
+  const [status, setStatus] = useState("pending"); // pending | approving | approved | rejected | editing
+  const [editPayload, setEditPayload] = useState(JSON.stringify(action.payload || {}, null, 2));
+  const [resultMsg, setResultMsg] = useState("");
+
+  const approve = async (overridePayload) => {
+    setStatus("approving");
+    const actionToRun = overridePayload
+      ? { ...action, payload: JSON.parse(overridePayload) }
+      : action;
+    const { ok, data } = await onApprove(actionToRun);
+    if (ok) {
+      setResultMsg("Executed successfully");
+      setStatus("approved");
+    } else {
+      setResultMsg(`Failed: ${data?.detail || data?.error || "Unknown error"}`);
+      setStatus("rejected");
+    }
+  };
+
+  const typeLabel = {
+    add_checklist_item: "Add Checklist Item",
+    update_checklist_item_status: "Update Checklist Status",
+    add_case_note: "Add Case Note",
+    schedule_followup: "Schedule Follow-up",
+    update_case_status: "Update Case Status",
+    update_priority: "Update Priority",
+    request_reassignment: "Request Reassignment",
+    assign_case: "Assign Case",
+  }[action.action_type] || action.action_type;
+
+  const accentColor = status === "approved" ? "#10b981" : status === "rejected" ? "#dc2626" : "#6366f1";
+
+  return (
+    <div style={{ background: "#fff", border: `1.5px solid ${accentColor}20`, borderLeft: `4px solid ${accentColor}`, borderRadius: 10, padding: "10px 12px", fontSize: 12 }}>
+      <div style={{ fontWeight: 700, color: accentColor, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 4 }}>{typeLabel}</div>
+      <div style={{ color: "#475569", marginBottom: 8, lineHeight: 1.5 }}>{action.description}</div>
+
+      {status === "editing" ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <textarea value={editPayload} onChange={e => setEditPayload(e.target.value)} rows={4} style={{ width: "100%", fontFamily: "monospace", fontSize: 11, borderRadius: 6, border: "1px solid #d1d5db", padding: 6, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
+          <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => approve(editPayload)} style={{ flex: 1, background: "#6366f1", color: "#fff", border: "none", borderRadius: 7, padding: "6px 0", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Approve Edited</button>
+            <button onClick={() => setStatus("pending")} style={{ flex: 1, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 7, padding: "6px 0", cursor: "pointer", fontSize: 12 }}>Cancel</button>
+          </div>
+        </div>
+      ) : status === "approving" ? (
+        <div style={{ color: "#6366f1", fontStyle: "italic", fontSize: 12 }}>Executing…</div>
+      ) : status === "approved" || status === "rejected" ? (
+        <div style={{ color: accentColor, fontWeight: 600, fontSize: 12 }}>{resultMsg}</div>
+      ) : (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button onClick={() => approve()} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Approve</button>
+          <button onClick={() => setStatus("editing")} style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Edit</button>
+          <button onClick={() => setStatus("rejected")} style={{ background: "#f1f5f9", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Cancel</button>
+        </div>
+      )}
     </div>
   );
 }

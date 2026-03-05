@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frontend Integration Tests - SCS Youth Helper</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f7fa;
+        }
+        h1 {
+            color: #1e293b;
+            border-bottom: 3px solid #6366f1;
+            padding-bottom: 10px;
+        }
+        .test-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .test-case {
+            margin: 15px 0;
+            padding: 15px;
+            border-left: 4px solid #cbd5e1;
+            background: #f8fafc;
+        }
+        .test-case.running {
+            border-left-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .test-case.passed {
+            border-left-color: #10b981;
+            background: #d1fae5;
+        }
+        .test-case.failed {
+            border-left-color: #ef4444;
+            background: #fee2e2;
+        }
+        .test-name {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+        .test-result {
+            font-size: 13px;
+            color: #64748b;
+            font-family: 'Courier New', monospace;
+        }
+        button {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .summary {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .summary-card {
+            flex: 1;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .summary-card.total { background: #dbeafe; color: #1e40af; }
+        .summary-card.passed { background: #d1fae5; color: #065f46; }
+        .summary-card.failed { background: #fee2e2; color: #991b1b; }
+        .summary-number {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .summary-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 Frontend Integration Tests</h1>
+    <p>Tests the complete frontend-to-backend integration including MCP service and Chatbot with RAG</p>
+    
+    <div>
+        <button onclick="runAllTests()" id="runBtn">Run All Tests</button>
+        <button onclick="clearResults()">Clear Results</button>
+    </div>
+
+    <div class="summary" id="summary">
+        <div class="summary-card total">
+            <div class="summary-number" id="totalTests">0</div>
+            <div class="summary-label">Total Tests</div>
+        </div>
+        <div class="summary-card passed">
+            <div class="summary-number" id="passedTests">0</div>
+            <div class="summary-label">Passed</div>
+        </div>
+        <div class="summary-card failed">
+            <div class="summary-number" id="failedTests">0</div>
+            <div class="summary-label">Failed</div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>📡 Service Health Checks</h2>
+        <div id="health-tests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔧 MCP Service Tests</h2>
+        <div id="mcp-tests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🤖 Chatbot + RAG Tests</h2>
+        <div id="chatbot-tests"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>🔄 End-to-End Workflow</h2>
+        <div id="e2e-tests"></div>
+    </div>
+
+    <script>
+        const CONFIG = {
+            MCP_SERVICE: 'http://localhost:8003',
+            CHATBOT_SERVICE: 'http://localhost:8000',
+            CASE_SERVICE: 'http://localhost:8001'
+        };
+
+        const HEADERS = {
+            'Content-Type': 'application/json',
+            'X-User-Id': 'sarah_l',
+            'X-User-Role': 'Admin'
+        };
+
+        let stats = { total: 0, passed: 0, failed: 0 };
+
+        function updateSummary() {
+            document.getElementById('totalTests').textContent = stats.total;
+            document.getElementById('passedTests').textContent = stats.passed;
+            document.getElementById('failedTests').textContent = stats.failed;
+        }
+
+        async function runTest(name, testFn, containerId) {
+            const container = document.getElementById(containerId);
+            const testDiv = document.createElement('div');
+            testDiv.className = 'test-case running';
+            testDiv.innerHTML = `
+                <div class="test-name">⏳ ${name}</div>
+                <div class="test-result">Running...</div>
+            `;
+            container.appendChild(testDiv);
+
+            stats.total++;
+            updateSummary();
+
+            try {
+                const result = await testFn();
+                testDiv.className = 'test-case passed';
+                testDiv.innerHTML = `
+                    <div class="test-name">✅ ${name}</div>
+                    <div class="test-result">${result}</div>
+                `;
+                stats.passed++;
+            } catch (error) {
+                testDiv.className = 'test-case failed';
+                testDiv.innerHTML = `
+                    <div class="test-name">❌ ${name}</div>
+                    <div class="test-result">Error: ${error.message}</div>
+                `;
+                stats.failed++;
+            }
+            updateSummary();
+        }
+
+        // Health Check Tests
+        async function testMCPHealth() {
+            const response = await fetch(`${CONFIG.MCP_SERVICE}/health`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (data.status !== 'healthy') throw new Error('Service not healthy');
+            return `MCP Service is healthy`;
+        }
+
+        async function testChatbotHealth() {
+            const response = await fetch(`${CONFIG.CHATBOT_SERVICE}/health`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (data.status !== 'healthy') throw new Error('Service not healthy');
+            return `Chatbot Service is healthy`;
+        }
+
+        async function testCaseServiceHealth() {
+            const response = await fetch(`${CONFIG.CASE_SERVICE}/health`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            return `Case Service is healthy`;
+        }
+
+        // MCP Service Tests
+        async function testListCases() {
+            const response = await fetch(`${CONFIG.MCP_SERVICE}/tools/list_cases_summary`, {
+                headers: HEADERS
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            return `Retrieved ${data.cases?.length || 0} cases`;
+        }
+
+        async function testGetCase() {
+            // First get a case ID
+            const listResp = await fetch(`${CONFIG.MCP_SERVICE}/tools/list_cases_summary`, {
+                headers: HEADERS
+            });
+            const cases = await listResp.json();
+            if (!cases.cases || cases.cases.length === 0) throw new Error('No cases to test with');
+            
+            const caseId = cases.cases[0].code;
+            const response = await fetch(`${CONFIG.MCP_SERVICE}/tools/get_case/${caseId}`, {
+                headers: HEADERS
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            return `Retrieved case ${caseId} - ${data.case?.category || 'Unknown'}`;
+        }
+
+        async function testSearchProtocol() {
+            const response = await fetch(`${CONFIG.MCP_SERVICE}/tools/search_protocol`, {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({
+                    query: 'cyberbullying intervention',
+                    top_k: 3
+                })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            return `Found ${data.results?.length || 0} protocol matches from ChromaDB`;
+        }
+
+        async function testAddNote() {
+            // Get a case ID
+            const listResp = await fetch(`${CONFIG.MCP_SERVICE}/tools/list_cases_summary`, {
+                headers: HEADERS
+            });
+            const cases = await listResp.json();
+            if (!cases.cases || cases.cases.length === 0) throw new Error('No cases to test with');
+            
+            const caseId = cases.cases[0].code;
+            const response = await fetch(`${CONFIG.MCP_SERVICE}/tools/add_case_note`, {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({
+                    case_id: caseId,
+                    content: 'Frontend integration test note',
+                    note_type: 'general'
+                })
+            });
+            if (!response.ok && response.status !== 201) throw new Error(`HTTP ${response.status}`);
+            return `Added note to case ${caseId}`;
+        }
+
+        // Chatbot Tests
+        async function testChatSimple() {
+            const response = await fetch(`${CONFIG.CHATBOT_SERVICE}/chat`, {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({
+                    message: 'What are signs of cyberbullying?',
+                    case_info: null,
+                    conversation_history: []
+                })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            if (!data.response) throw new Error('No response from chatbot');
+            return `Got ${data.response.length} character response from chatbot with RAG`;
+        }
+
+        async function testChatWithCase() {
+            // Get a case
+            const listResp = await fetch(`${CONFIG.MCP_SERVICE}/tools/list_cases_summary`, {
+                headers: HEADERS
+            });
+            const cases = await listResp.json();
+            if (!cases.cases || cases.cases.length === 0) throw new Error('No cases to test with');
+            
+            const testCase = cases.cases[0];
+            const response = await fetch(`${CONFIG.CHATBOT_SERVICE}/chat`, {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({
+                    message: 'What should I do next?',
+                    case_info: {
+                        code: testCase.code,
+                        category: testCase.category || 'General',
+                        riskLevel: testCase.riskLevel || 3,
+                        status: testCase.status || 'Open',
+                        signals: testCase.signals || []
+                    },
+                    conversation_history: []
+                })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            return `Chatbot provided case-specific guidance for ${testCase.code}`;
+        }
+
+        // End-to-End Test
+        async function testFullWorkflow() {
+            // 1. Get a case
+            const listResp = await fetch(`${CONFIG.MCP_SERVICE}/tools/list_cases_summary`, {
+                headers: HEADERS
+            });
+            const cases = await listResp.json();
+            if (!cases.cases || cases.cases.length === 0) throw new Error('No cases');
+            const testCase = cases.cases[0];
+
+            // 2. Ask chatbot
+            const chatResp = await fetch(`${CONFIG.CHATBOT_SERVICE}/chat`, {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({
+                    message: 'Recommend the next step',
+                    case_info: {
+                        code: testCase.code,
+                        category: testCase.category || 'General',
+                        riskLevel: testCase.riskLevel || 3,
+                        status: testCase.status || 'Open'
+                    },
+                    conversation_history: []
+                })
+            });
+            if (!chatResp.ok) throw new Error(`Chatbot failed: ${chatResp.status}`);
+            
+            // 3. Add note via MCP
+            const noteResp = await fetch(`${CONFIG.MCP_SERVICE}/tools/add_case_note`, {
+                method: 'POST',
+                headers: HEADERS,
+                body: JSON.stringify({
+                    case_id: testCase.code,
+                    content: 'E2E test: Chatbot guidance received',
+                    note_type: 'general'
+                })
+            });
+            if (!noteResp.ok && noteResp.status !== 201) throw new Error(`Add note failed: ${noteResp.status}`);
+
+            return `Complete workflow: Query chatbot → Get guidance → Add note to ${testCase.code}`;
+        }
+
+        async function runAllTests() {
+            const runBtn = document.getElementById('runBtn');
+            runBtn.disabled = true;
+            runBtn.textContent = 'Running...';
+            
+            stats = { total: 0, passed: 0, failed: 0 };
+            updateSummary();
+
+            // Clear previous results
+            ['health-tests', 'mcp-tests', 'chatbot-tests', 'e2e-tests'].forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+
+            // Health checks
+            await runTest('MCP Service Health', testMCPHealth, 'health-tests');
+            await runTest('Chatbot Service Health', testChatbotHealth, 'health-tests');
+            await runTest('Case Service Health', testCaseServiceHealth, 'health-tests');
+
+            // MCP tests
+            await runTest('List Cases Summary', testListCases, 'mcp-tests');
+            await runTest('Get Case Details', testGetCase, 'mcp-tests');
+            await runTest('Search Protocol (ChromaDB)', testSearchProtocol, 'mcp-tests');
+            await runTest('Add Case Note', testAddNote, 'mcp-tests');
+
+            // Chatbot tests
+            await runTest('Simple Chat Query', testChatSimple, 'chatbot-tests');
+            await runTest('Chat with Case Context', testChatWithCase, 'chatbot-tests');
+
+            // E2E
+            await runTest('Full E2E Workflow', testFullWorkflow, 'e2e-tests');
+
+            runBtn.disabled = false;
+            runBtn.textContent = 'Run All Tests';
+        }
+
+        function clearResults() {
+            ['health-tests', 'mcp-tests', 'chatbot-tests', 'e2e-tests'].forEach(id => {
+                document.getElementById(id).innerHTML = '';
+            });
+            stats = { total: 0, passed: 0, failed: 0 };
+            updateSummary();
+        }
+    </script>
+</body>
+</html>

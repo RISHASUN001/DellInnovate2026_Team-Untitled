@@ -1,0 +1,159 @@
+## ANONYMISED CASE STUDIES (SCS Youth Case Management Training Reference)
+
+All names, handles, dates, and identifying details have been changed.
+These case studies are used for staff training and AI-assisted guidance only.
+
+=== CASE STUDY 001: Early Identification Prevents Escalation ===
+
+Category: Self-Harm Ideation | Initial Risk Score: 3 | Final Score: 2 (de-escalated)
+
+Background:
+A 16-year-old with no prior contact with SCS was flagged by the AI system for a combination of late-night posting activity and increasing use of emotionally charged vocabulary. The content did not explicitly reference self-harm, but sentiment analysis detected a sustained downward shift over 10 days.
+
+Helper Response:
+The assigned helper, noticing the low-pressure nature of the signals, decided to send Template A (General Warm Check-In) rather than a more urgent contact. The youth responded within 6 hours expressing surprise that "someone noticed."
+
+What worked:
+- Non-alarmist initial contact created psychological safety.
+- The helper followed the low-risk protocol precisely: no mention of the AI detection.
+- Three follow-up messages over two weeks, all brief and warm.
+- Referral to CHAT (Community Health Assessment Team) was accepted on the second conversation.
+
+Outcome:
+Youth engaged in counselling voluntarily. Case closed with no escalation. Risk score dropped to 2 over 3 ingestion cycles.
+
+Lessons:
+- Early detection at risk 3 is preventive: waiting for score 4–5 increases intervention difficulty.
+- Response to initial contact is not guaranteed; do not over-read silence in the first 24h.
+- Document everything — even "no response" logs are valuable for the audit trail.
+
+=== CASE STUDY 002: Coordinated Cyberbullying with Doxxing ===
+
+Category: Cyberbullying | Initial Risk Score: 4 | Escalation: Yes
+
+Background:
+A 14-year-old female was identified as the target of a coordinated harassment campaign from multiple accounts. Partial personal information (school name, neighbourhood) was shared in comment threads. The youth had completely stopped posting for 5 days.
+
+Helper Response:
+The helper immediately flagged for escalation before outreach, as per cyberbullying protocol. Platform reports were filed for all identified accounts. The school liaison officer was contacted after senior approval.
+
+What worked:
+- Helper prioritised safety documentation before reaching out.
+- Outreach used Template F with personalised additions acknowledging that things "hadn't been easy online lately."
+- Two-meeting school coordination led to a supportive meeting with a school counsellor.
+
+What was challenging:
+- The youth initially declined contact ("I don't want to talk about it").
+- Helper correctly respected this boundary, re-checked risk score at next ingestion, and sent a brief Follow-Up Template C two weeks later.
+- On the second follow-up, youth agreed to a brief conversation.
+
+Outcome:
+Perpetrator accounts suspended. Youth returned to posting within 3 weeks. Case moved to followup status. Closed at 8 weeks.
+
+Lessons:
+- Respecting a youth's refusal of contact is not abandoning them — it builds trust.
+- Never contact perpetrators directly; this almost always escalates the situation.
+- Platform reporting should happen regardless of whether the youth is engaged.
+
+=== CASE STUDY 003: Family Conflict Escalation ===
+
+Category: Family Conflict | Initial Risk Score: 3 | Escalated to Risk 5
+
+Background:
+A 15-year-old began posting about arguments at home. Initial risk score was 3 with no immediate safety concern. Over the next ingestion cycle (48h), new signals emerged including references to "not being safe" and "having nowhere to go."
+
+Helper Response:
+The helper reviewed the escalated signals and immediately contacted the team lead. The decision to treat this as an active safety concern was made before any outreach.
+
+What worked:
+- Helper used Template H but added: "I want to make sure you're safe — are you somewhere you feel okay right now?"
+- The youth responded with an affirmative but indicated the home situation was worsening.
+- Over 3 conversations, the helper built enough trust to facilitate a referral to a Family Service Centre with the youth's consent.
+
+Critical decision point:
+- At risk 5 (youth indicated feeling unsafe at home), the helper correctly escalated to senior case manager, who initiated the FSC referral process.
+- No contact was made with the family without the youth's explicit consent.
+
+Outcome:
+Family mediation through the FSC led to improvement in home situation. Youth's risk score reduced to 2 over 4 ingestion cycles. Ongoing monitoring.
+
+Lessons:
+- Risk scores can change rapidly between ingestion cycles; treat each new signal set with fresh assessment.
+- Never rush to contact family — this can escalate harm if the conflict source is within the family.
+- Document every conversation and decision, especially safety assessments.
+
+=== CASE STUDY 004: Persistent Isolation with Masked Distress ===
+
+Category: Loneliness / Isolation | Initial Risk Score: 2 | Escalated to Risk 4
+
+Background:
+A 16-year-old showed gradual disengagement signals over 6 weeks. The initial score of 2 did not trigger urgent action. At week 4, frequency metrics showed zero peer interactions and a dramatic shift to passive consumption.
+
+Helper Observation:
+A helper reviewing the case at the next ingestion noticed that the language in the youth's remaining posts had shifted — moving from neutral to increasingly hopeless-sounding: "I guess it doesn't matter" and "whatever."
+
+What worked:
+- The helper did not wait for the AI score to escalate; they flagged the case for senior review based on their own clinical observation of the language shift.
+- Outreach using Template I was personalised: "I know online spaces can feel empty sometimes, but I wanted you to know someone's here."
+- Youth responded after 3 days.
+
+Mistake nearly made:
+- Initially, the assigned helper was going to close the case as "low concern." This was appropriately questioned by a senior in a supervision meeting.
+
+Outcome:
+Early escalation prevented what could have become a self-harm ideation case. Youth connected to a youth social group. Risk score stabilised at 2.
+
+Lessons:
+- AI scores are inputs, not verdicts. A score of 2 combined with specific language patterns warrants human review.
+- Use supervision sessions to flag cases you're uncertain about.
+- Isolation can be a precursor to more serious categories — monitor carefully.
+
+=== CASE STUDY 005: Academic Stress Co-Occurring with Self-Harm Risk ===
+
+Category: Academic Stress / Self-Harm Ideation | Risk Score: 3 → 5
+
+Background:
+A case flagged as Academic Stress at score 3 was initially assigned to monitoring only. Within one ingestion cycle, the vocabulary shifted from exam stress to hopelessness: "what's the point of trying", "it's all useless anyway."
+
+Re-categorisation:
+The helper reviewing the case escalated the category to Self-Harm Ideation overlay and changed the priority to critical.
+
+What worked:
+- Protocol explicitly states: "academic stress combined with hopeless or worthless language: treat as Self-Harm risk."
+- Template E was used with personalisation for the academic context: "I know exams can feel like everything right now, but I want to check in — how are you really doing?"
+- Youth opened up about pressure from family expectations alongside academic stress.
+
+Referral:
+Youth was referred to a school counsellor (with consent) and a SCS mental health volunteer.
+
+Outcome:
+The category re-assignment was the pivotal decision. Early intervention at the crossover point prevented further escalation. Risk score 3 at closure.
+
+Lessons:
+- Categories are not siloed. Cross-category risk is common.
+- Re-categorise if the language patterns shift, regardless of initial assignment.
+- Academic stress can be a surface presentation for deeper distress — always probe gently.
+
+=== CASE STUDY 006: Recurring High-Risk User ===
+
+Category: Self-Harm Ideation | Second Case | Risk Score: 4
+
+Background:
+A youth (anonymised as User X) had a previous case closed at low risk 6 months prior. A new ingestion cycle detected re-emergence of distress signals — different account, similar patterns.
+
+Case Considerations:
+- The prior case history was visible to the helper via the case timeline.
+- The prior case had no escalation; this was a new escalation threshold.
+
+What worked:
+- Helper proactively reviewed the history before outreach, understanding that this was a possible relapse pattern.
+- Outreach referenced the prior positive engagement: "Hi [Name], we spoke a while back and I've been thinking about you. Wanted to check in again."
+- Youth remembered the prior contact and was more receptive.
+
+Outcome:
+Faster engagement due to prior relationship. Case managed to risk 2 within 3 ingestion cycles.
+
+Lessons:
+- Prior case history is an asset. Review it before outreach on recurring users.
+- Do not treat a second case as entirely new — acknowledge the relationship if prior contact was positive.
+- Recurring users may have underlying chronic stressors that require longer-term support planning.
