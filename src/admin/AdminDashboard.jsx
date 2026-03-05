@@ -4,7 +4,7 @@ import { Icon } from "../components/Icons.jsx";
 import { caseAPI, userAPI, historyAPI, transformCase } from "../services/api.js";
 
 // ─── Service URLs ──────────────────────────────────────────────────────────────
-const CASE_SERVICE_URL = "http://localhost:8001";
+const CASE_SERVICE_URL = "http://localhost:8003";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────────
 const T = {
@@ -121,6 +121,8 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
   const [assigning, setAssigning] = useState(false);
   const [selectedHelper, setSelectedHelper] = useState(c.assigned_to || "");
   const [assignMsg, setAssignMsg] = useState("");
+  const [adminComment, setAdminComment] = useState(""); // NEW: for review completion
+  const [completingReview, setCompletingReview] = useState(false); // NEW: for loading state
 
   useEffect(() => {
     historyAPI.getCaseHistory(c.case_id)
@@ -131,7 +133,7 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
   const handleAssign = async () => {
     try {
       const res = await fetch(`${CASE_SERVICE_URL}/cases/${c.case_id}/assign`, {
-        method:"PATCH",
+        method:"POST",
         headers:{ "Content-Type":"application/json", "X-User-Id":currentUser.user_id, "X-User-Role":"Admin" },
         body: JSON.stringify({ assigned_to: selectedHelper || null }),
       });
@@ -151,8 +153,45 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
     }
   };
 
+  // NEW: Handle review completion
+  const handleCompleteReview = async () => {
+    if (!adminComment.trim()) {
+      alert("Please provide a comment before completing the review.");
+      return;
+    }
+    
+    setCompletingReview(true);
+    try {
+      const res = await fetch(`${CASE_SERVICE_URL}/cases/${c.case_id}/complete-review`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": currentUser.user_id,
+          "X-User-Role": currentUser.role,
+        },
+        body: JSON.stringify({ admin_comment: adminComment.trim() }),
+      });
+      
+      if (res.ok) {
+        alert("Review completed successfully. Case status reverted to Not Started.");
+        onClose(); // Close modal and refresh
+        window.location.reload(); // Reload to update the needs-review list
+      } else {
+        const errorText = await res.text();
+        alert(`Failed to complete review: ${errorText}`);
+      }
+    } catch (err) {
+      alert(`Error completing review: ${err.message}`);
+    } finally {
+      setCompletingReview(false);
+    }
+  };
+
   const riskLevel = c.riskLevel || c.risk_score || 3;
   const signals = c.explanation_signals?.risk_indicators || c.signals || ["No signal data available."];
+  
+  // Check if case has a pending review request
+  const pendingReview = c.review_request || (c.review_requests && c.review_requests.find(r => r.request_status === "pending"));
 
   return (
     <div style={{ position:"fixed", inset:0, zIndex:9999, background:"rgba(0,0,0,0.5)", display:"flex", alignItems:"center", justifyContent:"center", padding:20 }}>
@@ -223,6 +262,61 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
             <span>Assigned to: <strong>{c.assigned_to ? helpers.find(h=>h.user_id===c.assigned_to)?.name || c.assigned_to : "Unassigned"}</strong></span>
           </div>
         </div>
+
+        {/* Review Request Section - Only show if case has pending review */}
+        {pendingReview && (
+          <div style={{ background:"#fffbeb", border:"1.5px solid #fbbf24", borderRadius:10, padding:14 }}>
+            <div style={{ fontSize:11, fontWeight:700, color:"#92400e", textTransform:"uppercase", letterSpacing:"0.8px", marginBottom:10, display:"flex", alignItems:"center", gap:6 }}>
+              <Icon.AlertTriangle size={12} color="#d97706"/> Review Requested
+            </div>
+            
+            {/* Helper's reason */}
+            <div style={{ marginBottom:12 }}>
+              <div style={{ fontSize:10, color:"#92400e", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Helper's Request</div>
+              <div style={{ fontSize:13, color:"#78350f", lineHeight:1.5, background:"#fef3c7", padding:"10px 12px", borderRadius:8, border:"1px solid #fde68a" }}>
+                {pendingReview.reason || "No reason provided"}
+              </div>
+              <div style={{ fontSize:11, color:"#92400e", marginTop:4 }}>
+                Submitted: {pendingReview.created_at ? new Date(pendingReview.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : "—"}
+              </div>
+            </div>
+            
+            {/* Admin comment input */}
+            <div style={{ marginBottom:10 }}>
+              <div style={{ fontSize:10, color:"#92400e", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Your Response</div>
+              <textarea
+                value={adminComment}
+                onChange={e => setAdminComment(e.target.value)}
+                placeholder="Provide feedback or guidance to the helper..."
+                style={{ width:"100%", minHeight:80, padding:"10px 12px", borderRadius:8, border:"1.5px solid #fbbf24", fontSize:13, color:"#1e293b", resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"inherit", lineHeight:1.5, background:"#fff" }}
+              />
+            </div>
+            
+            {/* Complete review button */}
+            <button
+              onClick={handleCompleteReview}
+              disabled={!adminComment.trim() || completingReview}
+              style={{ 
+                width:"100%",
+                display:"flex", 
+                alignItems:"center", 
+                justifyContent:"center",
+                gap:6, 
+                background: adminComment.trim() ? "linear-gradient(135deg,#10b981,#059669)" : "#d1d5db", 
+                color: adminComment.trim() ? "#fff" : "#9ca3af", 
+                border:"none", 
+                borderRadius:8, 
+                padding:"10px 14px", 
+                fontSize:13, 
+                fontWeight:600, 
+                cursor: adminComment.trim() ? "pointer" : "not-allowed" 
+              }}
+            >
+              <Icon.CheckCircle size={14} color={adminComment.trim() ? "#fff" : "#9ca3af"}/>
+              {completingReview ? "Completing Review..." : "Complete Review & Revert to Not Started"}
+            </button>
+          </div>
+        )}
 
         {/* AI Signals */}
         <div style={{ background:"#fff", border:`1px solid ${T.border}`, borderRadius:10, padding:14 }}>
@@ -499,6 +593,7 @@ export default function AdminDashboard({ currentUser: propUser }) {
   
   const [activeTab, setActiveTab]     = useState("all");
   const [cases, setCases]             = useState([]);
+  const [casesNeedingReview, setCasesNeedingReview] = useState([]); // NEW: cases with pending reviews
   const [reassignments, setReassignments] = useState([]);
   const [helpers, setHelpers]         = useState([]); // Fetch from MongoDB API
   const [selectedCase, setSelectedCase] = useState(null);
@@ -520,6 +615,48 @@ export default function AdminDashboard({ currentUser: propUser }) {
         const casesData = await caseAPI.getAllCases();
         const transformedCases = casesData.map(c => transformCase(c));
         setCases(transformedCases);
+
+        // Fetch cases needing review from new endpoint
+        try {
+          const reviewRes = await fetch(`${CASE_SERVICE_URL}/cases/needs-review`, {
+            headers: {
+              "X-User-Id": currentUser.user_id,
+              "X-User-Role": currentUser.role,
+            },
+          });
+          if (reviewRes.ok) {
+            const reviewData = await reviewRes.json();
+            const transformedReviews = reviewData.map(c => transformCase(c));
+            setCasesNeedingReview(transformedReviews);
+          }
+        } catch (err) {
+          console.warn("Could not fetch cases needing review:", err);
+        }
+
+        // Fetch reassignment requests
+        try {
+          const reassignRes = await fetch(`${CASE_SERVICE_URL}/cases/reassignment-requests?status=pending`, {
+            headers: {
+              "X-User-Id": currentUser.user_id,
+              "X-User-Role": currentUser.role,
+            },
+          });
+          if (reassignRes.ok) {
+            const reassignData = await reassignRes.json();
+            setReassignments(reassignData.map(r => ({
+              id: r.request_id,
+              case_id: r.case_id,
+              requested_by: r.requested_by,
+              requested_to: r.suggested_helper,
+              reason: r.reason,
+              status: r.request_status,
+              created_at: r.requested_at,
+              case: r.case ? transformCase(r.case) : null
+            })));
+          }
+        } catch (err) {
+          console.warn("Could not fetch reassignment requests:", err);
+        }
 
         // Fetch youth helpers from MongoDB
         try {
@@ -551,7 +688,7 @@ export default function AdminDashboard({ currentUser: propUser }) {
   // ── Tab filtering ──────────────────────────────────────────────────────────
   const allCases         = cases;
   const unassignedCases  = cases.filter(c => !c.assigned_to || c.assigned_to === "—");
-  const needsReviewCases = cases.filter(c => c.needs_review || c.work_status === "to_review" || c.status === "in_review" || c.status === "Escalated");
+  const needsReviewCases = casesNeedingReview; // Use fetched review cases
   const pendingRequests  = reassignments.filter(r => r.status === "pending");
 
   const tabCounts = {
@@ -617,27 +754,57 @@ export default function AdminDashboard({ currentUser: propUser }) {
   // ── Reassignment actions ───────────────────────────────────────────────────
   const handleReassignAction = async (id, action, targetHelper = null) => {
     try {
-      await fetch(`${CASE_SERVICE_URL}/cases/reassignment-requests/${id}/${action}`, {
-        method:"PATCH",
-        headers:{ "Content-Type":"application/json","X-User-Id":currentUser.user_id,"X-User-Role":"Admin" },
-        body: JSON.stringify({ reviewed_by: currentUser.user_id, ...(targetHelper ? { assigned_to: targetHelper } : {}) }),
-      }).catch(() => {});
-    } finally {
-      setReassignments(prev => prev.map(r => r.id === id ? { ...r, status: action } : r));
-      if (action === "approved") {
-        // Update the case: clear reassigned flag, reset work status
-        setReassignments(prev => {
-          const req = prev.find(r => r.id === id);
-          if (req) {
-            setCases(cs => cs.map(c =>
-              (c.case_id||c.code) === req.case_id
-                ? { ...c, case_status: "assigned", work_status: "not_started", assigned_to: targetHelper || req.requested_to || c.assigned_to }
-                : c
-            ));
-          }
-          return prev;
-        });
+      const payload = {
+        status: action,
+        review_notes: action === "approved" ? "Approved by admin" : "Declined by admin"
+      };
+      
+      if (action === "approved" && targetHelper) {
+        payload.new_assigned_to = targetHelper;
       }
+      
+      const res = await fetch(`${CASE_SERVICE_URL}/cases/reassignment-requests/${id}/review`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": currentUser.user_id,
+          "X-User-Role": currentUser.role
+        },
+        body: JSON.stringify(payload),
+      });
+      
+      if (!res.ok) {
+        throw new Error(`Failed to ${action} reassignment`);
+      }
+      
+      const result = await res.json();
+      
+      // Update local state
+      setReassignments(prev => prev.map(r => 
+        r.id === id ? { ...r, status: action } : r
+      ));
+      
+      if (action === "approved") {
+        // Update the case: clear reassigned flag, assign to new helper
+        const req = reassignments.find(r => r.id === id);
+        if (req) {
+          setCases(prev => prev.map(c =>
+            (c.case_id || c.code) === req.case_id
+              ? { 
+                  ...c, 
+                  case_status: "assigned", 
+                  work_status: "not_started", 
+                  assigned_to: targetHelper || req.requested_to || c.assigned_to 
+                }
+              : c
+          ));
+        }
+      }
+      
+      alert(`Reassignment request ${action} successfully.`);
+    } catch (err) {
+      console.error(`Failed to ${action} reassignment:`, err);
+      alert(`Failed to ${action} reassignment: ${err.message}`);
     }
   };
 

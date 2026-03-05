@@ -9,13 +9,14 @@ class Settings(BaseSettings):
     openrouter_model: str = "deepseek/deepseek-chat-v3.1"
 
     # ── Embeddings + ChromaDB ───────────────────────────────────────────────
-    embedding_model: str = "all-MiniLM-L6-v2"
+    embedding_model: str = "openai/text-embedding-ada-002"
+    openrouter_embedding_model: str = "openai/text-embedding-ada-002"
     chroma_persist_dir: str = "../data/chromadb"
     docs_dir: str = "./docs"
 
     # ── Inter-service URLs ──────────────────────────────────────────────────
-    case_service_url: str = "http://localhost:8001"
-    mcp_service_url: str = "http://localhost:8003"
+    case_service_url: str = "http://localhost:8003"
+    mcp_service_url: str = "http://localhost:8002"
 
     # ── Auth defaults ───────────────────────────────────────────────────────
     default_user_id: str = "sarah_l"

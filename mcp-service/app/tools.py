@@ -242,6 +242,92 @@ async def tool_add_checklist_item(
     return result
 
 
+async def tool_add_checklist_items(
+    case_id: str,
+    items: list[dict],
+    user: AuthUser,
+    *,
+    request_id: str = "",
+    approved_plan_hash: str = "",
+) -> dict:
+    """Add multiple checklist items to a case (bulk operation)"""
+    db = await get_db()
+    await _assert_case_write_access(db, case_id, user)
+    
+    checklist_col = db['scs_checklist']
+    
+    # Get max display_order for this case
+    max_order_doc = await checklist_col.find_one(
+        {"case_id": case_id},
+        sort=[("display_order", -1)]
+    )
+    display_order = (max_order_doc.get("display_order", 0) + 1) if max_order_doc else 1
+    
+    results = []
+    for item in items:
+        label = item.get("label", "")
+        if not label:
+            results.append({
+                "success": False,
+                "error": "Label is required",
+                "label": label
+            })
+            continue
+        
+        is_mandatory = item.get("is_mandatory", False)
+        
+        # Get next checklist_item_id
+        new_id = await get_next_id('scs_checklist', 'checklist_item_id')
+        
+        checklist_item = {
+            "checklist_item_id": new_id,
+            "case_id": case_id,
+            "template_id": None,
+            "label": label,
+            "is_mandatory": is_mandatory,
+            "completed": False,
+            "comments": [],
+            "completed_at": None,
+            "completed_by": None,
+            "display_order": display_order,
+            "created_at": datetime.now(timezone.utc),
+            "created_by": "agent"
+        }
+        
+        try:
+            await checklist_col.insert_one(checklist_item)
+            results.append({
+                "success": True,
+                "checklist_item_id": new_id,
+                "label": label,
+                "is_mandatory": is_mandatory,
+                "display_order": display_order
+            })
+            display_order += 1
+        except Exception as e:
+            results.append({
+                "success": False,
+                "error": str(e),
+                "label": label
+            })
+    
+    result = {
+        "case_id": case_id,
+        "total_items": len(items),
+        "successful": sum(1 for r in results if r.get("success")),
+        "failed": sum(1 for r in results if not r.get("success")),
+        "results": results
+    }
+    
+    await audit_log(
+        "add_checklist_items", user.user_id, user.role,
+        {"case_id": case_id, "item_count": len(items)},
+        result,
+        request_id=request_id, case_id=case_id, approved_plan_hash=approved_plan_hash,
+    )
+    return result
+
+
 async def tool_update_checklist_item_status(
     case_id: str,
     checklist_item_id: int,

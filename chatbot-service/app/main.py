@@ -208,3 +208,33 @@ async def chat(request: ChatRequest):
 @app.get("/health")
 async def health():
     return {"status": "healthy", "service": "chatbot"}
+
+@app.get("/rag/status")
+async def rag_status():
+    """Get ChromaDB collection status"""
+    count = assistant.rag.collection.count()
+    return {
+        "status": "ready",
+        "collection_name": "scs_protocols",
+        "document_count": count,
+        "chroma_path": assistant.rag.chroma_path,
+        "docs_path": assistant.rag.docs_path
+    }
+
+@app.post("/rag/clear-and-reingest")
+async def clear_and_reingest():
+    """Clear ChromaDB and re-ingest all documents with new embeddings"""
+    try:
+        print("\n🔄 Starting ChromaDB re-ingestion...")
+        assistant.rag.clear_and_reingest()
+        new_count = assistant.rag.collection.count()
+        return {
+            "status": "success",
+            "message": f"Successfully cleared and re-ingested {new_count} documents",
+            "document_count": new_count
+        }
+    except Exception as e:
+        import traceback
+        print(f"❌ Re-ingestion error: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Re-ingestion failed: {str(e)}")

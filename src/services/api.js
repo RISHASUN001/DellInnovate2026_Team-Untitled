@@ -3,7 +3,7 @@
  * Handles all communication with case-service backend (MongoDB)
  */
 
-const CASE_SERVICE_URL = import.meta.env.VITE_CASE_SERVICE_URL || "http://localhost:8001";
+const CASE_SERVICE_URL = import.meta.env.VITE_CASE_SERVICE_URL || "http://localhost:8003";
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
 

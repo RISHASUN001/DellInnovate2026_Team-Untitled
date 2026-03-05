@@ -39,6 +39,7 @@ from .tools import (
     tool_get_similar_cases,
     # write
     tool_add_checklist_item,
+    tool_add_checklist_items,
     tool_update_checklist_item_status,
     tool_add_case_note,
     tool_update_case_status,
@@ -69,8 +70,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
@@ -244,6 +246,13 @@ async def execute_approved_plan(body: ExecutePlanRequest, request: Request):
                     is_mandatory=args.get("is_mandatory", False),
                     **write_kwargs,
                 )
+            elif tool_name == "add_checklist_items" or tool_name == "create_checklist_items":
+                step_result = await tool_add_checklist_items(
+                    case_id=args["case_id"],
+                    items=args.get("items", []),
+                    user=user,
+                    **write_kwargs,
+                )
             elif tool_name == "update_checklist_item_status":
                 step_result = await tool_update_checklist_item_status(
                     case_id=args["case_id"],
@@ -347,6 +356,22 @@ async def add_checklist_item(body: AddChecklistItemRequest, request: Request):
     plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
     return await tool_add_checklist_item(
         body.case_id, body.label, user, body.is_mandatory,
+        request_id=req_id, approved_plan_hash=plan_hash,
+    )
+
+
+class AddChecklistItemsRequest(BaseModel):
+    case_id: str
+    items: list[dict]
+
+
+@app.post("/tools/add_checklist_items")
+async def add_checklist_items(body: AddChecklistItemsRequest, request: Request):
+    user = _get_user(request)
+    req_id = _request_id(request)
+    plan_hash = request.headers.get("X-Approved-Plan-Hash", "")
+    return await tool_add_checklist_items(
+        body.case_id, body.items, user,
         request_id=req_id, approved_plan_hash=plan_hash,
     )
 

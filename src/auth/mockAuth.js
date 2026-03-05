@@ -15,7 +15,7 @@
 //
 // ─────────────────────────────────────────────────────────────────────────────
 
-const CASE_SERVICE_URL = "http://localhost:8001";
+const CASE_SERVICE_URL = "http://localhost:8003";
 
 // ── Fetch all users from MongoDB ──────────────────────────────────────────────
 // AUTH_SERVICE_CALL: Replace with GET /api/users from your auth service

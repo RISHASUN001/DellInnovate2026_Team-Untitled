@@ -4,9 +4,9 @@ import { Icon } from "./components/Icons.jsx";
 import { caseAPI, historyAPI } from "./services/api.js";
 
 // ─── SERVICE URLS (proxied via Vite dev server in dev; adjust for prod) ───────
-const CASE_SERVICE_URL   = "http://localhost:8001";
+const CASE_SERVICE_URL   = "http://localhost:8003";
 const CHATBOT_SERVICE_URL = "http://localhost:8000";
-const MCP_SERVICE_URL     = "http://localhost:8003";
+const MCP_SERVICE_URL     = "http://localhost:8002";
 
 // ─── CURRENT USER FALLBACK — used only if no auth prop provided ───────────────
 // AUTH_SERVICE_CALL: In production this object comes from the auth context;
@@ -379,55 +379,99 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
     setSelectedCase(c);
   };
 
-  const saveWorkStatus = async (newWs, reason = "") => {
+  const saveWorkStatus = async (newWs) => {
     setWorkStatusSaving(true);
     const caseId = selectedCase.case_id || selectedCase.code;
     try {
-      const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}/work-status`, {
+      // Update work status
+      const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           "X-User-Id": currentUser.user_id,
           "X-User-Role": currentUser.role,
         },
-        body: JSON.stringify({ work_status: newWs, reason }),
+        body: JSON.stringify({ work_status: newWs }),
       });
-      if (res.ok) {
-        const data = await res.json();
-        setWorkStatus(data.work_status);
-        setSelectedCase(prev => ({
-          ...prev,
-          work_status: data.work_status,
-          needs_review: data.needs_review ?? prev.needs_review,
-        }));
-        // Refresh case list for admin indicator
-        setCases(prev => prev.map(c =>
-          (c.case_id || c.code) === caseId
-            ? { ...c, work_status: data.work_status, needs_review: data.needs_review ?? c.needs_review }
-            : c
-        ));
+      
+      if (!res.ok) {
+        throw new Error(`Failed to update work status: ${res.status}`);
       }
-    } catch { /* silent — optimistic update already done */ } finally {
+      
+      const data = await res.json();
+      
+      setWorkStatus(data.work_status);
+      setSelectedCase(prev => ({
+        ...prev,
+        work_status: data.work_status,
+        needs_review: newWs === "to_review",
+      }));
+      
+      // Refresh case list
+      setCases(prev => prev.map(c =>
+        (c.case_id || c.code) === caseId
+          ? { ...c, work_status: data.work_status, needs_review: newWs === "to_review" }
+          : c
+      ));
+      
+      return { success: true, data };
+    } catch (err) {
+      console.error("Error saving work status:", err);
+      alert("Failed to update work status. Please try again.");
+      return { success: false, error: err };
+    } finally {
       setWorkStatusSaving(false);
     }
   };
 
-  const handleWorkStatusChange = (newWs) => {
+  const handleWorkStatusChange = async (newWs) => {
     if (newWs === "to_review") {
-      setToReviewReason("");
-      setShowToReviewPopup(true);
+      // First, persist the work_status change to database
+      setWorkStatus(newWs);
+      const result = await saveWorkStatus(newWs);
+      
+      // After successful persistence, show popup for comment
+      if (result.success) {
+        setToReviewReason("");
+        setShowToReviewPopup(true);
+      }
     } else {
       setWorkStatus(newWs);
-      saveWorkStatus(newWs);
+      await saveWorkStatus(newWs);
     }
   };
 
   const submitToReview = async () => {
     if (!toReviewReason.trim()) return;
-    setWorkStatus("to_review");
-    await saveWorkStatus("to_review", toReviewReason.trim());
-    setShowToReviewPopup(false);
-    setToReviewReason("");
+    
+    // Submit review request with the reason to scs_review_requests table
+    const caseId = selectedCase.case_id || selectedCase.code;
+    try {
+      const reviewRes = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}/review-request`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-User-Id": currentUser.user_id,
+          "X-User-Role": currentUser.role,
+        },
+        body: JSON.stringify({ reason: toReviewReason.trim() }),
+      });
+      
+      if (!reviewRes.ok) {
+        const errorText = await reviewRes.text();
+        console.error("Failed to submit review request:", errorText);
+        alert("Failed to submit review request. Please try again.");
+        return;
+      }
+      
+      // Success - close popup and show confirmation
+      setShowToReviewPopup(false);
+      setToReviewReason("");
+      alert("Review request submitted successfully. Admin will be notified.");
+    } catch (err) {
+      console.error("Error submitting review request:", err);
+      alert("Failed to submit review request. Please try again.");
+    }
   };
 
   const submitReassignRequest = async () => {
@@ -843,45 +887,88 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                   <div style={{ fontSize: 12, color: "#4338ca", lineHeight: 1.5 }}><strong>Privacy Disclaimer:</strong> This view shows AI-generated risk signals only. No raw social media posts, messages, or personal content is stored or displayed. The AI processes anonymised patterns.</div>
                 </div>
 
-                {/* Case Information Card */}
-                <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
-                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}><Icon.FileText size={14} /> Case Information</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                    <div>
-                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Case ID</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{selectedCase.case_id || selectedCase.code}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Priority</div>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: selectedCase.priority === "critical" ? "#dc2626" : selectedCase.priority === "high" ? "#f59e0b" : selectedCase.priority === "medium" ? "#3b82f6" : "#10b981", textTransform: "capitalize" }}>{selectedCase.priority || "Medium"}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Created</div>
-                      <div style={{ fontSize: 13, color: "#475569" }}>{selectedCase.created_at ? new Date(selectedCase.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "—"}</div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 3 }}>Last Updated</div>
-                      <div style={{ fontSize: 13, color: "#475569" }}>{selectedCase.updated_at ? new Date(selectedCase.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "—"}</div>
-                    </div>
-                    <div style={{ gridColumn: "1 / -1" }}>
-                      <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 6 }}>Assigned To</div>
-                      {(() => {
-                        const helperObj = helpers.find(h => h.user_id === selectedCase.assigned_to);
-                        return helperObj ? (
-                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: "50%", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{helperObj.avatar_initials}</div>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 600, color: "#1e293b" }}>{helperObj.name}</div>
-                              <div style={{ fontSize: 11, color: "#94a3b8" }}>{helperObj.employee_id}</div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>Not assigned</div>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                </div>
+                {/* Review Pending Card - Show when review is pending */}
+                {selectedCase.review_requests && selectedCase.review_requests.length > 0 && (() => {
+                  const latestReview = selectedCase.review_requests[selectedCase.review_requests.length - 1];
+                  const isPending = latestReview.request_status === "pending";
+                  
+                  if (isPending) {
+                    return (
+                      <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #fbbf24", padding: 18, marginBottom: 16 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                          <Icon.Clock size={14} /> 
+                          Review Pending
+                          <span style={{ 
+                            marginLeft: "auto", 
+                            fontSize: 11, 
+                            fontWeight: 600, 
+                            color: "#d97706",
+                            background: "#fffbeb",
+                            padding: "4px 10px",
+                            borderRadius: 6
+                          }}>
+                            ⏳ Awaiting Admin
+                          </span>
+                        </div>
+                        
+                        <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Your Review Request</div>
+                        <div style={{ fontSize: 13, color: "#475569", lineHeight: 1.5, background: "#fffbeb", padding: "10px 12px", borderRadius: 8, border: "1px solid #fde68a" }}>
+                          {latestReview.reason || "No reason provided"}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 4 }}>
+                          Submitted {latestReview.created_at ? new Date(latestReview.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : "—"}
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return null;
+                })()}
+                
+                {/* Admin Resolution Card - Only show if admin has responded */}
+                {selectedCase.review_requests && selectedCase.review_requests.length > 0 && (() => {
+                  const latestReview = selectedCase.review_requests[selectedCase.review_requests.length - 1];
+                  const isResolved = latestReview.request_status === "resolved";
+                  
+                  if (isResolved && latestReview.resolution_notes) {
+                    return (
+                      <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #10b981", padding: 18, marginBottom: 16 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+                          <Icon.CheckCircle size={14} /> 
+                          Admin Response
+                          <span style={{ 
+                            marginLeft: "auto", 
+                            fontSize: 11, 
+                            fontWeight: 600, 
+                            color: "#065f46",
+                            background: "#d1fae5",
+                            padding: "4px 10px",
+                            borderRadius: 6
+                          }}>
+                            ✓ Resolved
+                          </span>
+                        </div>
+                        
+                        <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4 }}>Your Original Request</div>
+                        <div style={{ fontSize: 12, color: "#64748b", lineHeight: 1.5, background: "#f8fafc", padding: "8px 10px", borderRadius: 6, border: "1px solid #e2e8f0", marginBottom: 12, fontStyle: "italic" }}>
+                          "{latestReview.reason || "No reason provided"}"
+                        </div>
+                        
+                        <div style={{ fontSize: 10, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, fontWeight: 600 }}>Admin's Guidance</div>
+                        <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.6, background: "#d1fae5", padding: "12px 14px", borderRadius: 8, border: "1px solid #6ee7b7", fontWeight: 500 }}>
+                          {latestReview.resolution_notes}
+                        </div>
+                        
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
+                          <Icon.User size={10} />
+                          <span>Reviewed by Admin · {latestReview.resolved_at ? new Date(latestReview.resolved_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : "—"}</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                  
+                  return null;
+                })()}
 
                 {/* Youth Profile Card */}
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
@@ -922,11 +1009,11 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                   ))}
                 </div>
 
-                {/* Summary */}
+                {/* Summary
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Case Summary</div>
                   <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{selectedCase.summary}</p>
-                </div>
+                </div> */}
               </div>
 
               {/* Right col: Checklist */}
@@ -1284,6 +1371,7 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
     
     const fetchChecklist = async () => {
       try {
+        console.log('Fetching checklist for case:', caseId);
         setLoading(true);
         const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}`, {
           headers: {
@@ -1293,6 +1381,8 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
         });
         if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
         const caseData = await res.json();
+        
+        console.log('Case data received, checklist items:', caseData.checklist?.length || 0);
         
         // Transform MongoDB checklist format to UI format
         const checklistItems = (caseData.checklist || []).map(item => ({
@@ -1314,7 +1404,10 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
     fetchChecklist();
     
     // Listen for checklist updates from MCP tool execution
-    const handleChecklistUpdate = () => fetchChecklist();
+    const handleChecklistUpdate = (e) => {
+      console.log('Checklist update event received:', e.detail);
+      fetchChecklist();
+    };
     window.addEventListener('checklistUpdate', handleChecklistUpdate);
     return () => window.removeEventListener('checklistUpdate', handleChecklistUpdate);
   }, [caseId, currentUser]);
@@ -1416,8 +1509,8 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
 
         {loading ? (
           <div style={{ padding: "40px 18px", textAlign: "center", color: "#94a3b8", fontSize: 13 }}>
-            <div style={{ display: "inline-block", animation: "spin 1s linear infinite" }}>⏳</div>
-            <div style={{ marginTop: 8 }}>Loading checklist...</div>
+            <div style={{ width: 24, height: 24, margin: "0 auto", border: "3px solid #e2e8f0", borderTop: "3px solid #6366f1", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}></div>
+            <div style={{ marginTop: 12 }}>Loading checklist...</div>
           </div>
         ) : (
           <>
@@ -1427,19 +1520,19 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
               {items.filter(i => i.mandatory).length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", padding: "8px 0" }}>No mandatory items yet.</div>}
               {items.filter(i => i.mandatory).map(item => renderItem(item, "#6366f1"))}
             </div>
-        {/* Custom items */}
-        {items.filter(i => !i.mandatory).length > 0 && (
-          <div style={{ padding: "10px 18px 0" }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Custom Items</div>
-            {items.filter(i => !i.mandatory).map(item => renderItem(item, "#8b5cf6"))}
-          </div>
-        )}
+            {/* Custom items */}
+            {items.filter(i => !i.mandatory).length > 0 && (
+              <div style={{ padding: "10px 18px 0" }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 4 }}>Custom Items</div>
+                {items.filter(i => !i.mandatory).map(item => renderItem(item, "#8b5cf6"))}
+              </div>
+            )}
           </>
         )}
 
         {/* Add custom item */}
         {!loading && (
-        <div style={{ padding: "10px 18px" }}>
+          <div style={{ padding: "10px 18px" }}>
           {addingItem ? (
             <div style={{ display: "flex", gap: 6 }}>
               <input autoFocus value={newItem} onChange={e => setNewItem(e.target.value)} onKeyDown={e => e.key === "Enter" && addItem()} placeholder="New checklist item…" style={{ flex: 1, padding: "6px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 13, outline: "none" }} />
@@ -1447,14 +1540,14 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
               <button onClick={() => { setAddingItem(false); setNewItem(""); }} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, padding: "4px 8px", cursor: "pointer", color: "#64748b" }}><Icon.X size={14} /></button>
             </div>
           ) : (
-            <button onClick={() => setAddingItem(true)} style={{ width: "100%", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "7px", cursor: "pointer", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>+ Add custom item</button>
-          )}
-        </div>
+              <button onClick={() => setAddingItem(true)} style={{ width: "100%", background: "#f8fafc", border: "1px dashed #cbd5e1", borderRadius: 8, padding: "7px", cursor: "pointer", color: "#6366f1", fontSize: 13, fontWeight: 600 }}>+ Add custom item</button>
+            )}
+          </div>
         )}
 
         {/* Comments */}
         {!loading && (
-        <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 18px", flex: 1 }}>
+          <div style={{ borderTop: "1px solid #e2e8f0", padding: "12px 18px", flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: 8 }}><Icon.MessageCircle size={11} style={{ display: "inline-block", marginRight: 4 }} /> Comments</div>
           <div style={{ maxHeight: 150, overflowY: "auto", marginBottom: 8 }}>
             {comments.length === 0 && <div style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic" }}>No comments yet.</div>}
@@ -1465,11 +1558,11 @@ function ChecklistPanel({ caseId, highlight, currentUser }) {
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
-            <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && addComment()} placeholder="Add a comment…" style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 12, outline: "none" }} />
-            <button onClick={addComment} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}><Icon.Send size={13} /></button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <input value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === "Enter" && addComment()} placeholder="Add a comment…" style={{ flex: 1, padding: "7px 10px", borderRadius: 8, border: "1px solid #d1d5db", fontSize: 12, outline: "none" }} />
+              <button onClick={addComment} style={{ background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, padding: "4px 12px", cursor: "pointer", fontSize: 13 }}><Icon.Send size={13} /></button>
+            </div>
           </div>
-        </div>
         )}
       </div>
     </>
@@ -1581,6 +1674,8 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
   const executeAction = async (action) => {
     const toolMap = {
       add_checklist_item: "add_checklist_item",
+      create_checklist_item: "add_checklist_item", // Map singular create to add
+      create_checklist_items: "add_checklist_items", // Map plural to bulk endpoint
       update_checklist_item_status: "update_checklist_item_status",
       add_case_note: "add_case_note",
       schedule_followup: "schedule_followup",
@@ -1596,6 +1691,71 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
       query_similar_cases: "get_similar_cases",
     };
     const tool = toolMap[action.action_type] || action.action_type;
+    
+    console.log('Executing action:', { action_type: action.action_type, tool, payload: action.payload });
+    
+    // Special handling for creating multiple checklist items
+    if (action.action_type === "create_checklist_items" && action.payload?.items && Array.isArray(action.payload.items)) {
+      console.log(`Creating ${action.payload.items.length} checklist items via bulk endpoint`);
+      try {
+        const res = await fetch(`${MCP_SERVICE_URL}/tools/add_checklist_items`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-User-Id": currentUser.user_id || currentUser.id,
+            "X-User-Role": currentUser.role,
+          },
+          body: JSON.stringify({
+            case_id: action.payload.case_id,
+            items: action.payload.items.map(item => ({
+              label: item.label || item,
+              is_mandatory: item.is_mandatory || false
+            }))
+          }),
+        });
+        const data = await res.json();
+        
+        // Trigger checklist refresh
+        window.dispatchEvent(new CustomEvent('checklistUpdate', { detail: data }));
+        
+        return { 
+          ok: res.ok, 
+          data: data
+        };
+      } catch (e) {
+        console.error('Error creating checklist items:', e);
+        return { 
+          ok: false, 
+          data: { error: String(e) }
+        };
+      }
+    }
+    
+    // Transform payload for singular checklist item creation
+    let requestPayload = action.payload || {};
+    if ((action.action_type === "create_checklist_item" || action.action_type === "add_checklist_item") && tool === "add_checklist_item") {
+      // Ensure payload has correct structure: {case_id, label, is_mandatory?}
+      const label = action.payload.label || action.payload.item_text || action.payload.item || action.payload.text || "";
+      
+      // Validate label is not empty
+      if (!label.trim()) {
+        console.error('Cannot create checklist item: label is empty', action.payload);
+        return { 
+          ok: false, 
+          data: { 
+            error: "Checklist item label cannot be empty. Please provide a valid label." 
+          }
+        };
+      }
+      
+      requestPayload = {
+        case_id: action.payload.case_id,
+        label: label.trim(),
+        is_mandatory: action.payload.is_mandatory || false
+      };
+      console.log('Transformed checklist payload:', requestPayload);
+    }
+    
     try {
       const res = await fetch(`${MCP_SERVICE_URL}/tools/${tool}`, {
         method: "POST",
@@ -1604,14 +1764,17 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
           "X-User-Id": currentUser.user_id || currentUser.id,
           "X-User-Role": currentUser.role,
         },
-        body: JSON.stringify(action.payload || {}),
+        body: JSON.stringify(requestPayload),
       });
       const data = await res.json();
+      
+      console.log('Action result:', { ok: res.ok, status: res.status, data });
       
       // Handle UI updates based on action type
       if (res.ok && data) {
         if (tool === "update_checklist_item_status" || tool === "add_checklist_item") {
           // Trigger checklist refresh event
+          console.log('Dispatching checklistUpdate event');
           window.dispatchEvent(new CustomEvent('checklistUpdate', { detail: data }));
         } else if (tool === "schedule_followup") {
           // Show notification
@@ -1657,7 +1820,7 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
 
       {/* Slide-out panel */}
       <div id="chatbot-area" style={{
-        position: "fixed", top: 0, right: 0, height: "100vh", width: 390,
+        position: "fixed", top: 0, right: 0, height: "100vh", width: 550,
         background: "#fff", boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
         border: highlight ? "2px solid #6366f1" : "none",
         display: "flex", flexDirection: "column", overflow: "hidden",
@@ -1665,7 +1828,7 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
         transform: open ? "translateX(0)" : "translateX(100%)",
       }}>
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg, #1e293b, #0f172a)", color: "#fff", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+        <div style={{ background: "linear-gradient(135deg, #1e293b, #0f172a)", color: "#fff", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center" }}><Icon.MessageCircle size={16} style={{ color: "#fff" }} /></div>
             <div>
@@ -1673,7 +1836,34 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
               <div style={{ fontSize: 10, color: "#94a3b8" }}>Advisory + Agentic · RAG-backed</div>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", borderRadius: 8, width: 30, height: 30, cursor: "pointer", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center" }}><Icon.X size={16} /></button>
+          <button 
+            onClick={onClose} 
+            style={{ 
+              background: "rgba(255,255,255,0.15)", 
+              border: "1px solid rgba(255,255,255,0.2)", 
+              color: "#fff", 
+              borderRadius: 8, 
+              width: 36, 
+              height: 36, 
+              cursor: "pointer", 
+              fontSize: 16, 
+              display: "flex", 
+              alignItems: "center", 
+              justifyContent: "center",
+              marginLeft: 16,
+              transition: "all 0.2s ease"
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = "rgba(239,68,68,0.9)";
+              e.currentTarget.style.transform = "scale(1.05)";
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = "rgba(255,255,255,0.15)";
+              e.currentTarget.style.transform = "scale(1)";
+            }}
+          >
+            <Icon.X size={18} />
+          </button>
         </div>
 
         {/* Attached case badge */}
@@ -1765,27 +1955,106 @@ function ChatbotPanel({ assignedCases, highlight, open, onClose, selectedCase: c
 
 // ─── ACTION CARD (approve / edit / cancel a proposed action) ──────────────────
 function ActionCard({ action, onApprove }) {
+  // Helper to extract label from various possible field names
+  const getInitialLabel = () => {
+    if (action.action_type === "create_checklist_items" && action.payload?.items) {
+      return action.payload.items.map(item => 
+        typeof item === 'string' ? item : item.label
+      ).join('\n');
+    }
+    return action.payload?.label || action.payload?.item_text || action.payload?.item || action.payload?.text || "";
+  };
+  
   const [status, setStatus] = useState("pending"); // pending | approving | approved | rejected | editing
   const [editPayload, setEditPayload] = useState(JSON.stringify(action.payload || {}, null, 2));
+  const [editLabel, setEditLabel] = useState(() => getInitialLabel());
   const [resultMsg, setResultMsg] = useState("");
+  const [editError, setEditError] = useState("");
 
   const approve = async (overridePayload) => {
     setStatus("approving");
-    const actionToRun = overridePayload
-      ? { ...action, payload: JSON.parse(overridePayload) }
-      : action;
-    const { ok, data } = await onApprove(actionToRun);
-    if (ok) {
-      setResultMsg("Executed successfully");
-      setStatus("approved");
-    } else {
-      setResultMsg(`Failed: ${data?.detail || data?.error || "Unknown error"}`);
+    try {
+      const actionToRun = overridePayload
+        ? { ...action, payload: typeof overridePayload === "string" ? JSON.parse(overridePayload) : overridePayload }
+        : action;
+      const { ok, data } = await onApprove(actionToRun);
+      if (ok) {
+        setResultMsg(data?.message || "Executed successfully");
+        setStatus("approved");
+      } else {
+        setResultMsg(`Failed: ${data?.detail || data?.error || "Unknown error"}`);
+        setStatus("rejected");
+      }
+    } catch (err) {
+      setResultMsg(`Error: ${err.message}`);
       setStatus("rejected");
+    }
+  };
+
+  const handleEdit = () => {
+    setEditError("");
+    setStatus("editing");
+    // Re-initialize edit label to ensure it has the current value
+    if (action.action_type === "add_checklist_item" || action.action_type === "create_checklist_item") {
+      const label = action.payload?.label || action.payload?.item_text || action.payload?.item || action.payload?.text || "";
+      setEditLabel(label);
+      if (!label) {
+        setEditError("No label found to edit");
+      }
+    } else if (action.action_type === "create_checklist_items" && action.payload?.items) {
+      // For multiple items, join them into lines
+      const itemsText = action.payload.items.map(item => 
+        typeof item === 'string' ? item : item.label
+      ).join('\n');
+      setEditLabel(itemsText);
+      if (!itemsText) {
+        setEditError("No items found to edit");
+      }
+    }
+  };
+
+  const handleApproveEdited = () => {
+    try {
+      if (action.action_type === "add_checklist_item" || action.action_type === "create_checklist_item") {
+        // For single checklist item, just update the label in the payload
+        const updatedPayload = { ...action.payload, label: editLabel.trim() };
+        if (!editLabel.trim()) {
+          setEditError("Label cannot be empty");
+          return;
+        }
+        setEditError("");
+        approve(updatedPayload);
+      } else if (action.action_type === "create_checklist_items") {
+        // For multiple items, parse the text (one per line)
+        const lines = editLabel.split('\n').map(l => l.trim()).filter(l => l);
+        if (lines.length === 0) {
+          setEditError("At least one item is required");
+          return;
+        }
+        const updatedPayload = { 
+          ...action.payload, 
+          items: lines.map(line => ({ 
+            label: line,
+            is_mandatory: false // Default to optional when editing
+          }))
+        };
+        setEditError("");
+        approve(updatedPayload);
+      } else {
+        // For other actions, use JSON editing
+        JSON.parse(editPayload); // Validate JSON
+        setEditError("");
+        approve(editPayload);
+      }
+    } catch (err) {
+      setEditError("Invalid JSON format");
     }
   };
 
   const typeLabel = {
     add_checklist_item: "Add Checklist Item",
+    create_checklist_item: "Add Checklist Item",
+    create_checklist_items: "Add Checklist Items",
     update_checklist_item_status: "Update Checklist Status",
     add_case_note: "Add Case Note",
     schedule_followup: "Schedule Follow-up",
@@ -1795,31 +2064,314 @@ function ActionCard({ action, onApprove }) {
     assign_case: "Assign Case",
   }[action.action_type] || action.action_type;
 
-  const accentColor = status === "approved" ? "#10b981" : status === "rejected" ? "#dc2626" : "#6366f1";
+  const accentColor = status === "approved" ? "#10b981" : status === "rejected" ? "#dc2626" : status === "editing" ? "#f59e0b" : "#6366f1";
+  const iconColor = status === "approved" ? "#10b981" : status === "rejected" ? "#dc2626" : "#6366f1";
 
   return (
-    <div style={{ background: "#fff", border: `1.5px solid ${accentColor}20`, borderLeft: `4px solid ${accentColor}`, borderRadius: 10, padding: "10px 12px", fontSize: 12 }}>
-      <div style={{ fontWeight: 700, color: accentColor, fontSize: 11, textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 4 }}>{typeLabel}</div>
-      <div style={{ color: "#475569", marginBottom: 8, lineHeight: 1.5 }}>{action.description}</div>
+    <div style={{ background: "#fff", border: `1.5px solid ${accentColor}20`, borderLeft: `4px solid ${accentColor}`, borderRadius: 12, padding: "14px 16px", fontSize: 12, boxShadow: "0 2px 8px rgba(0,0,0,0.06)", transition: "all 0.2s" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ fontWeight: 700, color: accentColor, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.5px", flex: 1 }}>{typeLabel}</div>
+        {status === "approved" && <div style={{ fontSize: 10, fontWeight: 700, color: "#10b981", background: "#d1fae5", padding: "3px 8px", borderRadius: 4 }}>APPROVED</div>}
+        {status === "rejected" && <div style={{ fontSize: 10, fontWeight: 700, color: "#dc2626", background: "#fee2e2", padding: "3px 8px", borderRadius: 4 }}>REJECTED</div>}
+        {status === "editing" && <div style={{ fontSize: 10, fontWeight: 700, color: "#f59e0b", background: "#fef3c7", padding: "3px 8px", borderRadius: 4 }}>EDITING</div>}
+      </div>
+      <div style={{ color: "#475569", marginBottom: 10, lineHeight: 1.5, fontSize: 13 }}>{action.description}</div>
 
       {status === "editing" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <textarea value={editPayload} onChange={e => setEditPayload(e.target.value)} rows={4} style={{ width: "100%", fontFamily: "monospace", fontSize: 11, borderRadius: 6, border: "1px solid #d1d5db", padding: 6, resize: "vertical", outline: "none", boxSizing: "border-box" }} />
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => approve(editPayload)} style={{ flex: 1, background: "#6366f1", color: "#fff", border: "none", borderRadius: 7, padding: "6px 0", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Approve Edited</button>
-            <button onClick={() => setStatus("pending")} style={{ flex: 1, background: "#f1f5f9", color: "#64748b", border: "none", borderRadius: 7, padding: "6px 0", cursor: "pointer", fontSize: 12 }}>Cancel</button>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#f59e0b", marginBottom: 2 }}>Edit Action Details:</div>
+          
+          {(action.action_type === "add_checklist_item" || action.action_type === "create_checklist_item") ? (
+            // Simplified UI for single checklist item - just edit the label
+            <>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>Checklist Item:</div>
+              <input
+                type="text"
+                value={editLabel}
+                onChange={e => { setEditLabel(e.target.value); setEditError(""); }}
+                placeholder="Enter checklist item label..."
+                style={{
+                  width: "100%",
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: editError ? "1.5px solid #dc2626" : "1.5px solid #d1d5db",
+                  padding: "10px 12px",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  background: "#fafafa",
+                  fontFamily: "inherit"
+                }}
+              />
+              {action.payload?.is_mandatory !== undefined && (
+                <div style={{ fontSize: 11, color: "#64748b", marginTop: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ fontWeight: 600 }}>Type:</span>
+                  <span style={{ 
+                    background: action.payload.is_mandatory ? "#fef3c7" : "#e0e7ff",
+                    color: action.payload.is_mandatory ? "#92400e" : "#4338ca",
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    fontSize: 10,
+                    fontWeight: 600
+                  }}>
+                    {action.payload.is_mandatory ? "Mandatory" : "Optional"}
+                  </span>
+                </div>
+              )}
+            </>
+          ) : action.action_type === "create_checklist_items" ? (
+            // Textarea for multiple checklist items (one per line)
+            <>
+              <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>Checklist Items (one per line):</div>
+              <textarea
+                value={editLabel}
+                onChange={e => { setEditLabel(e.target.value); setEditError(""); }}
+                placeholder="Enter checklist items, one per line..."
+                rows={6}
+                style={{
+                  width: "100%",
+                  fontSize: 13,
+                  borderRadius: 8,
+                  border: editError ? "1.5px solid #dc2626" : "1.5px solid #d1d5db",
+                  padding: "10px 12px",
+                  outline: "none",
+                  boxSizing: "border-box",
+                  background: "#fafafa",
+                  fontFamily: "inherit",
+                  lineHeight: 1.5,
+                  resize: "vertical"
+                }}
+              />
+              <div style={{ fontSize: 10, color: "#94a3b8", fontStyle: "italic" }}>
+                Tip: Each line will become a separate checklist item
+              </div>
+            </>
+          ) : (
+            // JSON editor for other action types
+            <textarea 
+              value={editPayload} 
+              onChange={e => { setEditPayload(e.target.value); setEditError(""); }} 
+              rows={6} 
+              style={{ 
+                width: "100%", 
+                fontFamily: "'Monaco', 'Courier New', monospace", 
+                fontSize: 11, 
+                borderRadius: 8, 
+                border: editError ? "1.5px solid #dc2626" : "1.5px solid #d1d5db", 
+                padding: "10px", 
+                resize: "vertical", 
+                outline: "none", 
+                boxSizing: "border-box",
+                background: "#fafafa"
+              }} 
+            />
+          )}
+          
+          {editError && <div style={{ color: "#dc2626", fontSize: 11, fontWeight: 600, background: "#fee2e2", padding: "6px 8px", borderRadius: 6 }}>Error: {editError}</div>}
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={handleApproveEdited} style={{ flex: 1, background: "#10b981", color: "#fff", border: "none", borderRadius: 6, padding: "9px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "#059669"} onMouseLeave={e => e.currentTarget.style.background = "#10b981"}>Approve Edited</button>
+            <button onClick={() => { setStatus("pending"); setEditError(""); }} style={{ flex: 1, background: "#fff", color: "#64748b", border: "1px solid #e2e8f0", borderRadius: 6, padding: "9px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, transition: "all 0.15s" }} onMouseEnter={e => e.currentTarget.style.background = "#f8fafc"} onMouseLeave={e => e.currentTarget.style.background = "#fff"}>Cancel</button>
           </div>
         </div>
       ) : status === "approving" ? (
-        <div style={{ color: "#6366f1", fontStyle: "italic", fontSize: 12 }}>Executing…</div>
-      ) : status === "approved" || status === "rejected" ? (
-        <div style={{ color: accentColor, fontWeight: 600, fontSize: 12 }}>{resultMsg}</div>
-      ) : (
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          <button onClick={() => approve()} style={{ background: "#10b981", color: "#fff", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Approve</button>
-          <button onClick={() => setStatus("editing")} style={{ background: "#f59e0b", color: "#fff", border: "none", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Edit</button>
-          <button onClick={() => setStatus("rejected")} style={{ background: "#f1f5f9", color: "#dc2626", border: "1px solid #fecaca", borderRadius: 7, padding: "5px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600 }}>Cancel</button>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#6366f1", fontStyle: "italic", fontSize: 12, padding: "8px 0" }}>
+          <div style={{ width: 16, height: 16, border: "2px solid #6366f1", borderTop: "2px solid transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}></div>
+          <span>Executing action...</span>
         </div>
+      ) : status === "approved" || status === "rejected" ? (
+        <div style={{ 
+          background: status === "approved" ? "#d1fae5" : "#fee2e2", 
+          color: accentColor, 
+          fontWeight: 600, 
+          fontSize: 12, 
+          padding: "8px 12px", 
+          borderRadius: 8,
+          border: `1px solid ${accentColor}30`
+        }}>{resultMsg}</div>
+      ) : (
+        <>
+          {/* Display clean preview based on action type */}
+          {action.payload && (() => {
+            // For multiple checklist items - show list
+            if (action.action_type === "create_checklist_items" && action.payload.items && Array.isArray(action.payload.items)) {
+              return (
+                <div style={{ 
+                  background: "#f8fafc", 
+                  border: "1px solid #e2e8f0", 
+                  borderRadius: 8, 
+                  padding: "10px 12px", 
+                  marginBottom: 10,
+                  fontSize: 13
+                }}>
+                  <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: 8 }}>Items to add ({action.payload.items.length}):</div>
+                  {action.payload.items.map((item, idx) => {
+                    const label = typeof item === 'string' ? item : item.label;
+                    const isMandatory = typeof item === 'object' ? item.is_mandatory : false;
+                    return (
+                      <div key={idx} style={{ 
+                        color: "#475569", 
+                        lineHeight: 1.5,
+                        marginBottom: idx < action.payload.items.length - 1 ? 8 : 0,
+                        paddingLeft: 8,
+                        borderLeft: "2px solid #e2e8f0",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6
+                      }}>
+                        <span style={{ color: "#94a3b8", fontWeight: 600 }}>{idx + 1}.</span>
+                        <span>{label}</span>
+                        {isMandatory && (
+                          <span style={{ 
+                            background: "#fef3c7",
+                            color: "#92400e",
+                            padding: "2px 6px",
+                            borderRadius: 4,
+                            fontSize: 10,
+                            fontWeight: 600
+                          }}>Mandatory</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            }
+            
+            // For single checklist item - show just the label
+            if ((action.action_type === "add_checklist_item" || action.action_type === "create_checklist_item")) {
+              const label = action.payload.label || action.payload.item_text || action.payload.item || action.payload.text || "";
+              if (label) {
+                return (
+                  <div style={{ 
+                    background: "#f8fafc", 
+                    border: "1px solid #e2e8f0", 
+                    borderRadius: 8, 
+                    padding: "10px 12px", 
+                    marginBottom: 10,
+                    fontSize: 13
+                  }}>
+                    <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: 4 }}>Item to add:</div>
+                    <div style={{ color: "#475569", lineHeight: 1.5 }}>"{label}"</div>
+                    {action.payload.is_mandatory !== undefined && (
+                      <div style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
+                        <span style={{ 
+                          background: action.payload.is_mandatory ? "#fef3c7" : "#e0e7ff",
+                          color: action.payload.is_mandatory ? "#92400e" : "#4338ca",
+                          padding: "2px 8px",
+                          borderRadius: 4,
+                          fontSize: 10,
+                          fontWeight: 600
+                        }}>
+                          {action.payload.is_mandatory ? "Mandatory" : "Optional"}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+            }
+            
+            // For update status - show just the key info
+            if (action.action_type === "update_checklist_item_status") {
+              return (
+                <div style={{ 
+                  background: "#f8fafc", 
+                  border: "1px solid #e2e8f0", 
+                  borderRadius: 8, 
+                  padding: "10px 12px", 
+                  marginBottom: 10,
+                  fontSize: 13
+                }}>
+                  <div style={{ color: "#475569", lineHeight: 1.5 }}>
+                    Mark item <strong>#{action.payload.checklist_item_id}</strong> as {action.payload.completed ? "completed" : "incomplete"}
+                  </div>
+                  {action.payload.comment && (
+                    <div style={{ marginTop: 6, fontSize: 11, color: "#64748b", fontStyle: "italic" }}>
+                      "{action.payload.comment}"
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            
+            // For case notes - show just the content
+            if (action.action_type === "add_case_note" && action.payload.content) {
+              return (
+                <div style={{ 
+                  background: "#f8fafc", 
+                  border: "1px solid #e2e8f0", 
+                  borderRadius: 8, 
+                  padding: "10px 12px", 
+                  marginBottom: 10,
+                  fontSize: 13
+                }}>
+                  <div style={{ fontWeight: 600, color: "#1e293b", marginBottom: 4 }}>Note to add:</div>
+                  <div style={{ color: "#475569", lineHeight: 1.5 }}>"{action.payload.content}"</div>
+                </div>
+              );
+            }
+            
+            // For other actions - show clean key-value pairs (not raw JSON)
+            const displayKeys = Object.keys(action.payload).filter(k => k !== 'case_id');
+            if (displayKeys.length > 0) {
+              return (
+                <div style={{ 
+                  background: "#f8fafc", 
+                  border: "1px solid #e2e8f0", 
+                  borderRadius: 8, 
+                  padding: "10px 12px", 
+                  marginBottom: 10,
+                  fontSize: 12
+                }}>
+                  {displayKeys.map(key => (
+                    <div key={key} style={{ marginBottom: 4, display: "flex", gap: 6 }}>
+                      <span style={{ fontWeight: 600, color: "#64748b", textTransform: "capitalize" }}>{key.replace(/_/g, ' ')}:</span>
+                      <span style={{ color: "#475569" }}>{String(action.payload[key])}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+            return null;
+          })()}
+          
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => approve()} style={{ 
+              flex: 1,
+              background: "#10b981", 
+              color: "#fff", 
+              border: "none", 
+              borderRadius: 6, 
+              padding: "9px 14px", 
+              cursor: "pointer", 
+              fontSize: 12, 
+              fontWeight: 600,
+              transition: "all 0.15s"
+            }} onMouseEnter={e => e.currentTarget.style.background = "#059669"} onMouseLeave={e => e.currentTarget.style.background = "#10b981"}>Approve</button>
+            <button onClick={handleEdit} style={{ 
+              flex: 1,
+              background: "#fff", 
+              color: "#64748b", 
+              border: "1px solid #e2e8f0", 
+              borderRadius: 6, 
+              padding: "9px 14px", 
+              cursor: "pointer", 
+              fontSize: 12, 
+              fontWeight: 600,
+              transition: "all 0.15s"
+            }} onMouseEnter={e => {e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#cbd5e1";}} onMouseLeave={e => {e.currentTarget.style.background = "#fff"; e.currentTarget.style.borderColor = "#e2e8f0";}}>Edit</button>
+            <button onClick={() => { setStatus("rejected"); setResultMsg("Action cancelled"); }} style={{ 
+              background: "#fff", 
+              color: "#dc2626", 
+              border: "1px solid #fecaca", 
+              borderRadius: 6, 
+              padding: "9px 14px", 
+              cursor: "pointer", 
+              fontSize: 12, 
+              fontWeight: 600,
+              transition: "all 0.15s"
+            }} onMouseEnter={e => e.currentTarget.style.background = "#fef2f2"} onMouseLeave={e => e.currentTarget.style.background = "#fff"}>Cancel</button>
+          </div>
+        </>
       )}
     </div>
   );
