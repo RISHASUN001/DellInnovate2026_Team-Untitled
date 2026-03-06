@@ -226,6 +226,10 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   const [helpers, setHelpers] = useState([]); // Youth helpers from scs_users
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  
+  // ── AI Recommendations ──
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(false);
 
   useEffect(() => {
     const loadCases = async () => {
@@ -294,6 +298,48 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
 
     loadCases();
   }, [currentUser]);
+
+  // Fetch recommendations when a case is selected
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      if (!selectedCase) {
+        setRecommendations([]);
+        return;
+      }
+
+      // Only fetch for assigned cases
+      if (!selectedCase.assignedToMe) {
+        setRecommendations([]);
+        return;
+      }
+
+      try {
+        setLoadingRecommendations(true);
+        const { default: { chatbotAPI } } = await import('./services/api.js');
+        
+        // Prepare case info for the chatbot
+        const caseInfo = {
+          code: selectedCase.code,
+          category: selectedCase.category,
+          riskLevel: selectedCase.riskLevel,
+          risk_label: (RISK_COLORS[selectedCase.riskLevel] || RISK_COLORS[3]).label,
+          current_risk_score: selectedCase.current_risk_score,
+          status: selectedCase.status,
+          signals: selectedCase.signals
+        };
+        
+        const response = await chatbotAPI.getRecommendations(caseInfo);
+        setRecommendations(response.recommendations || []);
+      } catch (err) {
+        console.error("Error fetching recommendations:", err);
+        setRecommendations([]);
+      } finally {
+        setLoadingRecommendations(false);
+      }
+    };
+
+    fetchRecommendations();
+  }, [selectedCase]);
 
   const [assignedCasesOrder, setAssignedCasesOrder] = useState([]);
   // Keep order in sync when cases update
@@ -1007,6 +1053,35 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                       <span style={{ fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{s}</span>
                     </div>
                   ))}
+                </div>
+
+                {/* Recommended Actions */}
+                <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                    <Icon.Lightbulb size={14} color="#f59e0b" /> 
+                    Recommended Actions 
+                    <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 400 }}>(AI-generated from protocols)</span>
+                  </div>
+                  
+                  {loadingRecommendations ? (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#94a3b8", fontSize: 13 }}>
+                      <div style={{ width: 16, height: 16, border: "2px solid #e2e8f0", borderTop: "2px solid #6366f1", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                      Generating recommendations...
+                    </div>
+                  ) : recommendations.length > 0 ? (
+                    recommendations.map((rec, i) => (
+                      <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderBottom: i < recommendations.length - 1 ? "1px solid #f1f5f9" : "none" }}>
+                        <span style={{ background: "#fef3c7", color: "#92400e", borderRadius: 6, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, marginTop: 1 }}>
+                          <Icon.Lightbulb size={12} />
+                        </span>
+                        <span style={{ fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{rec}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>
+                      No recommendations available for this case.
+                    </div>
+                  )}
                 </div>
 
                 {/* Summary

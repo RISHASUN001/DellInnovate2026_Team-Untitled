@@ -256,6 +256,23 @@ export const riskLevelToPriority = {
   5: "critical",
 };
 
+// ─── Chatbot API ───────────────────────────────────────────────────────────
+
+const CHATBOT_SERVICE_URL = import.meta.env.VITE_CHATBOT_SERVICE_URL || "http://localhost:8000";
+
+export const chatbotAPI = {
+  /**
+   * Get AI-generated recommendations for a case
+   */
+  async getRecommendations(caseInfo) {
+    const url = `${CHATBOT_SERVICE_URL}/recommendations`;
+    return fetchWithAuth(url, {
+      method: "POST",
+      body: JSON.stringify({ case_info: caseInfo }),
+    });
+  },
+};
+
 // ─── Default Export ────────────────────────────────────────────────────────
 
 export default {
@@ -263,6 +280,7 @@ export default {
   userAPI,
   checklistAPI,
   historyAPI,
+  chatbotAPI,
   transformCase,
   priorityToRiskLevel,
   riskLevelToPriority,

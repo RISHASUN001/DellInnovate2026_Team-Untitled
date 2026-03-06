@@ -96,7 +96,10 @@ You MUST:
 - Understand previous conversation messages.
 - Avoid repeating prior actions.
 - Ensure new checklist items are not duplicates.
+- Ensure that new checlist items are maximum 5 to 6 words long.
+- Ensure that the new checklist items do not include refereces, but rather are action-based and general in nature.
 - Maintain case continuity.
+
 
 --------------------------------------------------
 RESPONSE FORMAT
@@ -180,3 +183,70 @@ Respond with:
         )
         
         return response.choices[0].message.content
+    
+    def generate_recommendations(self, case_info: Dict) -> List[str]:
+        """Generate concise action recommendations for a case based on chromaDB protocols"""
+        
+        # Build a query based on case details
+        query = f"Protocols for {case_info.get('category', 'general')} cases with risk level {case_info.get('riskLevel', 'unknown')}"
+        
+        # Get relevant protocol context from chromaDB
+        rag_context = self.get_context_from_rag(query, case_info)
+        
+        # Build case summary for LLM
+        case_summary = f"""
+Case ID: {case_info.get('code', 'Unknown')}
+Category: {case_info.get('category', 'Unknown')}
+Risk Level: {case_info.get('riskLevel', 0)}/5 ({case_info.get('risk_label', 'Unknown')})
+Status: {case_info.get('status', 'Unknown')}
+Risk Score: {case_info.get('current_risk_score', 0)}%
+
+AI Explanation Signals:
+{chr(10).join(f"- {signal}" for signal in case_info.get('signals', []))}
+"""
+        
+        # Create prompt for recommendations
+        prompt = f"""{rag_context}
+
+{case_summary}
+
+Based on the SCS protocols above and the case details, provide exactly 3-5 short, actionable recommendations for the youth worker handling this case. 
+
+Each recommendation should be:
+- Specific to this case context
+- Grounded in the retrieved protocols
+- Action-oriented and concise (max 15 words each)
+- Practical and immediately applicable
+
+Format your response as a numbered list with ONLY the recommendations, no additional text or explanations:
+1. [First recommendation]
+2. [Second recommendation]
+3. [Third recommendation]
+etc.
+"""
+        
+        # Call LLM
+        response = self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": "You are an expert at SCS protocols. Provide concise, actionable recommendations based solely on retrieved protocol documents."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300,
+            temperature=0.2
+        )
+        
+        # Parse the response into a list
+        content = response.choices[0].message.content
+        recommendations = []
+        
+        # Extract numbered recommendations
+        import re
+        lines = content.strip().split('\n')
+        for line in lines:
+            # Match patterns like "1. ", "1) ", etc.
+            match = re.match(r'^\d+[\.)]\s*(.+)$', line.strip())
+            if match:
+                recommendations.append(match.group(1).strip())
+        
+        return recommendations[:5]  # Return max 5 recommendations

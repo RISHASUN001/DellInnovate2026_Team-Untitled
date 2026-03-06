@@ -238,3 +238,23 @@ async def clear_and_reingest():
         print(f"❌ Re-ingestion error: {str(e)}")
         print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Re-ingestion failed: {str(e)}")
+
+class RecommendationRequest(BaseModel):
+    case_info: Dict
+
+@app.post("/recommendations")
+async def get_recommendations(request: RecommendationRequest):
+    """Generate AI-powered recommendations for a specific case"""
+    try:
+        recommendations = assistant.generate_recommendations(request.case_info)
+        return {
+            "status": "success",
+            "recommendations": recommendations,
+            "case_id": request.case_info.get("code", "unknown")
+        }
+    except Exception as e:
+        import traceback
+        print(f"❌ Recommendations error: {str(e)}")
+        print(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=f"Failed to generate recommendations: {str(e)}")
+
