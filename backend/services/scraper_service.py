@@ -6,6 +6,7 @@ from loguru import logger
 from scrapers.instagram_scraper import InstagramScraper
 from models.instagram_models import InstagramUserModel, InstagramPostModel, ScrapeJobModel
 from config.database import get_users_collection, get_posts_collection, get_scrapes_collection
+from download_images import download_posts_images
 
 class ScraperService:
     def __init__(self):
@@ -105,6 +106,16 @@ class ScraperService:
                 posts.append(post_model.dict(by_alias=True))
             
             logger.info(f"Scraped and stored {len(posts)} posts for user {username}")
+
+            # Auto-download images for all scraped posts
+            if posts:
+                logger.info(f"Starting image download for {len(posts)} posts by @{username}")
+                img_stats = download_posts_images(posts=posts, username=username)
+                logger.info(
+                    f"Image download done — downloaded: {img_stats['downloaded']}, "
+                    f"skipped: {img_stats['skipped']}, failed: {img_stats['failed']}"
+                )
+
             return posts
             
         except Exception as e:
