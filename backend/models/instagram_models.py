@@ -115,3 +115,146 @@ class ScrapeRequest(BaseModel):
     
     class Config:
         populate_by_name = True
+
+
+# ========== Analytics Models ==========
+
+class TextUnitSignalModel(BaseModel):
+    """
+    Model for storing NLP signals from individual text units (captions/comments)
+    Collection: text_units_signals
+    """
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    
+    # Text unit identification
+    case_user: str  # Instagram username of the post owner (user receiving comments)
+    text_type: str  # "caption" or "comment"
+    text: str  # Original text content
+    post_id: str  # Post shortcode/ID
+    comment_id: Optional[str] = None  # Comment ID if text_type is "comment"
+    author: Optional[str] = None  # Username of text author (commenter or post owner)
+    timestamp: Optional[datetime] = None
+    
+    # NLP Analysis Results
+    sentiment_label: str  # "negative", "neutral", "positive"
+    sentiment_score: float  # -1 to 1
+    sentiment_probabilities: Dict[str, float]  # All sentiment probabilities
+    
+    emotion_label: str  # Primary detected emotion
+    emotion_score: float  # Confidence score
+    emotion_probabilities: Dict[str, float]  # All emotion probabilities
+    is_distress: bool  # Whether emotion indicates distress
+    distress_score: float  # Combined sadness/anger/fear score
+    
+    distortion_indicator: int  # 0 or 1
+    distortion_score: float  # Similarity score
+    distortion_category: Optional[str] = None  # Type of distortion detected
+    distortion_all_scores: Optional[Dict[str, float]] = None  # All distortion type scores
+    
+    # Metadata
+    processed_at: datetime = Field(default_factory=datetime.utcnow)
+    preprocessed_text: Optional[str] = None  # Cleaned text used for analysis
+    language: Optional[str] = None  # Detected language
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+
+class CaseRiskProfileModel(BaseModel):
+    """
+    Model for storing aggregated risk profiles per case user
+    Collection: case_risk_profiles
+    """
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    
+    # Case identification
+    case_user: str  # Instagram username
+    
+    # Time windows
+    analysis_window_days: int  # e.g., 7, 30
+    window_start: datetime
+    window_end: datetime
+    
+    # Signal counts
+    total_comments_received: int
+    total_captions: int
+    total_text_units: int
+    
+    # Distortion metrics
+    distortion_count: int
+    distortion_rate: float  # distorted_comments / total_comments
+    distortion_trend: Optional[float] = None  # Change in distortion rate
+    distortion_categories: Dict[str, int]  # Count by distortion type
+    
+    # Sentiment metrics
+    avg_sentiment_score: float
+    sentiment_std: float  # Volatility measure
+    negative_sentiment_rate: float
+    positive_sentiment_rate: float
+    sentiment_shift_rate: Optional[float] = None  # Rapid polarity changes
+    
+    # Emotion metrics
+    distress_emotion_count: int  # sadness/anger/fear
+    distress_emotion_rate: float
+    emotion_distribution: Dict[str, int]  # Count by emotion type
+    avg_distress_score: float
+    
+    # Engagement metrics
+    comment_volume_change: Optional[float] = None  # Compared to previous period
+    abnormal_activity: bool  # Flag for unusual patterns
+    late_night_activity_rate: Optional[float] = None  # 11 PM - 2 AM posts
+    
+    # Risk scoring
+    risk_score: float  # 0-100 composite risk score
+    risk_level: str  # "Low", "Medium", "High"
+    priority: int  # 1 (High), 2 (Medium), 3 (Low)
+    
+    # Supporting evidence
+    top_distress_comments: List[str] = []  # Sample concerning comments
+    key_signals: List[str] = []  # Human-readable signal descriptions
+    
+    # Metadata
+    computed_at: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
+
+
+class AnalyticsPipelineJobModel(BaseModel):
+    """
+    Model for tracking analytics pipeline execution jobs
+    Collection: analytics_jobs
+    """
+    id: Optional[PyObjectId] = Field(alias="_id", default=None)
+    
+    job_type: str  # "nlp_extraction", "feature_engineering", "full_pipeline"
+    status: str  # "pending", "running", "completed", "failed"
+    
+    # Configuration
+    case_users: Optional[List[str]] = None  # Specific users to process (None = all)
+    window_days: Optional[int] = 7  # Time window for feature engineering
+    
+    # Progress tracking
+    total_items: Optional[int] = None
+    processed_items: Optional[int] = 0
+    failed_items: Optional[int] = 0
+    
+    # Results
+    results_summary: Optional[Dict[str, Any]] = None
+    errors: Optional[List[str]] = []
+    
+    # Timing
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    duration_seconds: Optional[float] = None
+    
+    class Config:
+        populate_by_name = True
+        arbitrary_types_allowed = True
+        json_encoders = {ObjectId: str}
