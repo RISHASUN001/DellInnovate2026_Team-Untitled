@@ -21,7 +21,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from config.database import MongoDB
 from models.instagram_models import CaseRiskProfileModel
 
-
+from analytics.llm_integration import LLMSummarizer, EnrichedRiskProfile
 class BehavioralFeatureEngineer:
     """
     Stage 2: Behavioral Feature Engineering and Risk Scoring
@@ -47,7 +47,61 @@ class BehavioralFeatureEngineer:
         signals_collection = self.db.text_units_signals
         case_users = await signals_collection.distinct('case_user')
         return case_users
+    async def compute_enriched_risk_profile(self, 
+                                           case_user: str,
+                                           window_days: int = 7,
+                                           use_llm: bool = True) -> Optional[Dict]:
+            """
+            Compute enriched risk profile with LLM summarization
+            
+            Args:
+                case_user: Username to analyze
+                window_days: Time window in days
+                use_llm: Whether to use LLM for summarization
+                
+            Returns:
+                Enriched risk profile document
+            """
+            # Get base risk profile
+            profile = await self.compute_risk_profile(case_user, window_days)
+            
+            if not profile:
+                return None
+            
+            # Add LLM insights if requested
+            if use_llm:
+                try:
+                    summarizer = LLMSummarizer()
+                    llm_insights = await summarizer.summarize_risk_profile(profile)
+                    enriched = EnrichedRiskProfile(profile, llm_insights)
+                    return enriched.to_dict()
+                except Exception as e:
+                    logger.error(f"Error adding LLM insights for {case_user}: {e}")
+                    # Return base profile with fallback
+                    profile['llm_summary'] = "LLM analysis temporarily unavailable"
+                    profile['llm_category'] = profile.get('risk_level', 'Unknown')
+                    profile['llm_recommendations'] = ["Review case manually"]
+                    profile['has_llm_analysis'] = False
+                    return profile
+            
+            # Add fallback if no LLM
+            profile['llm_summary'] = self._generate_fallback_summary(profile)
+            profile['llm_category'] = profile.get('risk_level', 'Unknown')
+            profile['llm_recommendations'] = []
+            profile['has_llm_analysis'] = False
+            return profile
     
+    def _generate_fallback_summary(self, profile: Dict) -> str:
+        """Generate fallback summary"""
+        risk_level = profile.get('risk_level', 'Unknown')
+        distress_rate = profile.get('distress_emotion_rate', 0)
+        
+        if risk_level == 'High':
+            return f"High-risk case with {distress_rate:.1%} distress rate. Immediate attention needed."
+        elif risk_level == 'Medium':
+            return f"Medium-risk case with moderate distress indicators ({distress_rate:.1%}). Monitor closely."
+        else:
+            return f"Low-risk case. Continue routine monitoring."
     async def fetch_signals_for_user(self,
                                      case_user: str,
                                      window_days: int = 7) -> List[Dict]:
@@ -427,7 +481,29 @@ class BehavioralFeatureEngineer:
         )
         
         return profile
-    
+    # Inside compute_risk_profile method, after computing risk_metrics:
+
+    # Determine category based on metrics
+    def determine_category(self, distortion_metrics, sentiment_metrics, emotion_metrics):
+        """Determine case category based on metrics"""
+        emotion_dist = emotion_metrics.get('emotion_distribution', {})
+        distress_rate = emotion_metrics.get('distress_emotion_rate', 0)
+        distortion_rate = distortion_metrics.get('distortion_rate', 0)
+        
+        # Check for specific patterns
+        if emotion_dist.get('anger', 0) > 3 and distress_rate > 0.3:
+            return "anger_frustration"
+        elif emotion_dist.get('sadness', 0) > 3:
+            if distress_rate > 0.4:
+                return "depression_risk"
+            else:
+                return "sadness_isolation"
+        elif distortion_rate > 0.3:
+            return "cognitive_distortion"
+        elif sentiment_metrics.get('sentiment_std', 0) > 0.6:
+            return "emotional_volatility"
+        else:
+            return "general_monitoring"
     async def store_risk_profile(self, profile: Dict) -> str:
         """
         Store or update risk profile in MongoDB

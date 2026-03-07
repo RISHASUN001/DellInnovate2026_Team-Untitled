@@ -4,6 +4,7 @@ from datetime import datetime
 from bson import ObjectId
 from pydantic_core import CoreSchema
 from pydantic.json_schema import JsonSchemaValue
+from datetime import datetime
 
 class PyObjectId(ObjectId):
     @classmethod
@@ -258,3 +259,57 @@ class AnalyticsPipelineJobModel(BaseModel):
         populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+
+class RiskProfileModel(BaseModel):
+    """
+    Risk profile for a case user (from analytics pipeline)
+    """
+    case_user: str
+    analysis_window_days: int
+    window_start: datetime
+    window_end: datetime
+    
+    # Statistics
+    total_comments_received: int
+    total_captions: int
+    total_text_units: int
+    
+    # Distortion metrics
+    distortion_count: int
+    distortion_rate: float
+    distortion_categories: Dict[str, int]
+    
+    # Sentiment metrics
+    avg_sentiment_score: float
+    sentiment_std: float
+    negative_sentiment_rate: float
+    positive_sentiment_rate: float
+    
+    # Emotion metrics
+    distress_emotion_count: int
+    distress_emotion_rate: float
+    emotion_distribution: Dict[str, int]
+    avg_distress_score: float
+    
+    # Engagement metrics
+    abnormal_activity: bool
+    late_night_activity_rate: Optional[float]
+    
+    # Risk scoring
+    risk_score: float
+    risk_level: str
+    priority: int
+    
+    # Evidence
+    top_distress_comments: List[str]
+    key_signals: List[str]
+    
+    # Timestamps
+    computed_at: datetime
+    last_updated: datetime
+    
+    class Config:
+        json_encoders = {
+            datetime: lambda v: v.isoformat()
+        }

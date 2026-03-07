@@ -6,7 +6,8 @@ const API_BASE_URL = "http://localhost:8000/api";
 // ─── DATA FETCHING ───────────────────────────────────────────────────
 async function fetchDashboardCases() {
   try {
-    const response = await fetch(`${API_BASE_URL}/analytics/dashboard/cases`);
+    // Use the new LLM-enhanced endpoint
+    const response = await fetch(`${API_BASE_URL}/llm/dashboard-cases`);
     if (!response.ok) throw new Error("Failed to fetch cases");
     const data = await response.json();
     return data.cases || [];
@@ -1850,7 +1851,7 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* AI Explanation Signals */}
+                {/* AI Explanation */}
                 <div
                   style={{
                     background: "#fff",
@@ -1870,7 +1871,7 @@ export default function App() {
                       gap: 6,
                     }}
                   >
-                    🤖 AI Explanation Signals{" "}
+                    🤖 AI Explanation{" "}
                     <span
                       style={{
                         fontSize: 10,
@@ -1878,53 +1879,64 @@ export default function App() {
                         fontWeight: 400,
                       }}
                     >
-                      (why this was flagged)
+                      (comprehensive analysis)
                     </span>
                   </div>
-                  {selectedCase.signals.map((s, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 10,
-                        padding: "8px 0",
-                        borderBottom:
-                          i < selectedCase.signals.length - 1
-                            ? "1px solid #f1f5f9"
-                            : "none",
-                      }}
-                    >
-                      <span
-                        style={{
-                          background: "#eef2ff",
-                          color: "#6366f1",
-                          borderRadius: 6,
-                          width: 22,
-                          height: 22,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 11,
-                          flexShrink: 0,
-                          marginTop: 1,
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 13,
-                          color: "#475569",
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {s}
-                      </span>
-                    </div>
-                  ))}
-                </div>
 
+                  {/* Single paragraph explanation */}
+                  <div
+                    style={{
+                      fontSize: 13,
+                      color: "#475569",
+                      lineHeight: 1.6,
+                      padding: "8px 0",
+                    }}
+                  >
+                    {selectedCase.ai_explanation ||
+                      selectedCase.llm_explanation ||
+                      "This case has been flagged for review based on social media activity patterns. Please review the signals below for more details."}
+                  </div>
+
+                  {/* Optional: Show key signals as additional context */}
+                  {selectedCase.key_signals &&
+                    selectedCase.key_signals.length > 0 && (
+                      <div style={{ marginTop: 12 }}>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "#94a3b8",
+                            fontWeight: 600,
+                            marginBottom: 6,
+                            textTransform: "uppercase",
+                            letterSpacing: "0.5px",
+                          }}
+                        >
+                          Key Indicators:
+                        </div>
+                        <div
+                          style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
+                        >
+                          {selectedCase.key_signals
+                            .slice(0, 3)
+                            .map((signal, i) => (
+                              <span
+                                key={i}
+                                style={{
+                                  background: "#f1f5f9",
+                                  color: "#475569",
+                                  padding: "4px 10px",
+                                  borderRadius: 16,
+                                  fontSize: 11,
+                                  fontWeight: 500,
+                                }}
+                              >
+                                {signal}
+                              </span>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                </div>
                 {/* Summary */}
                 <div
                   style={{
