@@ -11,6 +11,7 @@ from config.database import MongoDB
 from analytics.signal_extraction import NLPSignalExtractor, run_nlp_extraction
 from analytics.feature_engineering import BehavioralFeatureEngineer, run_feature_engineering
 from services.case_promotion import promote_risk_profiles_to_scs_cases, CasePromotionService
+from analytics.llm_integration import LLMSummarizer  # Add this import!
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
@@ -775,8 +776,56 @@ async def update_checklist_item(
     except Exception as e:
         logger.error(f"Error updating checklist item: {e}")
         raise HTTPException(status_code=500, detail=str(e))
-
-
+@router.post("/generate-explanation/{username}", response_model=Dict)
+async def generate_explanation_for_user(username: str):
+    """
+    Generate AI explanation on-demand for a specific user
+    Call this when a youth worker views a profile
+    """
+    try:
+        db = MongoDB.get_db()
+        profiles_collection = db.case_risk_profiles
+        
+        # Get the profile
+        profile = await profiles_collection.find_one({"case_user": username})
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"User {username} not found")
+        
+        # Initialize LLM summarizer
+        summarizer = LLMSummarizer(use_llm=True)
+        
+        # Generate explanation
+        logger.info(f"Generating explanation for {username}...")
+        llm_insights = await summarizer.summarize_risk_profile(profile)
+        
+        # Update profile with LLM insights
+        await profiles_collection.update_one(
+            {"case_user": username},
+            {"$set": {
+                "llm_explanation": llm_insights['explanation'],
+                "llm_category": llm_insights['llm_category'],
+                "llm_recommendations": llm_insights['recommendations'],
+                "llm_generated_at": llm_insights['generated_at'],
+                "has_llm_analysis": True,
+                "explanation": llm_insights['explanation'],
+                "ai_explanation": llm_insights['explanation']
+            }}
+        )
+        
+        logger.success(f"Explanation generated for {username}")
+        
+        return {
+            "status": "success",
+            "explanation": llm_insights['explanation'],
+            "category": llm_insights['llm_category'],
+            "recommendations": llm_insights['recommendations']
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating explanation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 @router.post("/cases/{case_id}/assign", response_model=Dict)
 async def assign_case(
     case_id: str,

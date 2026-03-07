@@ -7,7 +7,8 @@ from contextlib import asynccontextmanager
 from config.database import MongoDB
 from routes.scraper_routes import router as scraper_router
 from routes.analytics_routes import router as analytics_router
-from routes.llm_routes import router as llm_router
+from routes.llm_routes import router as llm_router  # Add this import
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -38,8 +39,8 @@ app.add_middleware(
 # Include routers
 app.include_router(scraper_router)
 app.include_router(analytics_router)
-# Include routers
 app.include_router(llm_router)  # Add this line
+
 @app.get("/")
 async def root():
     return {
@@ -65,14 +66,12 @@ async def root():
                 "get_signals": "/api/analytics/signals/{username}",
                 "get_stats": "/api/analytics/stats",
                 "get_dashboard_cases": "/api/analytics/dashboard/cases",
-                "get_case_signals": "/api/analytics/dashboard/case/{case_user}/signals"
+                "get_case_signals": "/api/analytics/dashboard/case/{case_user}/signals",
+                "generate_explanation": "/api/analytics/generate-explanation/{username}"
             },
             "llm": {
-    "analyze_user": "/api/llm/analyze/{username}",
-    "batch_analyze": "/api/llm/batch-analyze",
-    "dashboard_cases": "/api/llm/dashboard-cases",
-    "refresh_analysis": "/api/llm/refresh-llm-analysis"
-}
+                "dashboard_cases": "/api/llm/dashboard-cases"
+            }
         }
     }
 

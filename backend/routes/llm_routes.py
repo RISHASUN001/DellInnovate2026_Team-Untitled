@@ -13,85 +13,17 @@ from analytics.llm_integration import LLMSummarizer
 
 router = APIRouter(prefix="/api/llm", tags=["LLM"])
 
-@router.get("/analyze/{username}")
-async def analyze_user_with_llm(
-    username: str,
-    window_days: int = Query(7, description="Analysis window in days")
-):
-    """
-    Get enriched risk profile with LLM analysis for a specific user
-    """
-    try:
-        engineer = BehavioralFeatureEngineer()
-        
-        # Compute enriched profile
-        enriched_profile = await engineer.compute_enriched_risk_profile(
-            case_user=username,
-            window_days=window_days,
-            use_llm=True
-        )
-        
-        if not enriched_profile:
-            raise HTTPException(status_code=404, detail=f"No data found for user: {username}")
-        
-        return {
-            "status": "success",
-            "data": enriched_profile
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error analyzing user {username}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/batch-analyze")
-async def batch_analyze_users(
-    usernames: List[str],
-    window_days: int = Query(7, description="Analysis window in days")
-):
-    """
-    Get enriched risk profiles for multiple users
-    """
-    try:
-        engineer = BehavioralFeatureEngineer()
-        results = []
-        
-        for username in usernames:
-            try:
-                enriched = await engineer.compute_enriched_risk_profile(
-                    case_user=username,
-                    window_days=window_days,
-                    use_llm=True
-                )
-                if enriched:
-                    results.append(enriched)
-            except Exception as e:
-                logger.error(f"Error processing {username}: {e}")
-                continue
-        
-        return {
-            "status": "success",
-            "processed": len(results),
-            "total_requested": len(usernames),
-            "data": results
-        }
-        
-    except Exception as e:
-        logger.error(f"Error in batch analysis: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.get("/dashboard-cases")
+@router.get("/dashboard-cases", response_model=Dict)
 async def get_dashboard_cases_with_llm():
     """
     Get dashboard cases with LLM-enhanced summaries and categories
     This is the main endpoint for the frontend dashboard
     """
     try:
-        # Get risk profiles from database
-        profiles_collection = MongoDB.get_collection("case_risk_profiles")
+        db = MongoDB.get_db()
+        profiles_collection = db.case_risk_profiles
         
-        # Get all profiles, sorted by risk score (highest first)
+        # Get all profiles, sorted by risk score
         cursor = profiles_collection.find().sort("risk_score", -1).limit(50)
         profiles = await cursor.to_list(length=50)
         
@@ -103,17 +35,21 @@ async def get_dashboard_cases_with_llm():
             category = profile.get('llm_category', profile.get('risk_level', 'Monitoring'))
             
             # Map to consistent categories
-            category_map = {
-                'High': 'Self-Harm Ideation' if profile.get('risk_score', 0) > 80 else 'High Risk',
-                'Medium': 'Anxiety' if profile.get('distress_emotion_rate', 0) > 0.3 else 'Moderate Risk',
-                'Low': 'Monitoring' if profile.get('total_comments_received', 0) > 0 else 'Low Risk'
-            }
+            if profile.get('risk_level') == 'High':
+                if profile.get('risk_score', 0) > 80:
+                    category = "Critical"
+                else:
+                    category = "High Risk"
+            elif profile.get('risk_level') == 'Medium':
+                category = "Moderate Risk"
+            else:
+                category = "Low Risk"
             
             # Get LLM summary or generate from metrics
-            summary = profile.get('llm_summary', '')
+            summary = profile.get('llm_explanation', '')
             if not summary:
                 if profile.get('risk_level') == 'High':
-                    summary = f"High-risk case with {profile.get('distress_emotion_rate', 0):.1%} distress rate and {profile.get('distortion_rate', 0):.1%} cognitive distortion."
+                    summary = f"High-risk case with {profile.get('distress_emotion_rate', 0):.1%} distress rate."
                 else:
                     summary = f"{profile.get('risk_level')} risk case. Monitor regularly."
             
@@ -129,6 +65,7 @@ async def get_dashboard_cases_with_llm():
             # Create dashboard case
             case = {
                 'id': idx + 1,
+                'case_user': profile.get('case_user', 'unknown'),
                 'code': f"YD-{datetime.utcnow().year}-{str(idx+1).zfill(4)}",
                 'riskLevel': min(5, max(1, int(profile.get('risk_score', 30) / 20) + 1)),
                 'category': category,
@@ -144,12 +81,14 @@ async def get_dashboard_cases_with_llm():
                     'handle': f"@{profile.get('case_user', 'user')}",
                     'instagramUrl': f"https://instagram.com/{profile.get('case_user', 'user')}"
                 },
-                'signals': signals[:5],  # Limit to 5 signals
+                'signals': signals[:5],
+                'key_signals': signals[:3],
                 'summary': summary,
-                'recommendations': profile.get('llm_recommendations', [
-                    "Monitor case regularly",
-                    "Review signals weekly"
-                ]),
+                'ai_explanation': profile.get('llm_explanation', ''),
+                'llm_explanation': profile.get('llm_explanation', ''),
+                'llm_category': profile.get('llm_category', ''),
+                'llm_recommendations': profile.get('llm_recommendations', []),
+                'has_llm_analysis': profile.get('has_llm_analysis', False),
                 'nlp_metrics': {
                     'total_signals': profile.get('total_text_units', 0),
                     'distress_count': profile.get('distress_emotion_count', 0),
@@ -157,8 +96,7 @@ async def get_dashboard_cases_with_llm():
                     'avg_sentiment': profile.get('avg_sentiment_score', 0),
                     'distress_rate': profile.get('distress_emotion_rate', 0),
                     'emotion_distribution': profile.get('emotion_distribution', {})
-                },
-                'has_llm_analysis': profile.get('has_llm_analysis', False)
+                }
             }
             
             dashboard_cases.append(case)
@@ -170,72 +108,4 @@ async def get_dashboard_cases_with_llm():
         
     except Exception as e:
         logger.error(f"Error getting dashboard cases: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/refresh-llm-analysis")
-async def refresh_llm_analysis(username: Optional[str] = None):
-    """
-    Refresh LLM analysis for a user or all users
-    """
-    try:
-        engineer = BehavioralFeatureEngineer()
-        summarizer = LLMSummarizer()
-        profiles_collection = MongoDB.get_collection("case_risk_profiles")
-        
-        if username:
-            # Get specific user profile
-            profile = await profiles_collection.find_one({"case_user": username})
-            if not profile:
-                raise HTTPException(status_code=404, detail=f"User {username} not found")
-            
-            # Generate new LLM insights
-            llm_insights = await summarizer.summarize_risk_profile(profile)
-            
-            # Update profile
-            await profiles_collection.update_one(
-                {"case_user": username},
-                {"$set": {
-                    "llm_summary": llm_insights['summary'],
-                    "llm_category": llm_insights['llm_category'],
-                    "llm_recommendations": llm_insights['recommendations'],
-                    "llm_generated_at": llm_insights['generated_at'],
-                    "has_llm_analysis": True
-                }}
-            )
-            
-            return {"status": "success", "message": f"LLM analysis refreshed for {username}"}
-        
-        else:
-            # Refresh all profiles
-            cursor = profiles_collection.find()
-            profiles = await cursor.to_list(length=None)
-            
-            updated = 0
-            for profile in profiles:
-                try:
-                    llm_insights = await summarizer.summarize_risk_profile(profile)
-                    await profiles_collection.update_one(
-                        {"_id": profile["_id"]},
-                        {"$set": {
-                            "llm_summary": llm_insights['summary'],
-                            "llm_category": llm_insights['llm_category'],
-                            "llm_recommendations": llm_insights['recommendations'],
-                            "llm_generated_at": llm_insights['generated_at'],
-                            "has_llm_analysis": True
-                        }}
-                    )
-                    updated += 1
-                except Exception as e:
-                    logger.error(f"Error updating {profile.get('case_user')}: {e}")
-                    continue
-            
-            return {
-                "status": "success",
-                "message": f"LLM analysis refreshed for {updated}/{len(profiles)} profiles"
-            }
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error refreshing LLM analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))

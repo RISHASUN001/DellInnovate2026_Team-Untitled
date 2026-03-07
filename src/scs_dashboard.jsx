@@ -570,17 +570,37 @@ export default function App() {
     }
     loadData();
   }, []);
-
-  // Fetch signals when a case is selected
+  // Fetch signals and AI explanation when a case is selected
   useEffect(() => {
-    async function loadSignals() {
+    async function loadCaseDetails() {
       if (selectedCase && selectedCase.case_user) {
         setLoadingSignals(true);
         try {
+          // First, trigger AI explanation generation for this specific user
+          const explanationResponse = await fetch(
+            `${API_BASE_URL}/analytics/generate-explanation/${selectedCase.case_user}`,
+            { method: "POST" },
+          );
+
+          if (explanationResponse.ok) {
+            const explanationData = await explanationResponse.json();
+            console.log("AI explanation generated:", explanationData);
+
+            // Update the selected case with the new explanation
+            setSelectedCase((prev) => ({
+              ...prev,
+              ai_explanation: explanationData.explanation,
+              llm_explanation: explanationData.explanation,
+              llm_category: explanationData.category,
+              llm_recommendations: explanationData.recommendations,
+            }));
+          }
+
+          // Then fetch the detailed signals
           const signals = await fetchCaseSignals(selectedCase.case_user);
           setCaseSignals(signals);
         } catch (err) {
-          console.error("Failed to load signals:", err);
+          console.error("Failed to load case details:", err);
           setCaseSignals([]);
         } finally {
           setLoadingSignals(false);
@@ -589,7 +609,7 @@ export default function App() {
         setCaseSignals([]);
       }
     }
-    loadSignals();
+    loadCaseDetails();
   }, [selectedCase]);
 
   const myAssignedCases = assignedCasesOrder
@@ -1850,7 +1870,6 @@ export default function App() {
                     {selectedCase.category}
                   </div>
                 </div>
-
                 {/* AI Explanation */}
                 <div
                   style={{
@@ -1868,19 +1887,69 @@ export default function App() {
                       marginBottom: 10,
                       display: "flex",
                       alignItems: "center",
+                      justifyContent: "space-between",
                       gap: 6,
                     }}
                   >
-                    🤖 AI Explanation{" "}
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: "#94a3b8",
-                        fontWeight: 400,
-                      }}
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
                     >
-                      (comprehensive analysis)
-                    </span>
+                      🤖 AI Explanation{" "}
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "#94a3b8",
+                          fontWeight: 400,
+                        }}
+                      >
+                        (comprehensive analysis)
+                      </span>
+                    </div>
+
+                    {/* Refresh button */}
+                    <button
+                      onClick={async () => {
+                        if (!selectedCase?.case_user) return;
+
+                        setLoadingSignals(true);
+                        try {
+                          const response = await fetch(
+                            `${API_BASE_URL}/analytics/generate-explanation/${selectedCase.case_user}`,
+                            { method: "POST" },
+                          );
+
+                          if (response.ok) {
+                            const data = await response.json();
+                            setSelectedCase((prev) => ({
+                              ...prev,
+                              ai_explanation: data.explanation,
+                              llm_explanation: data.explanation,
+                              llm_category: data.category,
+                              llm_recommendations: data.recommendations,
+                            }));
+                          }
+                        } catch (err) {
+                          console.error("Failed to refresh explanation:", err);
+                        } finally {
+                          setLoadingSignals(false);
+                        }
+                      }}
+                      style={{
+                        background: "#f1f5f9",
+                        border: "none",
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        fontSize: 11,
+                        cursor: "pointer",
+                        color: "#6366f1",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}
+                      title="Refresh AI explanation"
+                    >
+                      🔄 Refresh
+                    </button>
                   </div>
 
                   {/* Single paragraph explanation */}
@@ -1889,51 +1958,65 @@ export default function App() {
                       fontSize: 13,
                       color: "#475569",
                       lineHeight: 1.6,
-                      padding: "8px 0",
+                      padding: "12px 16px",
+                      backgroundColor: "#f9f9f9",
+                      borderRadius: 8,
+                      minHeight: "60px",
                     }}
                   >
-                    {selectedCase.ai_explanation ||
+                    {loadingSignals ? (
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          color: "#94a3b8",
+                        }}
+                      >
+                        <span style={{ animation: "spin 1s linear infinite" }}>
+                          ⏳
+                        </span>
+                        Generating AI explanation...
+                      </div>
+                    ) : (
+                      selectedCase.ai_explanation ||
                       selectedCase.llm_explanation ||
-                      "This case has been flagged for review based on social media activity patterns. Please review the signals below for more details."}
+                      "Click refresh to generate an AI explanation for this case."
+                    )}
                   </div>
 
-                  {/* Optional: Show key signals as additional context */}
-                  {selectedCase.key_signals &&
-                    selectedCase.key_signals.length > 0 && (
-                      <div style={{ marginTop: 12 }}>
+                  {/* Show recommendations if available */}
+                  {selectedCase.llm_recommendations &&
+                    selectedCase.llm_recommendations.length > 0 && (
+                      <div style={{ marginTop: 16 }}>
                         <div
                           style={{
-                            fontSize: 11,
-                            color: "#94a3b8",
+                            fontSize: 12,
                             fontWeight: 600,
-                            marginBottom: 6,
-                            textTransform: "uppercase",
-                            letterSpacing: "0.5px",
+                            color: "#1e293b",
+                            marginBottom: 8,
                           }}
                         >
-                          Key Indicators:
+                          Recommended Actions:
                         </div>
-                        <div
-                          style={{ display: "flex", flexWrap: "wrap", gap: 8 }}
-                        >
-                          {selectedCase.key_signals
-                            .slice(0, 3)
-                            .map((signal, i) => (
-                              <span
-                                key={i}
-                                style={{
-                                  background: "#f1f5f9",
-                                  color: "#475569",
-                                  padding: "4px 10px",
-                                  borderRadius: 16,
-                                  fontSize: 11,
-                                  fontWeight: 500,
-                                }}
-                              >
-                                {signal}
-                              </span>
-                            ))}
-                        </div>
+                        {selectedCase.llm_recommendations.map((rec, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              alignItems: "flex-start",
+                              gap: 8,
+                              marginBottom: 6,
+                            }}
+                          >
+                            <span style={{ color: "#6366f1", fontSize: 14 }}>
+                              •
+                            </span>
+                            <span style={{ fontSize: 12, color: "#475569" }}>
+                              {rec}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     )}
                 </div>
