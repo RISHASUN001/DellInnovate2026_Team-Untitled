@@ -1,83 +1,88 @@
-version: "3.9"
+version: '3.9'
 
 services:
-  # ── Case Service (SQLite core API) ───────────────────────────────────────────────
-  case-service:
-    build:
-      context: ./case-service
-      dockerfile: Dockerfile
-    container_name: scs-case-service
+  api-gateway:
+    build: ./api-gateway
     ports:
-      - "${CASE_SERVICE_PORT:-8001}:8001"
-    volumes:
-      - scs-data:/data
+      - "8000:8000"
     environment:
-      - CASE_DB_PATH=${CASE_DB_PATH:-/data/cases.db}
-      - DEFAULT_USER_ID=${DEFAULT_USER_ID:-sarah_l}
-      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-Admin}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  # ── Chatbot Service (RAG + NetworkX) ────────────────────────────────────────
-  chatbot-service:
-    build:
-      context: ./chatbot-service
-      dockerfile: Dockerfile
-    container_name: scs-chatbot-service
-    ports:
-      - "${CHATBOT_SERVICE_PORT:-8002}:8002"
-    volumes:
-      - scs-data:/data
-    environment:
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - OPENROUTER_BASE_URL=${OPENROUTER_BASE_URL:-https://openrouter.ai/api/v1}
-      - OPENROUTER_MODEL=${OPENROUTER_MODEL:deepseek/deepseek-chat-v3.1}
-      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-all-MiniLM-L6-v2}
-      - CHROMA_PERSIST_DIR=${CHROMA_PERSIST_DIR:-/data/chromadb}
-      - DOCS_DIR=${DOCS_DIR:-/app/docs}
-      - CASE_SERVICE_URL=${CASE_SERVICE_URL:-http://case-service:8001}
-      - MCP_SERVICE_URL=${MCP_SERVICE_URL:-http://mcp-service:8003}
-      - DEFAULT_USER_ID=${DEFAULT_USER_ID:-sarah_l}
-      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-Admin}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+      AUTH_SERVICE_URL: http://auth-service:8000
+      SCRAPER_SERVICE_URL: http://scraper-service:8000/scrape
+      # ANALYSIS_SERVICE_URL removed since analysis-service is not defined
     depends_on:
-      case-service:
-        condition: service_healthy
-    restart: unless-stopped
+      - auth-service
+      - scraper-service
+    networks:
+      - internal
 
-  # ── MCP Service (Tool Gateway) ───────────────────────────────────────────────
-  mcp-service:
-    build:
-      context: ./mcp-service
-      dockerfile: Dockerfile
-    container_name: scs-mcp-service
+  auth-service:
+    build: ./auth-service
     ports:
-      - "${MCP_SERVICE_PORT:-8003}:8003"
-    volumes:
-      - scs-data:/data
+      - "8001:8000"
     environment:
-      - MONGODB_URI=${MONGODB_URI}
-      - SCS_DB_NAME=${SCS_DB_NAME:-dellinnovate}
-      - CHATBOT_SERVICE_URL=${CHATBOT_SERVICE_URL:-http://chatbot-service:8000}
-      - DEFAULT_USER_ID=${DEFAULT_USER_ID:-sarah_l}
-      - DEFAULT_USER_ROLE=${DEFAULT_USER_ROLE:-Admin}
-      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:5173}
+      OAUTH_AUTHORIZE_URL: https://accounts.google.com/o/oauth2/v2/auth
+      OAUTH_TOKEN_URL: https://oauth2.googleapis.com/token
+      OAUTH_REDIRECT_URI: http://localhost:8000/callback
+      OAUTH_CLIENT_ID_FILE: /run/secrets/oauth_client_id
+      OAUTH_CLIENT_SECRET_FILE: /run/secrets/oauth_client_secret
+    secrets:
+      - oauth_client_id
+      - oauth_client_secret
+    networks:
+      - internal
+  oauth_client_id:
+    file: ./secrets/oauth_client_id
+  oauth_client_secret:
+    file: ./secrets/oauth_client_secret
+
+  scraper-service:
+    build: ./scraper-service
+    environment:
+      SECURE_DATA_SERVICE_URL: http://secure-data-service:8000
+      PRIVATE_KEY_PATH: /run/secrets/private_key.pem
+      SCRAPER_USERNAME: chrishemsworth
+    secrets:
+      - private_key.pem
+      - scrapfly_key
+      scrapfly_key:
+        file: ./secrets/scrapfly_key
     depends_on:
-      case-service:
-        condition: service_healthy
-      chatbot-service:
-        condition: service_started
-    restart: unless-stopped
+      - secure-data-service
+    networks:
+      - internal
+
+  secure-data-service:
+    build: ./secure-data-service
+    environment:
+      MONGO_URI: mongodb://mongodb:27017
+      PUBLIC_KEY_PATH: /run/secrets/public_key.pem
+    secrets:
+      - public_key.pem
+    depends_on:
+      - mongodb
+    networks:
+      - internal
+
+  mongodb:
+    image: mongo:6
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - internal
+    expose:
+      - 27017
+
+
+secrets:
+  private_key.pem:
+    file: ./secrets/private_key.pem
+  public_key.pem:
+    file: ./secrets/public_key.pem
 
 volumes:
-  scs-data:
-    driver: local
+  mongo_data:
 
 networks:
-  default:
-    name: scs-network
+  internal:
+    driver: bridge

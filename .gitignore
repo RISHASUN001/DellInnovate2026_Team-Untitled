@@ -1,3 +1,5 @@
+# Ignore secrets directory
+secrets/
 node_modules
 dist
 .env
