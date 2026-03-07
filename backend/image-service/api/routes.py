@@ -96,10 +96,22 @@ def get_runner() -> RunBatchProcessing:
 async def run_batch(body: RunRequest = RunRequest()) -> RunResponse:
     """Trigger the full batch processing pipeline.
 
+    **Request body parameters:**
+    - `input_folder` (str, optional): Override default input folder path
+    - `overwrite` (bool, default: False): Whether to re-process existing images
+    - `max_images` (int, default: 0): Max number of images to process (0 = no limit)
+
+    **Processing flow:**
     - Scans ``input_folder`` (or the configured default) recursively.
     - Parses filenames to build ``ImageJob``s.
+    - Processes up to `max_images` images (if specified).
     - Runs OCR → sentiment and face → emotion pipelines in sequence.
-    - Persists results to the outputs folder.
+    - Persists results to MongoDB.
+    
+    **Example:**
+    ```json
+    {"input_folder": "/path/to/images", "max_images": 3, "overwrite": false}
+    ```
     """
     runner = get_runner()
 
@@ -143,6 +155,32 @@ async def run_batch(body: RunRequest = RunRequest()) -> RunResponse:
         ),
         elapsed_seconds=elapsed,
     )
+
+
+@router.get("/run", response_model=RunResponse, summary="Run batch processing (GET convenience)")
+async def run_batch_get(
+    input_folder: Optional[str] = None,
+    max_images: int = 0,
+    overwrite: bool = False,
+) -> RunResponse:
+    """Convenience wrapper so `/run?max_images=3` from browser also triggers a batch run.
+
+    **Query parameters:**
+    - `input_folder` (str, optional): Override default input folder path
+    - `max_images` (int, default: 0): Max number of images to process (0 = no limit, e.g., `?max_images=3`)
+    - `overwrite` (bool, default: False): Whether to re-process existing images
+
+    **Examples:**
+    - `/run` — Process all images in default folder
+    - `/run?max_images=3` — Process up to 3 images
+    - `/run?max_images=5&overwrite=true` — Process up to 5 images, re-process existing
+    """
+    req = RunRequest(
+        input_folder=input_folder,
+        overwrite=overwrite,
+        max_images=max_images,
+    )
+    return await run_batch(req)
 
 
 @router.get("/health", response_model=HealthResponse, summary="Health check")

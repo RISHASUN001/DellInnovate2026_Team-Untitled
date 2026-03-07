@@ -13,17 +13,15 @@ Pillow>=10.3.0
 opencv-python-headless>=4.9.0.80
 numpy>=1.26.0
 
-# --- OCR ---
-easyocr>=1.7.1
-
+# --- MongoDB ---
+pymongo>=4.6.0
 
 # --- HuggingFace / ML ---
-torch>=2.2.0
-torchvision>=0.17.0
-transformers>=4.41.0
-# Accelerate is optional but avoids transformers deprecation warnings
+# Install torch/torchvision/torchaudio separately via CUDA index URL.
+# Keeping them out of requirements.txt avoids accidental CPU-only reinstalls.
+transformers==4.48.3
 accelerate>=0.30.0
-Pillow>=10.3.0  # For image loading
+sentencepiece>=0.2.0
 
 # --- Testing ---
 pytest>=8.2.0

@@ -17,6 +17,7 @@ RunBatchProcessing
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -32,6 +33,26 @@ from ports.sentiment_port import SentimentPort
 from ports.storage_port import StoragePort
 
 logger = logging.getLogger(__name__)
+
+
+def _normalize_vlm_output(text: str | None) -> str:
+    if not text:
+        return ""
+
+    cleaned = text.strip()
+    for prefix in ("Assistant:", "assistant:", "Answer:", "answer:"):
+        if cleaned.startswith(prefix):
+            cleaned = cleaned[len(prefix):].strip()
+    return cleaned
+
+
+def _is_none_output(text: str | None) -> bool:
+    cleaned = _normalize_vlm_output(text)
+    if not cleaned:
+        return True
+
+    compact = re.sub(r"[^A-Za-z0-9]+", "", cleaned).upper()
+    return compact in {"NONE", "NOTEXT", "NOTEXTVISIBLE", "NA", "N/A"}
 
 
 # ---------------------------------------------------------------------------
@@ -113,6 +134,32 @@ class ProcessSingleImage:
         """Run the full multi-stage emotional reasoning pipeline and return an ImageRecord."""
         record = ImageRecord(job=job, processed_at=datetime.utcnow())
 
+        # --- 0. VLM Scene Description ---
+        IMAGE_DESCRIPTION_PROMPT = (
+            """
+            Describe what is happening in this image in 2-3 sentences.
+            Include:
+            - Who or what is visible (people, objects, animals, etc.)
+            - What they are doing (actions, postures, movements)
+            - The setting or context
+            - Any notable details about body language or positioning
+            
+            Be specific and concrete (e.g., 'man sitting with his head resting on his hand' not 'person present').
+            """
+        )
+        try:
+            scene_desc = self._smolvlm.describe_images(
+                [str(job.image_path)], IMAGE_DESCRIPTION_PROMPT.strip()
+            )
+            record.image_description = _normalize_vlm_output(scene_desc)
+            if record.image_description:
+                preview = record.image_description[:100] + ("..." if len(record.image_description) > 100 else "")
+                logger.info("[%s] Scene description: %s", job.image_path.name, preview)
+        except Exception as exc:
+            msg = f"VLM scene description error: {exc}"
+            logger.error("[%s] %s", job.image_path.name, msg)
+            record.image_description = f"ERROR: {msg}"
+
         # --- 1. VLM Text Extraction ---
         TEXT_EXTRACTION_PROMPT = (
             """
@@ -127,13 +174,14 @@ class ProcessSingleImage:
             extracted_text = self._smolvlm.describe_images(
                 [str(job.image_path)], TEXT_EXTRACTION_PROMPT.strip()
             )
+            cleaned_text = _normalize_vlm_output(extracted_text)
             from domain.entities import OcrResult
-            if extracted_text and extracted_text.strip().upper() != "NONE":
+            if cleaned_text and not _is_none_output(cleaned_text):
                 ocr_result = OcrResult(
-                    ocr_text_raw=extracted_text,
-                    ocr_text_clean=extracted_text.strip(),
-                    ocr_char_count=len(extracted_text),
-                    ocr_word_count=len(extracted_text.split()),
+                    ocr_text_raw=cleaned_text,
+                    ocr_text_clean=cleaned_text,
+                    ocr_char_count=len(cleaned_text),
+                    ocr_word_count=len(cleaned_text.split()),
                     ocr_detected_bool=True,
                 )
                 record.ocr_result = ocr_result
@@ -152,7 +200,7 @@ class ProcessSingleImage:
 
         # --- 2. Sentiment Analysis (only if text exists) ---
         try:
-            if record.ocr_result and record.ocr_result.ocr_detected_bool and record.ocr_result.ocr_text_clean.upper() != "NONE":
+            if record.ocr_result and record.ocr_result.ocr_detected_bool and not _is_none_output(record.ocr_result.ocr_text_clean):
                 record.sentiment_result = self._sentiment.analyze(record.ocr_result.ocr_text_clean)
         except Exception as exc:
             msg = f"Sentiment analysis error: {exc}"
@@ -162,41 +210,35 @@ class ProcessSingleImage:
         # --- 3. VLM Emotional Visual Reasoning ---
         EMOTION_REASONING_PROMPT = (
             """
-            Analyze this image carefully.
+            Based on the visible cues in this image, infer the person's emotional or mental state.
+            Consider: facial expression, head/hand posture, body language, positioning, and overall demeanor.
+            
+            If you see postures like:
+            - Head in hand: thoughtful, contemplative, stressed, or bored
+            - Slouching: sad, tired, or defeated
+            - Upright/engaged: alert, attentive, or interested
+            - Hands on face: worried, frustrated, or concentrating
+            
+            Output format:
+            Emotion: <single best emotion label>
+            Evidence: <1-2 specific observations from the image that support this emotion>
 
-            Focus specifically on:
-            - Facial expression (eyes, tears, redness, gaze direction)
-            - Mouth tension
-            - Facial muscle activation
-            - Posture and body language
-            - Contextual emotional cues
-
-            Determine the emotional state of the person.
-
-            If the person appears:
-            - Sad
-            - Distressed
-            - Crying
-            - Depressed
-            - Hopeless
-
-            Explain clearly which visual cues support your conclusion.
-
-            If no person is visible, state that clearly.
-            Be explicit and structured in your reasoning.
+            If no person is clearly visible, output exactly:
+            Emotion: UNKNOWN
+            Evidence: Person not clearly visible.
             """
         )
         try:
             vlm_emotion_desc = self._smolvlm.describe_images(
                 [str(job.image_path)], EMOTION_REASONING_PROMPT.strip()
             )
-            record.vlm_emotion_description = vlm_emotion_desc
+            record.vlm_emotion_description = _normalize_vlm_output(vlm_emotion_desc)
         except Exception as exc:
             msg = f"VLM emotional reasoning error: {exc}"
             logger.error("[%s] %s", job.image_path.name, msg)
             record.vlm_emotion_description = f"ERROR: {msg}"
 
-        # --- 4. Face Classifier (Upgraded) ---
+        # --- 4. Face Classifier ---
         try:
             emotion_image = self._preprocessor.load_for_emotion(job.image_path)
             record.emotion_result = self._emotion.detect(emotion_image)
@@ -210,19 +252,21 @@ class ProcessSingleImage:
             emotion_label = record.emotion_result.emotion_label if record.emotion_result else "NONE"
             emotion_conf = record.emotion_result.emotion_score if record.emotion_result else 0.0
             fusion_prompt = f"""
-            An emotion classifier predicted:
-            Label: {emotion_label}
-            Confidence: {emotion_conf}
-
-            Re-evaluate the image.
-            Do you agree or disagree with this classification?
-            Provide a refined emotional assessment.
-            If the classifier may be wrong, explain why.
+            An emotion classifier predicted: {emotion_label} (confidence: {emotion_conf:.2f})
+            
+            Scene description from image analysis: {record.image_description}
+            
+            Do you agree with this prediction based on the visible posture, facial expression, and body language?
+            
+            Output format:
+            Agreement: <AGREE or DISAGREE>
+            RefinedEmotion: <emotion label>
+            Rationale: <1-2 sentences explaining why you agree or disagree, with specific visual evidence>
             """
             fused_assessment = self._smolvlm.describe_images(
                 [str(job.image_path)], fusion_prompt.strip()
             )
-            record.fused_emotion_assessment = fused_assessment
+            record.fused_emotion_assessment = _normalize_vlm_output(fused_assessment)
         except Exception as exc:
             msg = f"Fusion VLM error: {exc}"
             logger.error("[%s] %s", job.image_path.name, msg)
@@ -237,7 +281,7 @@ class ProcessSingleImage:
 
 
 class RunBatchProcessing:
-    """Discover images → build jobs → process → persist results."""
+    """Discover images, build jobs, process, and persist results."""
 
     def __init__(
         self,

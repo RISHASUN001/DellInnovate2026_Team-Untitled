@@ -113,6 +113,7 @@ class ImageRecord:
     error_emotion: Optional[str] = None
 
     # New fields for VLM-based emotional reasoning and fusion
+    image_description: Optional[str] = None  # What is happening in the image (scene, people, actions, posture)
     vlm_emotion_description: Optional[str] = None
     fused_emotion_assessment: Optional[str] = None
 

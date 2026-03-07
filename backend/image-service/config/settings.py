@@ -81,6 +81,13 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     log_level: str = "INFO"
 
+    # ------------------------------------------------------------------
+    # MongoDB Configuration
+    # ------------------------------------------------------------------
+    mongodb_uri: str = "mongodb+srv://rishikamehta2004:rishu2004@cluster0.1yrcnpc.mongodb.net/dellinnovate?retryWrites=true&w=majority"
+    mongodb_db_name: str = "dellinnovate"
+    mongodb_collection_name: str = "image_analysis_results"
+
 
 # Singleton — imported everywhere that needs settings
 settings = Settings()

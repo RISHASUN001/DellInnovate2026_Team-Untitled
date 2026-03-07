@@ -26,7 +26,7 @@ from adapters.emotion_adapter import HuggingFaceEmotionAdapter
 from adapters.smolvlm_adapter import SmolVLMAdapter
 from adapters.preprocessing_adapter import PillowPreprocessingAdapter
 from adapters.sentiment_adapter import HuggingFaceSentimentAdapter
-from adapters.storage_adapter import CsvStorageAdapter
+from adapters.mongodb_storage_adapter import MongoDBStorageAdapter
 from api.routes import router, set_runner
 from application.use_cases import ProcessSingleImage, RunBatchProcessing
 from config.settings import settings
@@ -63,10 +63,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Instantiate adapters (model warm-loading happens in __init__)
     preprocessor = PillowPreprocessingAdapter()
-    ocr = SmolVLMAdapter()
+    ocr = SmolVLMAdapter(device=settings.device)
     sentiment = HuggingFaceSentimentAdapter()
     emotion = HuggingFaceEmotionAdapter()
-    storage = CsvStorageAdapter()
+    storage = MongoDBStorageAdapter()
 
     # Wire use cases
     process_single = ProcessSingleImage(
