@@ -13,6 +13,7 @@ from loguru import logger
 from analytics.signal_extraction import run_nlp_extraction
 from analytics.feature_engineering import run_feature_engineering
 from analytics.stage2_pca_llm import run_case_scoring
+from services.case_promotion import promote_risk_profiles_to_scs_cases
 from config.database import MongoDB
 
 router = APIRouter(prefix="/api/analytics", tags=["analytics"])
@@ -38,6 +39,23 @@ class PCAScoringRequest(BaseModel):
     use_llm: Optional[bool] = Field(True, description="Whether to use LLM calibration")
     llm_model: Optional[str] = Field("llama2", description="Ollama model name")
     ollama_url: Optional[str] = Field("http://localhost:11434", description="Ollama API endpoint")
+
+
+class CasePromotionRequest(BaseModel):
+    """Request model for promoting risk profiles to SCS cases"""
+    min_priority: Optional[str] = Field("medium", description="Minimum priority level ('low', 'medium', 'high', 'critical')")
+    limit: Optional[int] = Field(None, description="Limit number of profiles to process (for testing)")
+    auto_promotion: Optional[bool] = Field(True, description="Whether to auto-promote after analytics run")
+
+
+class FullPipelineRequest(BaseModel):
+    """Request model for full end-to-end pipeline"""
+    case_users: Optional[List[str]] = Field(None, description="Specific users to process (None = all)")
+    window_days: Optional[int] = Field(30, description="Time window for aggregation (days)")
+    use_llm: Optional[bool] = Field(True, description="Use LLM calibration in scoring")
+    llm_model: Optional[str] = Field("llama2", description="Ollama model name")
+    min_priority: Optional[str] = Field("medium", description="Minimum priority for case creation")
+    promote_to_cases: Optional[bool] = Field(True, description="Promote results to SCS operational tables")
 
 
 class PipelineResponse(BaseModel):
@@ -409,4 +427,221 @@ async def get_analytics_stats():
     
     except Exception as e:
         logger.error(f"Error fetching stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========== Case Promotion Endpoints ==========
+
+@router.post("/promote-to-cases", response_model=PipelineResponse)
+async def promote_profiles_to_cases(request: CasePromotionRequest):
+    """
+    Promote risk profiles to operational SCS case management tables.
+    
+    Takes aggregated risk profiles from case_risk_profiles and:
+    1. Creates or updates records in scs_cases
+    2. Appends history entries to scs_case_history
+    3. Creates mandatory checklist items for new cases (from templates)
+    
+    This bridges the analytics layer to the operational case management layer.
+    
+    Priority filtering:
+    - 'low': Create cases for all risk levels
+    - 'medium': Create cases for medium, high, and critical
+    - 'high': Create cases for high and critical only
+    - 'critical': Create cases for critical only
+    """
+    try:
+        logger.info(f"Starting case promotion: {request.dict()}")
+        started_at = datetime.utcnow()
+        
+        db = MongoDB.get_db()
+        
+        results = await promote_risk_profiles_to_scs_cases(
+            db=db,
+            min_priority=request.min_priority,
+            limit=request.limit,
+            ingestion_timestamp=started_at
+        )
+        
+        return PipelineResponse(
+            status="success",
+            message=f"Promoted {results['cases_created']} new cases, updated {results['cases_updated']} existing cases",
+            results=results,
+            started_at=started_at
+        )
+    
+    except Exception as e:
+        logger.error(f"Case promotion failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/run-full-pipeline", response_model=PipelineResponse)
+async def run_full_pipeline(request: FullPipelineRequest):
+    """
+    Run complete end-to-end pipeline:
+    1. Extract NLP signals from Instagram data
+    2. Compute risk profiles using PCA + LLM scoring
+    3. Promote risk profiles to operational SCS case tables
+    
+    This is the main endpoint for scheduled ingestion cycles (e.g., every 6 hours).
+    
+    Returns comprehensive statistics from all stages.
+    """
+    try:
+        logger.info(f"Starting full pipeline: {request.dict()}")
+        started_at = datetime.utcnow()
+        
+        db = MongoDB.get_db()
+        
+        all_results = {
+            "stage1_nlp": None,
+            "stage2_scoring": None,
+            "stage3_promotion": None
+        }
+        
+        # Stage 1: NLP Signal Extraction
+        logger.info("Stage 1: Extracting NLP signals...")
+        stage1_results = await run_nlp_extraction(
+            case_users=request.case_users,
+            limit=None
+        )
+        all_results["stage1_nlp"] = stage1_results
+        logger.info(f"Stage 1 complete: {stage1_results.get('text_units_processed', 0)} units processed")
+        
+        # Stage 2: PCA + LLM Risk Scoring
+        logger.info("Stage 2: Computing risk profiles...")
+        stage2_results = await run_case_scoring(
+            db=db,
+            window_days=request.window_days,
+            limit_users=None,
+            use_llm=request.use_llm,
+            llm_model=request.llm_model
+        )
+        all_results["stage2_scoring"] = stage2_results
+        logger.info(f"Stage 2 complete: {stage2_results.get('profiles_computed', 0)} profiles computed")
+        
+        # Stage 3: Promote to SCS Cases (if enabled)
+        if request.promote_to_cases:
+            logger.info("Stage 3: Promoting to SCS cases...")
+            stage3_results = await promote_risk_profiles_to_scs_cases(
+                db=db,
+                min_priority=request.min_priority,
+                limit=None,
+                ingestion_timestamp=started_at
+            )
+            all_results["stage3_promotion"] = stage3_results
+            logger.info(f"Stage 3 complete: {stage3_results['cases_created']} created, {stage3_results['cases_updated']} updated")
+        else:
+            logger.info("Stage 3: Skipped (promote_to_cases=False)")
+        
+        # Calculate total duration
+        duration = (datetime.utcnow() - started_at).total_seconds()
+        
+        return PipelineResponse(
+            status="success",
+            message=f"Full pipeline completed in {duration:.1f}s",
+            results={
+                **all_results,
+                "duration_seconds": duration,
+                "pipeline_version": "v1.0-pca-llm"
+            },
+            started_at=started_at
+        )
+    
+    except Exception as e:
+        logger.error(f"Full pipeline failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/cases/summary")
+async def get_scs_cases_summary(
+    priority: Optional[str] = None,
+    case_status: Optional[str] = None,
+    limit: int = 50
+):
+    """
+    Get summary of operational SCS cases.
+    
+    Query parameters:
+    - priority: Filter by priority level
+    - case_status: Filter by case status
+    - limit: Maximum results to return
+    """
+    try:
+        db = MongoDB.get_db()
+        
+        # Build query filter
+        query_filter = {}
+        if priority:
+            query_filter["priority"] = priority.lower()
+        if case_status:
+            query_filter["case_status"] = case_status.lower()
+        
+        # Get cases
+        cases = await db.scs_cases.find(query_filter) \
+            .sort("priority", 1) \
+            .sort("current_risk_score", -1) \
+            .limit(limit) \
+            .to_list(length=None)
+        
+        # Convert ObjectId to string
+        for case in cases:
+            if '_id' in case:
+                del case['_id']
+        
+        # Get statistics
+        total_cases = await db.scs_cases.count_documents({})
+        critical_cases = await db.scs_cases.count_documents({"priority": "critical"})
+        unassigned_cases = await db.scs_cases.count_documents({"case_status": "unassigned"})
+        
+        return {
+            "total_cases": total_cases,
+            "critical_cases": critical_cases,
+            "unassigned_cases": unassigned_cases,
+            "filtered_count": len(cases),
+            "cases": cases
+        }
+    
+    except Exception as e:
+        logger.error(f"Error fetching SCS cases: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/cases/{case_id}/history")
+async def get_case_history(case_id: str):
+    """
+    Get risk score history for a specific case.
+    Shows how risk has evolved over time through multiple ingestion cycles.
+    """
+    try:
+        db = MongoDB.get_db()
+        
+        # Get case info
+        case = await db.scs_cases.find_one({"case_id": case_id})
+        if not case:
+            raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
+        
+        # Get history entries
+        history = await db.scs_case_history.find({"case_id": case_id}) \
+            .sort("ingestion_date", 1) \
+            .to_list(length=None)
+        
+        # Clean up
+        if '_id' in case:
+            del case['_id']
+        
+        for entry in history:
+            if '_id' in entry:
+                del entry['_id']
+        
+        return {
+            "case": case,
+            "history_count": len(history),
+            "history": history
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching case history: {e}")
         raise HTTPException(status_code=500, detail=str(e))

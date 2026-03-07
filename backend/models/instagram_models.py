@@ -298,3 +298,108 @@ class AnalyticsPipelineJobModel(BaseModel):
         populate_by_name = True
         arbitrary_types_allowed = True
         json_encoders = {ObjectId: str}
+
+
+# ========== SCS Operational Models ==========
+
+class SCSCaseModel(BaseModel):
+    """
+    Model for operational SCS cases
+    Collection: scs_cases
+    
+    This is the operational case management table used by youth workers.
+    Populated from case_risk_profiles by the promotion service.
+    """
+    case_id: str  # e.g., "CASE_2026_001"
+    user_id: str  # Social media handle being monitored (e.g., "@at_risk_teen_01")
+    assigned_to: Optional[str] = None  # References scs_users.user_id
+    current_risk_score: float  # 0-100 scale
+    category: str  # Risk category (e.g., "depression_risk", "self_harm_risk")
+    ai_explanation: str  # LLM-generated or aggregated explanation
+    case_status: str = "unassigned"  # "unassigned" | "assigned"
+    work_status: str = "not_started"  # "not_started" | "in_progress" | "to_review" | "completed"
+    priority: str = "medium"  # "low" | "medium" | "high" | "critical"
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        populate_by_name = True
+
+
+class SCSCaseHistoryModel(BaseModel):
+    """
+    Model for case history snapshots
+    Collection: scs_case_history
+    
+    Stores one entry per ingestion cycle, tracking risk evolution over time.
+    """
+    history_id: int  # Auto-increment ID
+    case_id: str  # References scs_cases.case_id
+    risk_score: float  # Historical risk score
+    category: str  # Historical category
+    ai_explanation: str  # AI explanation at this point in time
+    ingestion_date: datetime  # When this assessment was made
+    model_version: str  # AI model version used (e.g., "nlp-v1-pca-v1-llm-v1")
+    
+    class Config:
+        populate_by_name = True
+
+
+class SCSChecklistItemModel(BaseModel):
+    """
+    Model for case checklist items
+    Collection: scs_checklist
+    
+    Task tracking for each case. Mandatory items are auto-created from templates.
+    """
+    checklist_item_id: int  # Auto-increment ID
+    case_id: str  # References scs_cases.case_id
+    template_id: Optional[int] = None  # References scs_checklist_templates.template_id (null for custom)
+    label: str  # Task description
+    is_mandatory: bool = False  # Required task?
+    completed: bool = False  # Task status
+    comments: List[Dict[str, Any]] = []  # Array of {comment, timestamp, by}
+    completed_at: Optional[datetime] = None
+    completed_by: Optional[str] = None  # References scs_users.user_id
+    display_order: int = 0  # UI ordering
+    created_at: datetime
+    
+    class Config:
+        populate_by_name = True
+
+
+class SCSChecklistTemplateModel(BaseModel):
+    """
+    Model for checklist templates
+    Collection: scs_checklist_templates
+    
+    Defines standard mandatory tasks that are auto-created for new cases.
+    """
+    template_id: int  # Unique template ID
+    label: str  # Task description
+    is_mandatory: bool = True  # Required for all cases?
+    display_order: int = 0  # UI ordering
+    is_active: bool = True  # Template enabled?
+    created_at: datetime
+    
+    class Config:
+        populate_by_name = True
+
+
+class SCSUserModel(BaseModel):
+    """
+    Model for SCS staff users
+    Collection: scs_users
+    
+    User accounts for admins and youth helpers.
+    """
+    user_id: str  # Unique identifier
+    username: str  # Display name
+    role: str  # "admin" | "youth_helper"
+    email: str  # Contact email
+    is_active: bool = True  # Account status
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        populate_by_name = True
