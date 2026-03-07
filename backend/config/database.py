@@ -57,3 +57,12 @@ async def get_posts_collection():
 
 async def get_scrapes_collection():
     return MongoDB.get_collection(os.getenv("MONGODB_COLLECTION_SCRAPES", "scrape_jobs"))
+
+async def get_comment_users_collection():
+    return MongoDB.get_collection(os.getenv("MONGODB_COLLECTION_COMMENT_USERS", "comment_users"))
+
+async def get_bio_links_collection():
+    return MongoDB.get_collection(os.getenv("MONGODB_COLLECTION_BIO_LINKS", "bio_links"))
+
+async def get_social_cloud_collection():
+    return MongoDB.get_collection(os.getenv("MONGODB_COLLECTION_SOCIAL_CLOUD", "social_cloud"))

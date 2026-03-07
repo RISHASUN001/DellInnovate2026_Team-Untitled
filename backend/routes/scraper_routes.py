@@ -137,3 +137,114 @@ async def get_job_status(job_id: str):
     except Exception as e:
         logger.error(f"Failed to get job {job_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+@router.post("/user/{username}/bio-links")
+async def scrape_user_bio_links(username: str):
+    """Scrape and store bio links for a user"""
+    try:
+        username = username.lstrip('@')
+        result = await scraper_service.scrape_and_store_bio_links(username)
+        return {
+            "success": True,
+            "data": result
+        }
+    except Exception as e:
+        logger.error(f"Failed to scrape bio links for {username}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/user/{username}/bio-links")
+async def get_user_bio_links(username: str):
+    """Get bio links for a user"""
+    try:
+        username = username.lstrip('@')
+        bio_links = await scraper_service.get_user_bio_links(username)
+        return {
+            "success": True,
+            "count": len(bio_links),
+            "data": bio_links
+        }
+    except Exception as e:
+        logger.error(f"Failed to get bio links for {username}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/user/{username}/social-cloud")
+async def get_user_social_cloud(username: str):
+    """Get social cloud (other social media profiles) for a user"""
+    try:
+        username = username.lstrip('@')
+        social_links = await scraper_service.get_user_social_cloud(username)
+        return {
+            "success": True,
+            "count": len(social_links),
+            "data": social_links
+        }
+    except Exception as e:
+        logger.error(f"Failed to get social cloud for {username}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/comments/extract")
+async def extract_comment_users():
+    """Extract and store comment users from all posts in database"""
+    try:
+        result = await scraper_service.process_all_comments_from_db()
+        return {
+            "success": True,
+            "data": result
+        }
+    except Exception as e:
+        logger.error(f"Failed to extract comment users: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/comments/users/{username}")
+async def get_comment_user(username: str):
+    """Get comment user data"""
+    try:
+        from services.comment_service import CommentUserService
+        comment_service = CommentUserService()
+        
+        username = username.lstrip('@')
+        user = await comment_service.get_comment_user_from_db(username)
+        if not user:
+            raise HTTPException(status_code=404, detail="Comment user not found")
+        return {
+            "success": True,
+            "data": user
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get comment user {username}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/comments/users")
+async def get_all_comment_users(limit: Optional[int] = None):
+    """Get all comment users"""
+    try:
+        from services.comment_service import CommentUserService
+        comment_service = CommentUserService()
+        
+        users = await comment_service.get_all_comment_users_from_db(limit=limit)
+        return {
+            "success": True,
+            "count": len(users),
+            "data": users
+        }
+    except Exception as e:
+        logger.error(f"Failed to get comment users: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/comments/top-commenters")
+async def get_top_commenters(limit: int = 10):
+    """Get top commenters by total comments"""
+    try:
+        from services.comment_service import CommentUserService
+        comment_service = CommentUserService()
+        
+        users = await comment_service.get_top_commenters(limit=limit)
+        return {
+            "success": True,
+            "count": len(users),
+            "data": users
+        }
+    except Exception as e:
+        logger.error(f"Failed to get top commenters: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
