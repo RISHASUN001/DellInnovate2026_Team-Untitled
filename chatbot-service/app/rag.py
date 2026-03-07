@@ -3,7 +3,7 @@ from typing import List, Dict
 import chromadb
 from chromadb.config import Settings
 import re
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 from app.config import settings
 
 class RAGSystem:
@@ -11,13 +11,10 @@ class RAGSystem:
         self.docs_path = docs_path
         self.chroma_path = chroma_path
         
-        # Initialize OpenAI client for embeddings
-        print("Initializing OpenAI embeddings client...")
-        self.openai_client = OpenAI(
-            api_key=settings.openrouter_api_key,
-            base_url=settings.openrouter_base_url
-        )
-        self.embedding_model = settings.embedding_model
+        # Initialize local embedding model (no API key required)
+        print("Initializing local embedding model...")
+        self.embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
+        print("✓ Local embedding model loaded")
         
         # Initialize ChromaDB
         print(f"Connecting to ChromaDB at {chroma_path}...")
@@ -42,13 +39,10 @@ class RAGSystem:
             print(f"Collection already populated with {current_count} documents.")
     
     def generate_embedding(self, text: str) -> List[float]:
-        """Generate embedding using OpenAI API"""
+        """Generate embedding using local model"""
         try:
-            response = self.openai_client.embeddings.create(
-                model=self.embedding_model,
-                input=text
-            )
-            return response.data[0].embedding
+            embedding = self.embedding_model.encode(text, convert_to_numpy=True)
+            return embedding.tolist()
         except Exception as e:
             print(f"Error generating embedding: {e}")
             raise

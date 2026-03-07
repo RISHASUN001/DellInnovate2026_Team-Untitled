@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     openrouter_model: str = "deepseek/deepseek-chat-v3.1"
 
     # ── Embeddings + ChromaDB ───────────────────────────────────────────────
-    embedding_model: str = "openai/text-embedding-ada-002"
-    openrouter_embedding_model: str = "openai/text-embedding-ada-002"
+    # Using local sentence-transformers (no API key required)
+    embedding_model: str = "all-MiniLM-L6-v2"
     chroma_persist_dir: str = "../data/chromadb"
     docs_dir: str = "./docs"
 
