@@ -1,0 +1,448 @@
+[
+  {
+    "username": "crime101film",
+    "riskLevel": 2,
+    "riskScore": 35.6,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.59"
+    ],
+    "concerningComments": [
+      "Just came back from seeing the movie.  My Gawd!! Chris' hair and eyebrows were dyed dark brown!!!...",
+      "Just came back from seeing the movie.  My Gawd!! Chris' hair and eyebrows were dyed dark brown!!!...",
+      "I love acting but unfortunately I'm a Zimbabwean"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 24.2,
+      "sentimentScore": 0.5,
+      "volatility": 0.59
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:03.442000"
+  },
+  {
+    "username": "astartingpoint",
+    "riskLevel": 2,
+    "riskScore": 35.3,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.91",
+      "Elevated distress emotions: 42.9%",
+      "High negative sentiment rate: 42.9%"
+    ],
+    "concerningComments": [
+      "The Islamic Republic is killing the people of Iran.\ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d",
+      "The Islamic Republic is killing the people of Iran.\ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83c\udd98 \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d \ud83d\ude2d",
+      "Please don't stop taking about iran \ud83d\udc94 \ud83d\ude2d \ud83c\udd98 \ud83c\udd98"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 42.9,
+      "sentimentScore": 0.13,
+      "volatility": 0.91
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:03.059000"
+  },
+  {
+    "username": "metsaryhma",
+    "riskLevel": 2,
+    "riskScore": 35.0,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.79",
+      "Elevated distress emotions: 42.9%",
+      "High negative sentiment rate: 57.1%"
+    ],
+    "concerningComments": [
+      "Shut up already you are so annoying!",
+      "The Islamic Republic opened fire on its own people. Forty thousand young Iranians who demanded no...",
+      "Stop pulp colonialism! \ud83d\uded1\n\nFinnish, Swedish and Spanish in comments! \n\n@storaensoworld, along with..."
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 42.9,
+      "sentimentScore": -0.16,
+      "volatility": 0.79
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:04.725000"
+  },
+  {
+    "username": "chrishemsworth",
+    "riskLevel": 2,
+    "riskScore": 31.0,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.52"
+    ],
+    "concerningComments": [
+      "IkyfL I WILL NEVER EVER SEE A MOVIE FROM U AGAIN AND I SUGGEST U FIRE UR P.R B4 THIS HAPPENS AGAI...",
+      "WILL NEVER SEE A THOR OR CHRIS HEMSWORTH MOVIE AGAIN \ud83c\udfac THATS HOW QUICK IDFW CHILD PREDATORS",
+      "U fkn with team peto is crazy work chris DISGUSTING"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 16.7,
+      "sentimentScore": 0.58,
+      "volatility": 0.52
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:03.213000"
+  },
+  {
+    "username": "mohammed.usrof",
+    "riskLevel": 2,
+    "riskScore": 30.7,
+    "priority": "Low",
+    "signals": [
+      "Elevated distress emotions: 50.0%",
+      "High negative sentiment rate: 66.7%"
+    ],
+    "concerningComments": [
+      "Still no words on Iran and the massacre that is happening there! Shame on you! #freeiran #justice...",
+      "You are a sham of a human, a paid shill. Empty and hollow",
+      "NO JEWS NO NEWS, AYATOLLAH @gretathunberg talk about IRAN"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 50.0,
+      "sentimentScore": -0.54,
+      "volatility": 0.41
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:05.089000"
+  },
+  {
+    "username": "amazonalexa",
+    "riskLevel": 2,
+    "riskScore": 24.7,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.86",
+      "High negative sentiment rate: 50.0%"
+    ],
+    "concerningComments": [
+      "This is DAY 16 of asking for my account back You guys don\u2019t know how to help they removed my acco...",
+      "PLEASE HELP SUPPORT MY NEW BUSINESS KASSILOO, NEW INNOVATION FOR SQUARE FAMILY TOILET SEATS.... L..."
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 0.0,
+      "sentimentScore": -0.07,
+      "volatility": 0.86
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:02.914000"
+  },
+  {
+    "username": "humantiproject",
+    "riskLevel": 2,
+    "riskScore": 24.6,
+    "priority": "Low",
+    "signals": [
+      "Elevated distress emotions: 40.0%"
+    ],
+    "concerningComments": [
+      "You say Jews have no right to be there then protest immigrants welcome \ud83d\ude02. As for genocide the pop...",
+      "When the Muslim lost their purpose of Islam Allah will replace them just like He did in Iraq duri...",
+      "#sosiran"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 40.0,
+      "sentimentScore": -0.25,
+      "volatility": 0.43
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:04.421000"
+  },
+  {
+    "username": "traxnyc",
+    "riskLevel": 2,
+    "riskScore": 24.1,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.65"
+    ],
+    "concerningComments": [
+      "Oh, because Chris Hemsworth is working with you I will not watch his trashy movie",
+      "So you tell people there is loss when you do a melt and then break down the crucible and reclaim ...",
+      "Only Jew i don\u2019t hate"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 20.0,
+      "sentimentScore": 0.23,
+      "volatility": 0.65
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:06.149000"
+  },
+  {
+    "username": "markruffalo",
+    "riskLevel": 2,
+    "riskScore": 23.6,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.64",
+      "Elevated distress emotions: 33.3%"
+    ],
+    "concerningComments": [
+      "I will never understand how people can be against something, then go ahead and support a company ...",
+      "I will never understand how people can be against something, then go ahead and support a company ...",
+      "free iran"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 33.3,
+      "sentimentScore": 0.24,
+      "volatility": 0.64
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:04.567000"
+  },
+  {
+    "username": "robertdowneyjr",
+    "riskLevel": 2,
+    "riskScore": 21.0,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.65"
+    ],
+    "concerningComments": [
+      "Every Jew in Hollywood has been killed, divorced, disgraced, or harmed lately.  Please trust in Y...",
+      "WHY IS THIS ONLY HERE NOW???",
+      "Reason Franklin got kidnapped by dooms is because he is the secret child of Doom and suzie \ud83d\ude02"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 20.0,
+      "sentimentScore": 0.27,
+      "volatility": 0.65
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:05.472000"
+  },
+  {
+    "username": "hollywoodauthentic",
+    "riskLevel": 1,
+    "riskScore": 14.9,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "N\u00e3o pega ningu\u00e9m \ud83d\ude02\ud83d\ude02\ud83d\ude02",
+      "N\u00e3o pega ningu\u00e9m \ud83d\ude02\ud83d\ude02\ud83d\ude02",
+      "The Australian actor is about to break new ground with his role as an introverted jewel thief wor..."
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 25.0,
+      "sentimentScore": 0.41,
+      "volatility": 0.43
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:04.244000"
+  },
+  {
+    "username": "therock",
+    "riskLevel": 1,
+    "riskScore": 12.7,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "\u0412\u0441\u0435 \u0443 \u043c\u0435\u043d\u044f \u0432 \u043b\u0435\u043d\u0442\u0435",
+      "\u00c7ok g\u00fczel olmu\u015f \ud83d\udc4f",
+      "\ud83d\udcaa Nice \ud83d\udc4d"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 25.0,
+      "sentimentScore": 0.82,
+      "volatility": 0.32
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:05.796000"
+  },
+  {
+    "username": "thinkjinx",
+    "riskLevel": 1,
+    "riskScore": 12.0,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "Dear animal lovers, please help us give voice to a cowardly case that happened in Brazil. An elde...",
+      "Vingadores,avante",
+      "AnnettCreatorVIP\ud83e\udee6\ud83d\udc8b\ud83c\udf80"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 7.7,
+      "sentimentScore": 0.75,
+      "volatility": 0.45
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:05.995000"
+  },
+  {
+    "username": "disneycruiselinesg",
+    "riskLevel": 1,
+    "riskScore": 11.8,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "Alguien presto atenci\u00f3n a su camisa??",
+      "Doom Or Tony Stark",
+      "Look that t-shirt and make the theories, Indian Marvel fan"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 12.5,
+      "sentimentScore": 0.64,
+      "volatility": 0.43
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:03.588000"
+  },
+  {
+    "username": "fallontonight",
+    "riskLevel": 1,
+    "riskScore": 11.5,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "@chrishemsworth filmed all of his Crime 101 driving scenes before showing the director a video of...",
+      "Usjska\ud83d\ude02",
+      "Najsu"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 11.1,
+      "sentimentScore": 0.36,
+      "volatility": 0.44
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:03.959000"
+  },
+  {
+    "username": "mileycyrus",
+    "riskLevel": 1,
+    "riskScore": 9.4,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "(2) - **Most recent development (February 24, 2026)**: Cyrus's legal team filed a **motion for su...",
+      "(4) Key Unprotectable Elements (Why No Infringement)\n- **Chord progressions and harmonic structur...",
+      "(1) The lawsuit against Miley Cyrus regarding her 2023 hit **\"Flowers\"** and alleged copyright in..."
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 0.0,
+      "sentimentScore": 0.44,
+      "volatility": 0.47
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:04.944000"
+  },
+  {
+    "username": "disneyplus",
+    "riskLevel": 1,
+    "riskScore": 9.2,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "Tem crian\u00e7a de colo chorando aqui",
+      "Going back to where it all began. \ud83d\udda4 The Hannah Montana 20th Anniversary Special premieres March 2...",
+      "Me muero muerto \ud83d\ude0d"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 12.5,
+      "sentimentScore": 0.83,
+      "volatility": 0.3
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:03.730000"
+  },
+  {
+    "username": "harrystyles",
+    "riskLevel": 1,
+    "riskScore": 7.9,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "Sa ii dai mesaj lui @sussiii09",
+      "Locations?",
+      "now that\u2019s what i\u2019m talking about"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 0.0,
+      "sentimentScore": 0.64,
+      "volatility": 0.39
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:04.102000"
+  },
+  {
+    "username": "a24",
+    "riskLevel": 1,
+    "riskScore": 7.3,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "\u0422\u0443\u0442 \u0442\u043e\u0436\u0435 \u0435\u0441\u0442\u044c",
+      "Pizza sale diablotin \ud83c\udf55\ud83c\udf55\ud83c\udf55",
+      "russian  \u041d\u0430 \u043c\u043e\u0438 \u0447\u043b\u0435\u043d\u0430 \u043d\u0430\u043f\u0438\u0441\u043d\u0430 \ud83c\udf4c\ud83c\udf0a\ud83c\udf0a \ud83c\uddfa\ud83c\uddf8 melania  \u0434\u0430\u0439  \u043d\u0430\u0437\u0430\u0442"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 0.0,
+      "sentimentScore": 0.54,
+      "volatility": 0.36
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:02.731000"
+  },
+  {
+    "username": "mrbeast",
+    "riskLevel": 1,
+    "riskScore": 5.9,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "I can\u2019t tell the difference",
+      "I can\u2019t tell the difference",
+      "Hlep"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 0.0,
+      "sentimentScore": 0.15,
+      "volatility": 0.21
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:05.247000"
+  },
+  {
+    "username": "taylorswift",
+    "riskLevel": 1,
+    "riskScore": 0.9,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "And, baby, that\u2019s show business for you. New album The Life of a Showgirl. Out October 3\u00a0\u2764\ufe0f\u200d\ud83d\udd25\n\nAl...",
+      "My favorite part about writing is that first spark of an idea. It can happen at any time, for any...",
+      "Just a few Opalite memories to celebrate the Hot 100 #1 you guys just got this song!! I can\u2019t eve..."
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 0.0,
+      "sentimentScore": 0.93,
+      "volatility": 0.04
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-03-07T06:20:05.648000"
+  }
+]
