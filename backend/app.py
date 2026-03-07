@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from config.database import MongoDB
 from routes.scraper_routes import router as scraper_router
 from routes.analytics_routes import router as analytics_router
-from routes.llm_routes import router as llm_router  # Add this import
+from routes.llm_routes import router as llm_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,9 +37,9 @@ app.add_middleware(
 )
 
 # Include routers
-app.include_router(scraper_router)
-app.include_router(analytics_router)
-app.include_router(llm_router)  # Add this line
+app.include_router(scraper_router, prefix="/api/scraper", tags=["Scraper"])
+app.include_router(analytics_router, prefix="/api/analytics", tags=["Analytics"])
+app.include_router(llm_router, prefix="/api/llm", tags=["LLM"])
 
 @app.get("/")
 async def root():

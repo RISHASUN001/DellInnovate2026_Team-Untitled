@@ -8,10 +8,8 @@ from loguru import logger
 from datetime import datetime
 
 from config.database import MongoDB
-from analytics.feature_engineering import BehavioralFeatureEngineer
-from analytics.llm_integration import LLMSummarizer
 
-router = APIRouter(prefix="/api/llm", tags=["LLM"])
+router = APIRouter()
 
 @router.get("/dashboard-cases", response_model=Dict)
 async def get_dashboard_cases_with_llm():

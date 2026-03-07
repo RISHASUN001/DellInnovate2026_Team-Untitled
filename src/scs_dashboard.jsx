@@ -570,11 +570,21 @@ export default function App() {
     }
     loadData();
   }, []);
+  // Add a ref to track if we've already loaded for this case
+  const loadedCaseRef = useRef(null);
+  const isLoadingExplanationRef = useRef(false);
+
   // Fetch signals and AI explanation when a case is selected
   useEffect(() => {
     async function loadCaseDetails() {
       if (selectedCase && selectedCase.case_user) {
+        // Prevent loading if we're already loading or if it's the same case
+        if (isLoadingExplanationRef.current) return;
+        if (loadedCaseRef.current === selectedCase.case_user) return;
+
         setLoadingSignals(true);
+        isLoadingExplanationRef.current = true;
+
         try {
           // First, trigger AI explanation generation for this specific user
           const explanationResponse = await fetch(
@@ -594,6 +604,9 @@ export default function App() {
               llm_category: explanationData.category,
               llm_recommendations: explanationData.recommendations,
             }));
+
+            // Mark this case as loaded
+            loadedCaseRef.current = selectedCase.case_user;
           }
 
           // Then fetch the detailed signals
@@ -604,13 +617,15 @@ export default function App() {
           setCaseSignals([]);
         } finally {
           setLoadingSignals(false);
+          isLoadingExplanationRef.current = false;
         }
       } else {
         setCaseSignals([]);
+        loadedCaseRef.current = null;
       }
     }
     loadCaseDetails();
-  }, [selectedCase]);
+  }, [selectedCase]); // Only run when selectedCase changes
 
   const myAssignedCases = assignedCasesOrder
     .map((id) => allCases.find((c) => c.id === id))

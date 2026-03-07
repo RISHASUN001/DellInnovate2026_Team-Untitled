@@ -10,10 +10,10 @@ from loguru import logger
 from config.database import MongoDB
 from analytics.signal_extraction import NLPSignalExtractor, run_nlp_extraction
 from analytics.feature_engineering import BehavioralFeatureEngineer, run_feature_engineering
+from analytics.llm_integration import LLMSummarizer
 from services.case_promotion import promote_risk_profiles_to_scs_cases, CasePromotionService
-from analytics.llm_integration import LLMSummarizer  # Add this import!
 
-router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
+router = APIRouter()
 
 # ============================================================================
 # STAGE 1: NLP Signal Extraction Endpoints
@@ -398,44 +398,9 @@ async def get_dashboard_cases():
                     f"Risk score: {profile.get('risk_score', 0):.1f}"
                 ]
             
-            # Get LLM explanation - try different possible field names
-            llm_explanation = profile.get('llm_explanation') or profile.get('explanation') or profile.get('llm_summary') or ''
-            
-            # If no LLM explanation, generate a basic one from metrics
-            if not llm_explanation:
-                distress_rate = profile.get('distress_emotion_rate', 0)
-                distortion_rate = profile.get('distortion_rate', 0)
-                emotion_dist = profile.get('emotion_distribution', {})
-                
-                # Get dominant emotions
-                dominant_emotions = []
-                for emotion, count in sorted(emotion_dist.items(), key=lambda x: x[1], reverse=True)[:2]:
-                    dominant_emotions.append(emotion)
-                
-                # Build explanation
-                explanation_parts = []
-                
-                if dominant_emotions:
-                    explanation_parts.append(f"This young person is expressing {' and '.join(dominant_emotions)} in their recent posts")
-                
-                if distress_rate > 0.3:
-                    explanation_parts.append(f"with {distress_rate:.0%} of their communication showing signs of emotional distress")
-                else:
-                    explanation_parts.append(f"with {distress_rate:.0%} of their communication showing some distress")
-                
-                if distortion_rate > 0.2:
-                    explanation_parts.append(f"and {distortion_rate:.0%} of comments show patterns of negative thinking")
-                
-                if profile.get('late_night_activity_rate', 0) > 0.3:
-                    explanation_parts.append("They're often active late at night, which may affect their wellbeing")
-                
-                explanation_parts.append(f"This case is assessed as {risk_level} RISK and should be monitored.")
-                
-                llm_explanation = ' '.join(explanation_parts)
-            
-            # Build summary (fallback)
-            distress_rate = profile.get('distress_emotion_rate', 0)
-            distortion_rate = profile.get('distortion_rate', 0)
+            # Build summary
+            distress_rate = profile.get("distress_emotion_rate", 0)
+            distortion_rate = profile.get("distortion_rate", 0)
             
             if distress_rate > 0.5:
                 summary = f"High distress levels ({distress_rate:.0%} of comments). "
@@ -449,12 +414,13 @@ async def get_dashboard_cases():
             elif distortion_rate > 0.1:
                 summary += f"Occasional negative thinking patterns detected."
             
-            # Create dashboard case with ALL possible fields
+            # Create dashboard case
             case = {
                 'id': idx + 1,
+                'case_user': profile.get('case_user', 'unknown'),
                 'code': f"YD-{datetime.utcnow().year}-{str(idx+1).zfill(4)}",
                 'riskLevel': min(5, max(1, int(profile.get('risk_score', 30) / 20) + 1)),
-                'category': profile.get('llm_category', category),  # Use LLM category if available
+                'category': category,
                 'platform': 'Instagram',
                 'lastSignal': profile.get('window_end', datetime.utcnow()).strftime("%Y-%m-%d %I:%M %p"),
                 'status': 'Active' if profile.get('risk_level') != 'Low' else 'Monitoring',
@@ -468,12 +434,10 @@ async def get_dashboard_cases():
                     'instagramUrl': f"https://instagram.com/{profile.get('case_user', 'user')}"
                 },
                 'signals': signals[:5],
-                'key_signals': signals[:3],  # For tag display
+                'key_signals': signals[:3],
                 'summary': summary,
-                # AI Explanation fields - include all possible names
-                'ai_explanation': llm_explanation,
-                'llm_explanation': llm_explanation,
-                'explanation': llm_explanation,
+                'ai_explanation': profile.get('llm_explanation', ''),
+                'llm_explanation': profile.get('llm_explanation', ''),
                 'llm_category': profile.get('llm_category', ''),
                 'llm_recommendations': profile.get('llm_recommendations', []),
                 'has_llm_analysis': profile.get('has_llm_analysis', False),
@@ -522,7 +486,7 @@ async def get_case_signals_for_dashboard(
         for signal in signals:
             formatted_signals.append({
                 'id': str(signal['_id']),
-                'text': signal.get('text', '')[:100],  # Truncate for display
+                'text': signal.get('text', '')[:100],
                 'sentiment_label': signal.get('sentiment_label', 'neutral'),
                 'sentiment_score': signal.get('sentiment_score', 0),
                 'emotion_label': signal.get('emotion_label', 'neutral'),
@@ -625,157 +589,10 @@ async def get_cases_summary(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/cases/{case_id}", response_model=Dict)
-async def get_case_details(case_id: str):
-    """
-    Get detailed case information
-    """
-    try:
-        db = MongoDB.get_db()
-        cases_collection = db.scs_cases
-        history_collection = db.scs_case_history
-        checklist_collection = db.scs_checklist
-        
-        # Get case
-        case = await cases_collection.find_one({"case_id": case_id})
-        if not case:
-            raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-        
-        case["_id"] = str(case["_id"])
-        
-        # Get history
-        history_cursor = history_collection.find(
-            {"case_id": case_id}
-        ).sort("ingestion_date", -1).limit(10)
-        history = await history_cursor.to_list(length=10)
-        for h in history:
-            h["_id"] = str(h["_id"])
-        
-        # Get checklist
-        checklist_cursor = checklist_collection.find(
-            {"case_id": case_id}
-        ).sort("display_order", 1)
-        checklist = await checklist_cursor.to_list(length=None)
-        for item in checklist:
-            item["_id"] = str(item["_id"])
-        
-        return {
-            "case": case,
-            "history": history,
-            "checklist": checklist
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting case details: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# ============================================================================
+# LLM Explanation Generation Endpoint (CRITICAL - This was missing!)
+# ============================================================================
 
-
-@router.get("/cases/{case_id}/history", response_model=Dict)
-async def get_case_history(
-    case_id: str,
-    limit: int = Query(50, description="Maximum history entries")
-):
-    """
-    Get risk score history for a case
-    """
-    try:
-        db = MongoDB.get_db()
-        history_collection = db.scs_case_history
-        
-        # Check if case exists
-        cases_collection = db.scs_cases
-        case = await cases_collection.find_one({"case_id": case_id})
-        if not case:
-            raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-        
-        # Get history
-        cursor = history_collection.find(
-            {"case_id": case_id}
-        ).sort("ingestion_date", -1).limit(limit)
-        
-        history = await cursor.to_list(length=limit)
-        for h in history:
-            h["_id"] = str(h["_id"])
-        
-        return {
-            "case": {
-                "case_id": case["case_id"],
-                "user_id": case["user_id"],
-                "current_risk_score": case["current_risk_score"]
-            },
-            "history_count": len(history),
-            "history": history
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting case history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.put("/cases/{case_id}/checklist/{item_id}", response_model=Dict)
-async def update_checklist_item(
-    case_id: str,
-    item_id: int,
-    completed: bool = Query(..., description="Mark as completed"),
-    comment: Optional[str] = Query(None, description="Add a comment")
-):
-    """
-    Update checklist item status
-    """
-    try:
-        db = MongoDB.get_db()
-        checklist_collection = db.scs_checklist
-        
-        # Find the item
-        item = await checklist_collection.find_one({
-            "case_id": case_id,
-            "checklist_item_id": item_id
-        })
-        
-        if not item:
-            raise HTTPException(status_code=404, detail=f"Checklist item {item_id} not found")
-        
-        # Prepare update
-        update_data = {
-            "completed": completed,
-            "updated_at": datetime.utcnow()
-        }
-        
-        if completed:
-            update_data["completed_at"] = datetime.utcnow()
-            update_data["completed_by"] = "current_user"  # TODO: Get from auth
-        
-        if comment:
-            # Add comment to comments array
-            comments = item.get("comments", [])
-            comments.append({
-                "comment": comment,
-                "timestamp": datetime.utcnow(),
-                "by": "current_user"  # TODO: Get from auth
-            })
-            update_data["comments"] = comments
-        
-        # Update
-        await checklist_collection.update_one(
-            {"case_id": case_id, "checklist_item_id": item_id},
-            {"$set": update_data}
-        )
-        
-        return {
-            "status": "success",
-            "message": f"Checklist item {item_id} updated",
-            "completed": completed
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating checklist item: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 @router.post("/generate-explanation/{username}", response_model=Dict)
 async def generate_explanation_for_user(username: str):
     """
@@ -825,80 +642,4 @@ async def generate_explanation_for_user(username: str):
         raise
     except Exception as e:
         logger.error(f"Error generating explanation: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-@router.post("/cases/{case_id}/assign", response_model=Dict)
-async def assign_case(
-    case_id: str,
-    user_id: str = Query(..., description="Staff user ID to assign")
-):
-    """
-    Assign case to a youth worker
-    """
-    try:
-        db = MongoDB.get_db()
-        cases_collection = db.scs_cases
-        
-        # Check if case exists
-        case = await cases_collection.find_one({"case_id": case_id})
-        if not case:
-            raise HTTPException(status_code=404, detail=f"Case {case_id} not found")
-        
-        # Check if user exists
-        users_collection = db.scs_users
-        user = await users_collection.find_one({"user_id": user_id})
-        if not user and user_id != "unassign":
-            # Create user if doesn't exist (for testing)
-            if user_id == "sarah_l":
-                await users_collection.insert_one({
-                    "user_id": "sarah_l",
-                    "name": "Sarah Lim",
-                    "email": "sarah@example.com",
-                    "role": "youth_worker",
-                    "is_active": True,
-                    "created_at": datetime.utcnow()
-                })
-            else:
-                raise HTTPException(status_code=404, detail=f"User {user_id} not found")
-        
-        # Update case
-        if user_id == "unassign":
-            await cases_collection.update_one(
-                {"case_id": case_id},
-                {
-                    "$set": {
-                        "assigned_to": None,
-                        "case_status": "unassigned",
-                        "updated_at": datetime.utcnow()
-                    }
-                }
-            )
-            return {
-                "status": "success",
-                "message": f"Case {case_id} unassigned",
-                "case_id": case_id,
-                "assigned_to": None
-            }
-        else:
-            await cases_collection.update_one(
-                {"case_id": case_id},
-                {
-                    "$set": {
-                        "assigned_to": user_id,
-                        "case_status": "assigned",
-                        "updated_at": datetime.utcnow()
-                    }
-                }
-            )
-            
-            return {
-                "status": "success",
-                "message": f"Case {case_id} assigned to {user_id}",
-                "case_id": case_id,
-                "assigned_to": user_id
-            }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error assigning case: {e}")
         raise HTTPException(status_code=500, detail=str(e))
