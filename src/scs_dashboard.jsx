@@ -389,8 +389,6 @@ export default function App() {
                   <div style={{ fontSize: 12, color: "#4338ca", lineHeight: 1.5 }}><strong>Privacy Disclaimer:</strong> This view shows AI-generated risk signals only. No raw social media posts, messages, or personal content is stored or displayed. The AI processes anonymised patterns.</div>
                 </div>
 
-<<<<<<< Updated upstream
-=======
                 {/* Review Pending Card - Show when review is pending */}
                 {selectedCase.review_requests && selectedCase.review_requests.length > 0 && (() => {
                   const latestReview = selectedCase.review_requests[selectedCase.review_requests.length - 1];
@@ -495,7 +493,6 @@ export default function App() {
                   return null;
                 })()}
 
->>>>>>> Stashed changes
                 {/* Youth Profile Card */}
                 <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 18, marginBottom: 16 }}>
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>👤 Youth Profile</div>
