@@ -13,8 +13,15 @@ from fastapi.responses import JSONResponse
 app = FastAPI()
 
 
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "scraper-service"}
+
+
 SECURE_DATA_SERVICE_URL = os.getenv('SECURE_DATA_SERVICE_URL')
 PRIVATE_KEY_PATH = os.getenv('PRIVATE_KEY_PATH')
+print(f"Loaded config: SECURE_DATA_SERVICE_URL={SECURE_DATA_SERVICE_URL}, PRIVATE_KEY_PATH={PRIVATE_KEY_PATH}")
 
 def read_secret(secret_path):
     try:
@@ -23,7 +30,7 @@ def read_secret(secret_path):
     except Exception:
         return None
 
-SCRAPFLY_KEY = read_secret('/run/secrets/scrapfly_key') or os.getenv('SCRAPFLY_KEY')
+SCRAPFLY_KEY = os.getenv('SCRAPFLY_KEY')
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 logger = logging.getLogger('scraper-service')

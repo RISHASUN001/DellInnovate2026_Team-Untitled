@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Run all three SCS services locally without Docker.
-# Creates a shared .venv per service under each service directory.
+# Works on Mac/Linux and Windows (Git Bash, WSL).
 # Usage: bash start_dev.sh        — start all services
 #        bash start_dev.sh stop   — kill all services started by this script
 
@@ -15,11 +15,22 @@ log()  { echo -e "\033[1;36m[start_dev]\033[0m $*"; }
 ok()   { echo -e "\033[1;32m[OK]\033[0m $*"; }
 err()  { echo -e "\033[1;31m[ERR]\033[0m $*"; }
 
+# ── detect python command ─────────────────────────────────────────────
+detect_python() {
+  if command -v python3 >/dev/null 2>&1; then
+    PYTHON_CMD="python3"
+  elif command -v python >/dev/null 2>&1; then
+    PYTHON_CMD="python"
+  else
+    err "Python not found in PATH!"
+    exit 1
+  fi
+  log "Using Python: $($PYTHON_CMD --version | tr -d '\n')"
+}
+
+# ── load .env ───────────────────────────────────────────────────────
 load_env() {
-  # Export every non-comment line from .env, substituting Docker service
-  # hostnames with localhost so that services can reach each other locally.
   set -a
-  # shellcheck disable=SC1090
   source <(grep -v '^\s*#' "$ENV_FILE" | grep -v '^\s*$' \
     | sed 's|http://case-service:|http://localhost:|g' \
     | sed 's|http://chatbot-service:|http://localhost:|g' \
@@ -27,7 +38,7 @@ load_env() {
   set +a
 }
 
-# ── stop ─────────────────────────────────────────────────────────────
+# ── stop services ───────────────────────────────────────────────────
 if [[ "${1:-}" == "stop" ]]; then
   if [[ -f "$PID_FILE" ]]; then
     while read -r pid; do
@@ -41,32 +52,50 @@ if [[ "${1:-}" == "stop" ]]; then
   exit 0
 fi
 
-# ── setup venv for a service ─────────────────────────────────────────
+# ── setup virtual environment ───────────────────────────────────────
 setup_venv() {
   local svc_dir="$1"
   local venv="$svc_dir/.venv"
+
   if [[ ! -d "$venv" ]]; then
     log "Creating venv for $(basename "$svc_dir")…"
-    python3 -m venv "$venv"
+    "$PYTHON_CMD" -m venv "$venv"
+
+    # Bootstrap pip if missing (Windows or Python install without ensurepip)
+    if [[ ! -f "$venv/bin/pip" && ! -f "$venv/Scripts/pip.exe" ]]; then
+      log "Bootstrapping pip in venv…"
+      "$PYTHON_CMD" -m ensurepip --upgrade || true
+    fi
   fi
-  "$venv/bin/pip" install --quiet --upgrade pip
-  "$venv/bin/pip" install --quiet -r "$svc_dir/requirements.txt"
+
+  # Determine pip and uvicorn paths
+  if [[ -f "$venv/bin/pip" ]]; then
+      PIP="$venv/bin/pip"
+      UVICORN="$venv/bin/uvicorn"
+  elif [[ -f "$venv/Scripts/pip.exe" ]]; then
+      PIP="$venv/Scripts/pip.exe"
+      UVICORN="$venv/Scripts/uvicorn.exe"
+  else
+      err "Cannot find pip in virtual environment!"
+      exit 1
+  fi
+
+  "$PIP" install --quiet --upgrade pip
+  "$PIP" install --quiet -r "$svc_dir/requirements.txt"
 }
 
-# ── start a service ──────────────────────────────────────────────────
+# ── start service ───────────────────────────────────────────────────
 start_service() {
   local name="$1"
   local svc_dir="$2"
   local port="$3"
-  local module="$4"           # e.g. app.main:app
+  local module="$4"
   local log_file="$ROOT/logs/${name}.log"
 
   mkdir -p "$ROOT/logs"
-  local venv="$svc_dir/.venv"
-
   log "Starting $name on :$port …"
   cd "$svc_dir"
-  "$venv/bin/uvicorn" "$module" \
+  "$UVICORN" "$module" \
     --host 0.0.0.0 \
     --port "$port" \
     --reload \
@@ -79,10 +108,12 @@ start_service() {
 
 # ── main ─────────────────────────────────────────────────────────────
 > "$PID_FILE"          # reset PID file
-mkdir -p "$ROOT/data"  # shared SQLite + ChromaDB dir (normally /data in Docker)
+mkdir -p "$ROOT/data"  # shared SQLite + ChromaDB dir
+
+detect_python
 load_env
 
-# Override CASE_DB_PATH and CHROMA_PERSIST_DIR to use local ./data/
+# Override local paths
 export CASE_DB_PATH="$ROOT/data/cases.db"
 export CHROMA_PERSIST_DIR="$ROOT/data/chromadb"
 export DOCS_DIR="$ROOT/chatbot-service/docs"
@@ -94,8 +125,7 @@ setup_venv "$ROOT/mcp-service"
 
 log "Launching services…"
 start_service "case-service"    "$ROOT/case-service"    "${CASE_SERVICE_PORT:-8003}"    "app.main:app"
-sleep 2   # give case-service time to seed before chatbot tries to fetch cases
-
+sleep 2
 start_service "chatbot-service" "$ROOT/chatbot-service" "${CHATBOT_SERVICE_PORT:-8000}"  "app.main:app"
 start_service "mcp-service"     "$ROOT/mcp-service"     "${MCP_SERVICE_PORT:-8002}"      "app.main:app"
 
@@ -110,13 +140,13 @@ sleep 3
 
 # Health check
 log "Testing service health..."
-curl -s http://localhost:8003/health > /dev/null && ok "✓ case-service healthy" || err "✗ case-service not responding"
-curl -s http://localhost:8000/health > /dev/null && ok "✓ chatbot-service healthy" || err "✗ chatbot-service not responding"  
-curl -s http://localhost:8002/health > /dev/null && ok "✓ mcp-service healthy" || err "✗ mcp-service not responding"
+curl -s http://localhost:8003/health && ok "✓ case-service healthy" || err "✗ case-service not responding"
+curl -s http://localhost:8000/health && ok "✓ chatbot-service healthy" || err "✗ chatbot-service not responding"
+curl -s http://localhost:8002/health && ok "✓ mcp-service healthy" || err "✗ mcp-service not responding"
 echo ""
 log "Frontend: cd $(basename $ROOT) && npm run dev"
 log "Stop all: bash start_dev.sh stop"
 log "Run tests: bash run_tests.sh"
 log "Tail logs: tail -f logs/case-service.log logs/chatbot-service.log logs/mcp-service.log"
 echo ""
-ok "🚀 All systems ready!"
+ok " All systems ready!"

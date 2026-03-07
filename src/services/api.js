@@ -1,11 +1,33 @@
 /**
  * API Service Layer for SCS Youth Helper Dashboard
- * Handles all communication with case-service backend (MongoDB)
+ * Handles communication with case-service and API gateway backends.
  */
 
 const CASE_SERVICE_URL = import.meta.env.VITE_CASE_SERVICE_URL || "http://localhost:8003";
+const API_GATEWAY_URL = import.meta.env.VITE_API_GATEWAY_URL || "http://localhost:8010";
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
+
+const getAuthToken = () => {
+  const sessionToken = sessionStorage.getItem("scs_auth_token");
+  const localToken = localStorage.getItem("scs_auth_token");
+  return sessionToken || localToken || "";
+};
+
+const buildAuthHeaders = (headers = {}, requireAuth = false) => {
+  const merged = { ...headers };
+  const token = getAuthToken();
+
+  if (token) {
+    merged.Authorization = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+  } else if (requireAuth) {
+    throw new Error(
+      "Missing auth token. Please login and ensure a valid bearer token is present in sessionStorage/localStorage as 'scs_auth_token'."
+    );
+  }
+
+  return merged;
+};
 
 const handleResponse = async (response) => {
   if (!response.ok) {
@@ -15,12 +37,11 @@ const handleResponse = async (response) => {
   return response.json();
 };
 
-const fetchWithAuth = async (url, options = {}) => {
-  // In production, add auth token from context here
-  // For now, using default user from case-service
+const fetchWithAuth = async (url, options = {}, requireAuth = false) => {
+  const finalHeaders = buildAuthHeaders(options.headers, requireAuth);
   const headers = {
     "Content-Type": "application/json",
-    ...options.headers,
+    ...finalHeaders,
   };
 
   const response = await fetch(url, {
@@ -273,6 +294,79 @@ export const chatbotAPI = {
   },
 };
 
+// ─── API Gateway Orchestration API ─────────────────────────────────────────
+
+export const gatewayAPI = {
+  async getHealth() {
+    const url = `${API_GATEWAY_URL}/health`;
+    return fetchWithAuth(url);
+  },
+
+  async scrape(username) {
+    const url = `${API_GATEWAY_URL}/scrape`;
+    return fetchWithAuth(
+      url,
+      {
+        method: "POST",
+        body: JSON.stringify({ username }),
+      },
+      true
+    );
+  },
+
+  async analyze(username, opts = {}) {
+    const url = `${API_GATEWAY_URL}/analyze`;
+    return fetchWithAuth(
+      url,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          username,
+          scrape_comments: opts.scrape_comments ?? true,
+          export_csv: opts.export_csv ?? true,
+        }),
+      },
+      true
+    );
+  },
+
+  async runWorkflow(payload) {
+    const url = `${API_GATEWAY_URL}/workflow/run`;
+    return fetchWithAuth(
+      url,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      true
+    );
+  },
+
+  async runImageProcessing(payload = {}) {
+    const url = `${API_GATEWAY_URL}/image`;
+    return fetchWithAuth(
+      url,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      true
+    );
+  },
+
+  async chat(payload) {
+    const url = `${API_GATEWAY_URL}/chatbot`;
+    return fetchWithAuth(
+      url,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
+      },
+      true
+    );
+  },
+};
+
 // ─── Default Export ────────────────────────────────────────────────────────
 
 export default {
@@ -281,6 +375,7 @@ export default {
   checklistAPI,
   historyAPI,
   chatbotAPI,
+  gatewayAPI,
   transformCase,
   priorityToRiskLevel,
   riskLevelToPriority,

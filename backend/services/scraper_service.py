@@ -6,7 +6,8 @@ from loguru import logger
 from scrapers.instagram_scraper import InstagramScraper
 from models.instagram_models import InstagramUserModel, InstagramPostModel, ScrapeJobModel
 from config.database import get_users_collection, get_posts_collection, get_scrapes_collection
-from download_images import download_posts_images
+from download_images import run_pipeline
+from pathlib import Path
 
 class ScraperService:
     def __init__(self):
@@ -140,10 +141,21 @@ class ScraperService:
             # Auto-download images for all scraped posts
             if posts:
                 logger.info(f"Starting image download for {len(posts)} posts by @{username}")
-                img_stats = download_posts_images(posts=posts, username=username)
-                logger.info(
-                    f"Image download done — downloaded: {img_stats['downloaded']}, "
-                    f"skipped: {img_stats['skipped']}, failed: {img_stats['failed']}"
+
+                # Prepare a temporary JSON file for the posts
+                import json, tempfile
+                with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as tmpfile:
+                    json.dump(posts, tmpfile)
+                    tmpfile_path = Path(tmpfile.name)
+                
+                # Call the pipeline
+                run_pipeline(
+                    json_path=tmpfile_path,
+                    username=username,
+                    output_folder=Path(__file__).parent / "image-service" / "data" / "post_images",
+                    max_posts=0,           # all posts in JSON
+                    skip_existing=True,
+                    delay=0.5
                 )
 
             return posts
