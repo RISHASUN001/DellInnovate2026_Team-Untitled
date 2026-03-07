@@ -121,8 +121,9 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
   const [assigning, setAssigning] = useState(false);
   const [selectedHelper, setSelectedHelper] = useState(c.assigned_to || "");
   const [assignMsg, setAssignMsg] = useState("");
-  const [adminComment, setAdminComment] = useState(""); // NEW: for review completion
-  const [completingReview, setCompletingReview] = useState(false); // NEW: for loading state
+  const [adminComment, setAdminComment] = useState(""); // for review completion
+  const [adminApproach, setAdminApproach] = useState(""); // for review approach
+  const [completingReview, setCompletingReview] = useState(false); // for loading state
 
   useEffect(() => {
     historyAPI.getCaseHistory(c.case_id)
@@ -153,10 +154,10 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
     }
   };
 
-  // NEW: Handle review completion
+  // Handle review completion
   const handleCompleteReview = async () => {
-    if (!adminComment.trim()) {
-      alert("Please provide a comment before completing the review.");
+    if (!adminComment.trim() && !adminApproach.trim()) {
+      alert("Please provide at least an approach or comment before completing the review.");
       return;
     }
     
@@ -169,11 +170,14 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
           "X-User-Id": currentUser.user_id,
           "X-User-Role": currentUser.role,
         },
-        body: JSON.stringify({ admin_comment: adminComment.trim() }),
+        body: JSON.stringify({ 
+          admin_comment: adminComment.trim(), 
+          approach: adminApproach.trim() 
+        }),
       });
       
       if (res.ok) {
-        alert("Review completed successfully. Case status reverted to Not Started.");
+        alert("Review completed successfully. Case status changed to In Progress.");
         onClose(); // Close modal and refresh
         window.location.reload(); // Reload to update the needs-review list
       } else {
@@ -281,39 +285,46 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
               </div>
             </div>
             
-            {/* Admin comment input */}
+            {/* Admin approach and comment inputs */}
             <div style={{ marginBottom:10 }}>
-              <div style={{ fontSize:10, color:"#92400e", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Your Response</div>
+              <div style={{ fontSize:10, color:"#92400e", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Recommended Approach</div>
+              <textarea
+                value={adminApproach}
+                onChange={e => setAdminApproach(e.target.value)}
+                placeholder="Outline the recommended approach or strategy..."
+                style={{ width:"100%", minHeight:60, padding:"10px 12px", borderRadius:8, border:"1.5px solid #fbbf24", fontSize:13, color:"#1e293b", resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"inherit", lineHeight:1.5, background:"#fff", marginBottom:8 }}
+              />
+              <div style={{ fontSize:10, color:"#92400e", textTransform:"uppercase", letterSpacing:"0.5px", marginBottom:4 }}>Additional Comments</div>
               <textarea
                 value={adminComment}
                 onChange={e => setAdminComment(e.target.value)}
-                placeholder="Provide feedback or guidance to the helper..."
-                style={{ width:"100%", minHeight:80, padding:"10px 12px", borderRadius:8, border:"1.5px solid #fbbf24", fontSize:13, color:"#1e293b", resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"inherit", lineHeight:1.5, background:"#fff" }}
+                placeholder="Provide additional feedback or guidance to the helper..."
+                style={{ width:"100%", minHeight:60, padding:"10px 12px", borderRadius:8, border:"1.5px solid #fbbf24", fontSize:13, color:"#1e293b", resize:"vertical", outline:"none", boxSizing:"border-box", fontFamily:"inherit", lineHeight:1.5, background:"#fff" }}
               />
             </div>
             
             {/* Complete review button */}
             <button
               onClick={handleCompleteReview}
-              disabled={!adminComment.trim() || completingReview}
+              disabled={(!adminComment.trim() && !adminApproach.trim()) || completingReview}
               style={{ 
                 width:"100%",
                 display:"flex", 
                 alignItems:"center", 
                 justifyContent:"center",
                 gap:6, 
-                background: adminComment.trim() ? "linear-gradient(135deg,#10b981,#059669)" : "#d1d5db", 
-                color: adminComment.trim() ? "#fff" : "#9ca3af", 
+                background: (adminComment.trim() || adminApproach.trim()) ? "linear-gradient(135deg,#10b981,#059669)" : "#d1d5db", 
+                color: (adminComment.trim() || adminApproach.trim()) ? "#fff" : "#9ca3af", 
                 border:"none", 
                 borderRadius:8, 
                 padding:"10px 14px", 
                 fontSize:13, 
                 fontWeight:600, 
-                cursor: adminComment.trim() ? "pointer" : "not-allowed" 
+                cursor: (adminComment.trim() || adminApproach.trim()) ? "pointer" : "not-allowed" 
               }}
             >
-              <Icon.CheckCircle size={14} color={adminComment.trim() ? "#fff" : "#9ca3af"}/>
-              {completingReview ? "Completing Review..." : "Complete Review & Revert to Not Started"}
+              <Icon.CheckCircle size={14} color={(adminComment.trim() || adminApproach.trim()) ? "#fff" : "#9ca3af"}/>
+              {completingReview ? "Completing Review..." : "Complete Review & Change to In Progress"}
             </button>
           </div>
         )}
@@ -595,6 +606,7 @@ export default function AdminDashboard({ currentUser: propUser }) {
   const [cases, setCases]             = useState([]);
   const [casesNeedingReview, setCasesNeedingReview] = useState([]); // NEW: cases with pending reviews
   const [reassignments, setReassignments] = useState([]);
+  const [reassignmentForms, setReassignmentForms] = useState({}); // Track review_notes and selected_helper per request
   const [helpers, setHelpers]         = useState([]); // Fetch from MongoDB API
   const [selectedCase, setSelectedCase] = useState(null);
   const [assignModal, setAssignModal]   = useState(null); // caseRow | null
@@ -752,18 +764,39 @@ export default function AdminDashboard({ currentUser: propUser }) {
   };
 
   // ── Reassignment actions ───────────────────────────────────────────────────
-  const handleReassignAction = async (id, action, targetHelper = null) => {
+  const handleReassignAction = async (requestId, action) => {
     try {
-      const payload = {
-        status: action,
-        review_notes: action === "approved" ? "Approved by admin" : "Declined by admin"
-      };
+      const formData = reassignmentForms[requestId] || {};
+      const reviewNotes = formData.review_notes?.trim();
+      const selectedHelper = formData.selected_helper;
       
-      if (action === "approved" && targetHelper) {
-        payload.new_assigned_to = targetHelper;
+      if (action === "approved" && !reviewNotes) {
+        alert("Please provide review notes before approving.");
+        return;
       }
       
-      const res = await fetch(`${CASE_SERVICE_URL}/cases/reassignment-requests/${id}/review`, {
+      if (action === "declined" && !reviewNotes) {
+        alert("Please provide review notes before declining.");
+        return;
+      }
+      
+      const payload = {
+        status: action,
+        review_notes: reviewNotes || (action === "approved" ? "Approved by admin" : "Declined by admin")
+      };
+      
+      // For approval, always send new_assigned_to (default to suggested helper)
+      if (action === "approved") {
+        const req = reassignments.find(r => r.id === requestId);
+        payload.new_assigned_to = selectedHelper || req?.requested_to;
+        
+        if (!payload.new_assigned_to) {
+          alert("Cannot approve: no helper specified. Please select a helper.");
+          return;
+        }
+      }
+      
+      const res = await fetch(`${CASE_SERVICE_URL}/cases/reassignment-requests/${requestId}/review`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -780,13 +813,11 @@ export default function AdminDashboard({ currentUser: propUser }) {
       const result = await res.json();
       
       // Update local state
-      setReassignments(prev => prev.map(r => 
-        r.id === id ? { ...r, status: action } : r
-      ));
+      setReassignments(prev => prev.filter(r => r.id !== requestId)); // Remove from pending list
       
       if (action === "approved") {
         // Update the case: clear reassigned flag, assign to new helper
-        const req = reassignments.find(r => r.id === id);
+        const req = reassignments.find(r => r.id === requestId);
         if (req) {
           setCases(prev => prev.map(c =>
             (c.case_id || c.code) === req.case_id
@@ -794,18 +825,35 @@ export default function AdminDashboard({ currentUser: propUser }) {
                   ...c, 
                   case_status: "assigned", 
                   work_status: "not_started", 
-                  assigned_to: targetHelper || req.requested_to || c.assigned_to 
+                  assigned_to: selectedHelper || req.requested_to || c.assigned_to 
                 }
               : c
           ));
         }
       }
       
+      // Clear form data
+      setReassignmentForms(prev => {
+        const updated = { ...prev };
+        delete updated[requestId];
+        return updated;
+      });
+      
       alert(`Reassignment request ${action} successfully.`);
     } catch (err) {
       console.error(`Failed to ${action} reassignment:`, err);
       alert(`Failed to ${action} reassignment: ${err.message}`);
     }
+  };
+
+  const updateReassignmentForm = (requestId, field, value) => {
+    setReassignmentForms(prev => ({
+      ...prev,
+      [requestId]: {
+        ...(prev[requestId] || {}),
+        [field]: value
+      }
+    }));
   };
 
   // ── Column header helper ───────────────────────────────────────────────────
@@ -1106,19 +1154,72 @@ export default function AdminDashboard({ currentUser: propUser }) {
                       </div>
 
                       {r.status === "pending" && (
-                        <div style={{ display:"flex", gap:8 }}>
-                          <button
-                            onClick={() => handleReassignAction(r.id, "approved", r.requested_to)}
-                            style={{ display:"flex", alignItems:"center", gap:6, background:"#10b981", color:"#fff", border:"none", borderRadius:8, padding:"7px 16px", fontSize:12, fontWeight:600, cursor:"pointer" }}
-                          >
-                            <Icon.Check size={13} color="#fff"/> Approve
-                          </button>
-                          <button
-                            onClick={() => handleReassignAction(r.id, "rejected")}
-                            style={{ display:"flex", alignItems:"center", gap:6, background:"#fef2f2", color:"#dc2626", border:"1px solid #fecaca", borderRadius:8, padding:"7px 16px", fontSize:12, fontWeight:600, cursor:"pointer" }}
-                          >
-                            <Icon.X size={13} color="#dc2626"/> Reject
-                          </button>
+                        <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                          {/* Review Notes Input */}
+                          <div>
+                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:6 }}>
+                              Admin Review Notes <span style={{ color:"#dc2626" }}>*</span>
+                            </label>
+                            <textarea
+                              value={reassignmentForms[r.id]?.review_notes || ""}
+                              onChange={(e) => updateReassignmentForm(r.id, "review_notes", e.target.value)}
+                              placeholder="Provide your decision notes here..."
+                              style={{ 
+                                width:"100%", 
+                                minHeight:70, 
+                                padding:"8px 12px", 
+                                fontSize:13, 
+                                border:`1px solid ${T.border}`, 
+                                borderRadius:8, 
+                                resize:"vertical", 
+                                fontFamily:"inherit",
+                                outline:"none"
+                              }}
+                            />
+                          </div>
+
+                          {/* Helper Selection (for approval) */}
+                          <div>
+                            <label style={{ display:"block", fontSize:10, fontWeight:700, color:T.muted, textTransform:"uppercase", letterSpacing:"0.7px", marginBottom:6 }}>
+                              New Assignee (Optional - defaults to suggested helper)
+                            </label>
+                            <select
+                              value={reassignmentForms[r.id]?.selected_helper || ""}
+                              onChange={(e) => updateReassignmentForm(r.id, "selected_helper", e.target.value)}
+                              style={{ 
+                                width:"100%", 
+                                padding:"8px 12px", 
+                                fontSize:13, 
+                                border:`1px solid ${T.border}`, 
+                                borderRadius:8,
+                                background:"#fff",
+                                outline:"none"
+                              }}
+                            >
+                              <option value="">— Use suggested helper ({targetHelper?.name || r.requested_to || "None"}) —</option>
+                              {helpers.map(h => (
+                                <option key={h.user_id} value={h.user_id}>
+                                  {h.name} ({h.employee_id})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Action Buttons */}
+                          <div style={{ display:"flex", gap:8 }}>
+                            <button
+                              onClick={() => handleReassignAction(r.id, "approved")}
+                              style={{ display:"flex", alignItems:"center", gap:6, background:"#10b981", color:"#fff", border:"none", borderRadius:8, padding:"7px 16px", fontSize:12, fontWeight:600, cursor:"pointer" }}
+                            >
+                              <Icon.Check size={13} color="#fff"/> Approve & Reassign
+                            </button>
+                            <button
+                              onClick={() => handleReassignAction(r.id, "declined")}
+                              style={{ display:"flex", alignItems:"center", gap:6, background:"#fef2f2", color:"#dc2626", border:"1px solid #fecaca", borderRadius:8, padding:"7px 16px", fontSize:12, fontWeight:600, cursor:"pointer" }}
+                            >
+                              <Icon.X size={13} color="#dc2626"/> Decline
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>

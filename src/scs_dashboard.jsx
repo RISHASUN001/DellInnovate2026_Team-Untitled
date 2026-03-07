@@ -977,10 +977,18 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                   const isResolved = latestReview.request_status === "resolved";
                   
                   if (isResolved && latestReview.resolution_notes) {
+                    // Parse approach and comments from resolution_notes
+                    const resolutionText = latestReview.resolution_notes || "";
+                    const approachMatch = resolutionText.match(/\*\*Approach:\*\*\s*([\s\S]*?)(?=\*\*Comments:\*\*|$)/);
+                    const commentsMatch = resolutionText.match(/\*\*Comments:\*\*\s*([\s\S]*)/);
+                    
+                    const approach = approachMatch ? approachMatch[1].trim() : null;
+                    const comments = commentsMatch ? commentsMatch[1].trim() : (approach ? null : resolutionText);
+                    
                     return (
                       <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #10b981", padding: 18, marginBottom: 16 }}>
                         <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
-                          <Icon.CheckCircle size={14} /> 
+                          <Icon.CheckCircle size={14} color="#10b981" /> 
                           Admin Response
                           <span style={{ 
                             marginLeft: "auto", 
@@ -1000,10 +1008,23 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                           "{latestReview.reason || "No reason provided"}"
                         </div>
                         
-                        <div style={{ fontSize: 10, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, fontWeight: 600 }}>Admin's Guidance</div>
-                        <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.6, background: "#d1fae5", padding: "12px 14px", borderRadius: 8, border: "1px solid #6ee7b7", fontWeight: 500 }}>
-                          {latestReview.resolution_notes}
-                        </div>
+                        {approach && (
+                          <>
+                            <div style={{ fontSize: 10, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, fontWeight: 600 }}>Recommended Approach</div>
+                            <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.6, background: "#d1fae5", padding: "12px 14px", borderRadius: 8, border: "1px solid #6ee7b7", fontWeight: 500, marginBottom: 12 }}>
+                              {approach}
+                            </div>
+                          </>
+                        )}
+                        
+                        {comments && (
+                          <>
+                            <div style={{ fontSize: 10, color: "#065f46", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 4, fontWeight: 600 }}>Additional Comments</div>
+                            <div style={{ fontSize: 13, color: "#065f46", lineHeight: 1.6, background: "#d1fae5", padding: "12px 14px", borderRadius: 8, border: "1px solid #6ee7b7", fontWeight: 500 }}>
+                              {comments}
+                            </div>
+                          </>
+                        )}
                         
                         <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, display: "flex", alignItems: "center", gap: 4 }}>
                           <Icon.User size={10} />

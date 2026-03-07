@@ -29,6 +29,7 @@ class ReviewRequest(BaseModel):
 
 class ReviewResponse(BaseModel):
     admin_comment: str
+    approach: Optional[str] = None
 
 
 class ReassignmentRequest(BaseModel):
@@ -222,9 +223,13 @@ async def review_reassignment_request(
     if reassign_req["request_status"] != "pending":
         raise HTTPException(400, {"error": "Request already processed"})
     
-    # Validate approval
-    if review.status == "approved" and not review.new_assigned_to:
-        raise HTTPException(400, {"error": "new_assigned_to required when approving"})
+    # For approval, use new_assigned_to if provided, otherwise default to suggested_helper
+    final_assignee = review.new_assigned_to
+    if review.status == "approved":
+        if not final_assignee:
+            final_assignee = reassign_req.get("suggested_helper")
+        if not final_assignee:
+            raise HTTPException(400, {"error": "Cannot approve: no helper specified in request or review"})
     
     # Update reassignment request
     await reassign_col.update_one(
@@ -234,22 +239,23 @@ async def review_reassignment_request(
                 "request_status": review.status,
                 "reviewed_by": user.user_id,
                 "reviewed_at": _now_iso(),
-                "new_assigned_to": review.new_assigned_to,
+                "new_assigned_to": final_assignee if review.status == "approved" else None,
                 "review_notes": review.review_notes,
                 "updated_at": _now_iso()
             }
         }
     )
     
-    # If approved, update the case assignment
+    # If approved, update the case assignment and reset work_status
     cases_col = db['scs_cases']
     if review.status == "approved":
         await cases_col.update_one(
             {"case_id": reassign_req["case_id"]},
             {
                 "$set": {
-                    "assigned_to": review.new_assigned_to,
+                    "assigned_to": final_assignee,
                     "case_status": "assigned",
+                    "work_status": "not_started",
                     "updated_at": datetime.now()
                 }
             }
@@ -264,7 +270,7 @@ async def review_reassignment_request(
             "reason": f"Reassignment approved: {review.review_notes}",
             "timestamp": _now_iso(),
             "old_value": reassign_req["current_assigned_to"],
-            "new_value": review.new_assigned_to
+            "new_value": final_assignee
         }
         await history_col.insert_one(history_doc)
     else:
@@ -283,7 +289,7 @@ async def review_reassignment_request(
     await _audit(db, user, "REVIEW_REASSIGNMENT", reassign_req["case_id"], {
         "request_id": request_id,
         "status": review.status,
-        "new_assigned_to": review.new_assigned_to,
+        "new_assigned_to": final_assignee if review.status == "approved" else None,
         "review_notes": review.review_notes
     })
     
@@ -541,7 +547,7 @@ async def complete_review(
     review_response: ReviewResponse = Body(...)
 ):
     """
-    Admin completes a review with comments.
+    Admin completes a review with comments and approach.
     Updates case work_status back to "in_progress" and marks review as completed.
     """
     user = await require_admin(request)
@@ -557,13 +563,24 @@ async def complete_review(
     if not review:
         raise HTTPException(404, {"error": "No pending review request found for this case"})
     
-    # Update review request
+    # Combine approach and comments for resolution_notes
+    resolution_text = ""
+    if review_response.approach:
+        resolution_text += f"**Approach:** {review_response.approach}\n\n"
+    if review_response.admin_comment:
+        resolution_text += f"**Comments:** {review_response.admin_comment}"
+    
+    # Fallback to just comment or approach if only one is provided
+    if not resolution_text:
+        resolution_text = review_response.approach or review_response.admin_comment or ""
+    
+    # Update review request (only resolution_notes field exists in DB)
     await review_col.update_one(
         {"_id": review["_id"]},
         {
             "$set": {
                 "request_status": "resolved",
-                "resolution_notes": review_response.admin_comment,
+                "resolution_notes": resolution_text.strip(),
                 "resolved_by": user.user_id,
                 "resolved_at": _now_iso(),
                 "updated_at": _now_iso()
@@ -571,13 +588,13 @@ async def complete_review(
         }
     )
     
-    # Update case work_status back to "not_started"
+    # Update case work_status back to "in_progress"
     cases_col = db['scs_cases']
     await cases_col.update_one(
         {"case_id": case_id},
         {
             "$set": {
-                "work_status": "not_started",
+                "work_status": "in_progress",
                 "updated_at": datetime.now()
             }
         }
@@ -585,7 +602,8 @@ async def complete_review(
     
     # Audit
     await _audit(db, user, "COMPLETE_REVIEW", case_id, {
-        "admin_comment": review_response.admin_comment
+        "admin_comment": review_response.admin_comment,
+        "approach": review_response.approach
     })
     
     return {"status": "success", "message": "Review completed"}
