@@ -23,8 +23,15 @@ class CasePromotionService:
     5. Create mandatory checklist items for new cases
     """
     
-    def __init__(self, db: AsyncIOMotorDatabase):
-        self.db = db
+    def __init__(self, db: AsyncIOMotorDatabase, source_db: AsyncIOMotorDatabase = None):
+        """Initialize case promotion service.
+        
+        Args:
+            db: Operational database (dellinnovate) for writing cases
+            source_db: Source database (instagram_scraper) for reading profiles
+        """
+        self.db = db  # dellinnovate - for writing
+        self.source_db = source_db  # instagram_scraper - for reading
         self.version = "promotion-v1.0"
     
     
@@ -136,7 +143,8 @@ class CasePromotionService:
         if limit:
             pipeline.append({"$limit": limit})
         
-        profiles = await self.db.case_risk_profiles.aggregate(pipeline).to_list(length=None)
+        # Read from SOURCE database (instagram_scraper)
+        profiles = await self.source_db.case_risk_profiles.aggregate(pipeline).to_list(length=None)
         return profiles
     
     
@@ -382,8 +390,22 @@ class CasePromotionService:
     
     def _map_priority(self, profile: Dict) -> str:
         """
-        Map analytics priority_level to SCS priority.
+        Map analytics priority to SCS priority (handles multiple formats).
         """
+        # Check for integer priority (BehavioralFeatureEngineer: 1=High, 2=Medium, 3=Low)
+        if "priority" in profile and isinstance(profile["priority"], int):
+            priority_int_mapping = {
+                1: "high",
+                2: "medium",
+                3: "low"
+            }
+            return priority_int_mapping.get(profile["priority"], "medium")
+        
+        # Check for risk_level string (BehavioralFeatureEngineer)
+        if "risk_level" in profile:
+            return profile["risk_level"].lower()
+        
+        # Check for priority_level string (legacy)
         priority_level = profile.get("priority_level", "").lower()
         
         priority_mapping = {
@@ -405,6 +427,7 @@ class CasePromotionService:
             profile.get("category") or
             profile.get("risk_category") or
             profile.get("dominant_category") or
+            profile.get("risk_level") or  # BehavioralFeatureEngineer uses risk_level
             "Unknown"
         )
         
@@ -413,9 +436,13 @@ class CasePromotionService:
     
     def _extract_risk_score(self, profile: Dict) -> float:
         """
-        Extract risk score from profile (handles both legacy and PCA scoring).
+        Extract risk score from profile (handles multiple scoring methods).
         """
-        # Try PCA final_score first (0-1 scale)
+        # Try BehavioralFeatureEngineer risk_score (0-100 scale)
+        if "risk_score" in profile:
+            return round(profile["risk_score"], 2)
+        
+        # Try PCA final_score (0-1 scale)
         if "final_score" in profile:
             return round(profile["final_score"] * 100, 2)  # Convert to 0-100 scale
         
@@ -489,6 +516,7 @@ class CasePromotionService:
 
 async def promote_risk_profiles_to_scs_cases(
     db: AsyncIOMotorDatabase,
+    source_db: AsyncIOMotorDatabase = None,
     min_priority: str = "medium",
     limit: Optional[int] = None,
     ingestion_timestamp: Optional[datetime] = None
@@ -497,7 +525,8 @@ async def promote_risk_profiles_to_scs_cases(
     Convenience function to promote risk profiles to SCS cases.
     
     Args:
-        db: MongoDB database connection
+        db: MongoDB database connection (dellinnovate - operational)
+        source_db: Source database (instagram_scraper - analytics), auto-detected if None
         min_priority: Minimum priority level to create cases
         limit: Maximum profiles to process (for testing)
         ingestion_timestamp: Timestamp for this cycle
@@ -505,7 +534,13 @@ async def promote_risk_profiles_to_scs_cases(
     Returns:
         Statistics dictionary
     """
-    service = CasePromotionService(db)
+    from config.database import MongoDB
+    
+    # Auto-detect source database if not provided
+    if source_db is None:
+        source_db = MongoDB.get_source_db()
+    
+    service = CasePromotionService(db=db, source_db=source_db)
     return await service.promote_profiles_to_cases(
         min_priority=min_priority,
         limit=limit,

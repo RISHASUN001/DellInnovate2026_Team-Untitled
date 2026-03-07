@@ -39,7 +39,11 @@ class NLPSignalExtractor:
         Args:
             db_client: MongoDB client (uses default if None)
         """
+        # Primary database for writing analytics outputs
         self.db = db_client or MongoDB.get_db()
+        # Source database for reading Instagram data
+        self.source_db = MongoDB.get_source_db()
+        
         self.nlp_pipeline = None  # Lazy load to avoid loading models unnecessarily
         self.preprocessor = TextPreprocessor(
             remove_urls=True,
@@ -71,7 +75,8 @@ class NLPSignalExtractor:
         Returns:
             List of text unit dictionaries
         """
-        posts_collection = self.db.instagram_posts
+        # Read from SOURCE database (instagram_scraper)
+        posts_collection = self.source_db.instagram_posts
         
         # Build query
         query = {}
@@ -85,7 +90,7 @@ class NLPSignalExtractor:
         
         posts = await cursor.to_list(length=None)
         
-        logger.info(f"Retrieved {len(posts)} posts from database")
+        logger.info(f"Retrieved {len(posts)} posts from source database (instagram_scraper)")
         
         # Extract text units from all posts
         all_text_units = []
@@ -218,7 +223,7 @@ class NLPSignalExtractor:
     
     async def store_signals(self, signal_documents: List[Dict]) -> int:
         """
-        Store signal documents in MongoDB
+        Store signal documents in MongoDB (instagram_scraper database)
         
         Args:
             signal_documents: List of signal documents
@@ -229,7 +234,8 @@ class NLPSignalExtractor:
         if not signal_documents:
             return 0
         
-        signals_collection = self.db.text_units_signals
+        # Write to SOURCE database (instagram_scraper)
+        signals_collection = self.source_db.text_units_signals
         
         try:
             result = await signals_collection.insert_many(signal_documents)
@@ -253,7 +259,8 @@ class NLPSignalExtractor:
         Returns:
             Path to created CSV file
         """
-        signals_collection = self.db.text_units_signals
+        # Read from SOURCE database (instagram_scraper)
+        signals_collection = self.source_db.text_units_signals
         
         # Build query
         query = {}

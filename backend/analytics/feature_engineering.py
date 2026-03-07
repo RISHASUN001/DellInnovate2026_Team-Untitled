@@ -34,8 +34,9 @@ class BehavioralFeatureEngineer:
         Args:
             db_client: MongoDB client (uses default if None)
         """
-        self.db = db_client or MongoDB.get_db()
-        logger.info("Behavioral Feature Engineer initialized")
+        # Use SOURCE database (instagram_scraper) for analytics
+        self.db = db_client or MongoDB.get_source_db()
+        logger.info("Behavioral Feature Engineer initialized (using instagram_scraper)")
     
     async def get_case_users(self) -> List[str]:
         """
