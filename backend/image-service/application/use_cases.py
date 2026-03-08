@@ -132,145 +132,164 @@ class ProcessSingleImage:
 
     def execute(self, job: ImageJob) -> ImageRecord:
         """Run the full multi-stage emotional reasoning pipeline and return an ImageRecord."""
+        import time
+        pipeline_start = time.time()
         record = ImageRecord(job=job, processed_at=datetime.utcnow())
 
-        # --- 0. VLM Scene Description ---
-        IMAGE_DESCRIPTION_PROMPT = (
-            """
-            Describe what is happening in this image in 2-3 sentences.
-            Include:
-            - Who or what is visible (people, objects, animals, etc.)
-            - What they are doing (actions, postures, movements)
-            - The setting or context
-            - Any notable details about body language or positioning
-            
-            Be specific and concrete (e.g., 'man sitting with his head resting on his hand' not 'person present').
-            """
-        )
+        # --- Preprocessing: Create optimized image file for VLM inference ---
+        preprocess_start = time.time()
+        logger.info("[%s] 🔄 Preprocessing image for VLM...", job.image_path.name)
         try:
-            scene_desc = self._smolvlm.describe_images(
-                [str(job.image_path)], IMAGE_DESCRIPTION_PROMPT.strip()
-            )
-            record.image_description = _normalize_vlm_output(scene_desc)
-            if record.image_description:
-                preview = record.image_description[:100] + ("..." if len(record.image_description) > 100 else "")
-                logger.info("[%s] Scene description: %s", job.image_path.name, preview)
+            preprocessed_path = self._preprocessor.preprocess_and_save(job.image_path)
+            preprocess_elapsed = time.time() - preprocess_start
+            logger.info("[%s] ✅ Preprocessing completed (%.2fs) - Using: %s", 
+                       job.image_path.name, preprocess_elapsed, preprocessed_path.name)
         except Exception as exc:
+            preprocess_elapsed = time.time() - preprocess_start
+            logger.error("[%s] ⚠️ Preprocessing failed (%.2fs), using original: %s", 
+                        job.image_path.name, preprocess_elapsed, exc)
+            preprocessed_path = job.image_path  # Fallback to original
+
+        # --- 0. VLM Scene Description ---
+        step_start = time.time()
+        IMAGE_DESCRIPTION_PROMPT = """Describe this image focusing on visual mood:
+- People: posture, facial expressions, gestures
+- Colors: dominant tones (dark/bright, warm/cold)
+- Lighting: shadows, brightness, contrast
+- Composition: positioning, isolation, crowding
+- Atmosphere indicators
+2-3 sentences."""
+        try:
+            logger.info("[%s] Starting scene description (VLM inference)...", job.image_path.name)
+            scene_desc = self._smolvlm.describe_images(
+                [str(preprocessed_path)], IMAGE_DESCRIPTION_PROMPT.strip()
+            )
+            # Check if VLM returned None (API failure)
+            if scene_desc is None:
+                msg = "VLM API returned None (possible insufficient credits or API error)"
+                logger.error("[%s] %s", job.image_path.name, msg)
+                record.image_description = f"ERROR: {msg}"
+            else:
+                record.image_description = _normalize_vlm_output(scene_desc)
+                elapsed = time.time() - step_start
+                if record.image_description:
+                    preview = record.image_description[:250] + ("..." if len(record.image_description) > 250 else "")
+                    logger.info("[%s] Scene description (%.2fs): %s", job.image_path.name, elapsed, preview)
+        except Exception as exc:
+            elapsed = time.time() - step_start
             msg = f"VLM scene description error: {exc}"
-            logger.error("[%s] %s", job.image_path.name, msg)
+            logger.error("[%s] %s (%.2fs)", job.image_path.name, msg, elapsed)
             record.image_description = f"ERROR: {msg}"
 
         # --- 1. VLM Text Extraction ---
-        TEXT_EXTRACTION_PROMPT = (
-            """
-            Extract all visible text from this image exactly as written.
-            Do not summarize.
-            Do not interpret.
-            Return only the raw text.
-            If no text is visible, return: NONE.
-            """
-        )
+        step_start = time.time()
+        TEXT_EXTRACTION_PROMPT = """Extract ALL visible text:
+- Captions, overlays, screen text
+- Signs, posters, objects
+If none, return: NONE"""
         try:
             extracted_text = self._smolvlm.describe_images(
-                [str(job.image_path)], TEXT_EXTRACTION_PROMPT.strip()
+                [str(preprocessed_path)], TEXT_EXTRACTION_PROMPT.strip()
             )
-            cleaned_text = _normalize_vlm_output(extracted_text)
-            from domain.entities import OcrResult
-            if cleaned_text and not _is_none_output(cleaned_text):
-                ocr_result = OcrResult(
-                    ocr_text_raw=cleaned_text,
-                    ocr_text_clean=cleaned_text,
-                    ocr_char_count=len(cleaned_text),
-                    ocr_word_count=len(cleaned_text.split()),
-                    ocr_detected_bool=True,
-                )
-                record.ocr_result = ocr_result
+            # Check if VLM returned None (API failure)
+            if extracted_text is None:
+                msg = "VLM API returned None (possible insufficient credits or API error)"
+                logger.error("[%s] %s", job.image_path.name, msg)
+                record.error_ocr = msg
             else:
-                record.ocr_result = OcrResult(
-                    ocr_text_raw="NONE",
-                    ocr_text_clean="NONE",
-                    ocr_char_count=0,
-                    ocr_word_count=0,
-                    ocr_detected_bool=False,
-                )
+                cleaned_text = _normalize_vlm_output(extracted_text)
+                from domain.entities import OcrResult
+                if cleaned_text and not _is_none_output(cleaned_text):
+                    ocr_result = OcrResult(
+                        ocr_text_raw=cleaned_text,
+                        ocr_text_clean=cleaned_text,
+                        ocr_char_count=len(cleaned_text),
+                        ocr_word_count=len(cleaned_text.split()),
+                        ocr_detected_bool=True,
+                    )
+                    record.ocr_result = ocr_result
+                else:
+                    record.ocr_result = OcrResult(
+                        ocr_text_raw="NONE",
+                        ocr_text_clean="NONE",
+                        ocr_char_count=0,
+                        ocr_word_count=0,
+                        ocr_detected_bool=False,
+                    )
+                elapsed = time.time() - step_start
+                logger.info("[%s] Text extraction completed (%.2fs)", job.image_path.name, elapsed)
         except Exception as exc:
+            elapsed = time.time() - step_start
             msg = f"VLM text extraction error: {exc}"
-            logger.error("[%s] %s", job.image_path.name, msg)
+            logger.error("[%s] %s (%.2fs)", job.image_path.name, msg, elapsed)
             record.error_ocr = msg
 
         # --- 2. Sentiment Analysis (only if text exists) ---
+        step_start = time.time()
         try:
             if record.ocr_result and record.ocr_result.ocr_detected_bool and not _is_none_output(record.ocr_result.ocr_text_clean):
                 record.sentiment_result = self._sentiment.analyze(record.ocr_result.ocr_text_clean)
+                elapsed = time.time() - step_start
+                logger.info("[%s] Sentiment analysis completed (%.2fs)", job.image_path.name, elapsed)
         except Exception as exc:
+            elapsed = time.time() - step_start
             msg = f"Sentiment analysis error: {exc}"
-            logger.error("[%s] %s", job.image_path.name, msg)
+            logger.error("[%s] %s (%.2fs)", job.image_path.name, msg, elapsed)
             record.error_ocr = (record.error_ocr or "") + f" | {msg}"
 
         # --- 3. VLM Emotional Visual Reasoning ---
-        EMOTION_REASONING_PROMPT = (
-            """
-            Based on the visible cues in this image, infer the person's emotional or mental state.
-            Consider: facial expression, head/hand posture, body language, positioning, and overall demeanor.
-            
-            If you see postures like:
-            - Head in hand: thoughtful, contemplative, stressed, or bored
-            - Slouching: sad, tired, or defeated
-            - Upright/engaged: alert, attentive, or interested
-            - Hands on face: worried, frustrated, or concentrating
-            
-            Output format:
-            Emotion: <single best emotion label>
-            Evidence: <1-2 specific observations from the image that support this emotion>
-
-            If no person is clearly visible, output exactly:
-            Emotion: UNKNOWN
-            Evidence: Person not clearly visible.
-            """
-        )
+        step_start = time.time()
+        EMOTION_REASONING_PROMPT = """Analyze emotional tone from visual cues:
+- Face: expressions, head position (bowed/upright)
+- Body: posture (slumped/upright), hands (covering face, clenched)
+- Colors: dark/muted vs bright/vibrant
+- Lighting: shadows, dim vs well-lit
+- Setting: isolated vs social, empty vs full
+Format:
+Emotion: [sad/happy/anxious/neutral]
+Evidence: [specific visual details]
+No person? 'Emotion: UNKNOWN'"""
         try:
             vlm_emotion_desc = self._smolvlm.describe_images(
-                [str(job.image_path)], EMOTION_REASONING_PROMPT.strip()
+                [str(preprocessed_path)], EMOTION_REASONING_PROMPT.strip()
             )
-            record.vlm_emotion_description = _normalize_vlm_output(vlm_emotion_desc)
+            # Check if VLM returned None (API failure)
+            if vlm_emotion_desc is None:
+                msg = "VLM API returned None (possible insufficient credits or API error)"
+                logger.error("[%s] %s", job.image_path.name, msg)
+                record.vlm_emotion_description = f"ERROR: {msg}"
+            else:
+                record.vlm_emotion_description = _normalize_vlm_output(vlm_emotion_desc)
+                elapsed = time.time() - step_start
+                logger.info("[%s] Emotion reasoning completed (%.2fs)", job.image_path.name, elapsed)
         except Exception as exc:
+            elapsed = time.time() - step_start
             msg = f"VLM emotional reasoning error: {exc}"
-            logger.error("[%s] %s", job.image_path.name, msg)
+            logger.error("[%s] %s (%.2fs)", job.image_path.name, msg, elapsed)
+            record.vlm_emotion_description = f"ERROR: {msg}"
             record.vlm_emotion_description = f"ERROR: {msg}"
 
         # --- 4. Face Classifier ---
+        step_start = time.time()
         try:
             emotion_image = self._preprocessor.load_for_emotion(job.image_path)
             record.emotion_result = self._emotion.detect(emotion_image)
+            elapsed = time.time() - step_start
+            logger.info("[%s] Face emotion detection completed (%.2fs)", job.image_path.name, elapsed)
         except Exception as exc:
+            elapsed = time.time() - step_start
             msg = f"Emotion classifier error: {exc}"
-            logger.error("[%s] %s", job.image_path.name, msg)
+            logger.error("[%s] %s (%.2fs)", job.image_path.name, msg, elapsed)
             record.error_emotion = msg
 
-        # --- 5. Fusion Layer: VLM + Classifier ---
-        try:
-            emotion_label = record.emotion_result.emotion_label if record.emotion_result else "NONE"
-            emotion_conf = record.emotion_result.emotion_score if record.emotion_result else 0.0
-            fusion_prompt = f"""
-            An emotion classifier predicted: {emotion_label} (confidence: {emotion_conf:.2f})
-            
-            Scene description from image analysis: {record.image_description}
-            
-            Do you agree with this prediction based on the visible posture, facial expression, and body language?
-            
-            Output format:
-            Agreement: <AGREE or DISAGREE>
-            RefinedEmotion: <emotion label>
-            Rationale: <1-2 sentences explaining why you agree or disagree, with specific visual evidence>
-            """
-            fused_assessment = self._smolvlm.describe_images(
-                [str(job.image_path)], fusion_prompt.strip()
-            )
-            record.fused_emotion_assessment = _normalize_vlm_output(fused_assessment)
-        except Exception as exc:
-            msg = f"Fusion VLM error: {exc}"
-            logger.error("[%s] %s", job.image_path.name, msg)
-            record.fused_emotion_assessment = f"ERROR: {msg}"
+        # --- 5. Fusion Layer: VLM + Classifier (TEMPORARILY SKIPPED FOR SPEED) ---
+        # Skipping fusion to reduce processing time from ~12s to ~6s
+        record.fused_emotion_assessment = "SKIPPED - Using direct classifier results for speed"
+        logger.info("[%s] Fusion layer skipped (speed optimization)", job.image_path.name)
+        
+        # --- Log total pipeline time ---
+        total_elapsed = time.time() - pipeline_start
+        logger.info("[%s] ⚡ PIPELINE COMPLETE - Total time: %.2f seconds", job.image_path.name, total_elapsed)
 
         return record
 

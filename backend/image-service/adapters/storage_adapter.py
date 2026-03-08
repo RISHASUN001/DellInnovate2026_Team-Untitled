@@ -57,6 +57,31 @@ FACE_EMOTION_COLUMNS = [
     "processed_at",
 ]
 
+# VLM Complete Analysis - includes all VLM outputs
+VLM_COMPLETE_COLUMNS = [
+    "image_path",
+    "ig_handle",
+    "post_date",
+    "image_index",
+    # OCR & Text
+    "ocr_text_raw",
+    "ocr_text_clean",
+    "ocr_detected_bool",
+    # Sentiment
+    "sentiment_label",
+    "sentiment_score",
+    # VLM Scene Description
+    "scene_description",
+    # VLM Emotion Analysis
+    "vlm_emotion_description",
+    # Face Emotion Detection
+    "face_detected_bool",
+    "face_emotion_label",
+    "face_emotion_score",
+    # Metadata
+    "processed_at",
+]
+
 
 class CsvStorageAdapter(StoragePort):
     """CSV-backed storage adapter."""
@@ -133,4 +158,50 @@ class CsvStorageAdapter(StoragePort):
                 writer.writerow(row)
 
         logger.info("Face/emotion results written to %s (%d rows)", out_path, len(records))
+        return out_path
+
+    # ------------------------------------------------------------------
+
+    def save_vlm_complete(self, records: List[ImageRecord], overwrite: bool = False) -> Path:
+        """Save complete VLM analysis results including OCR, sentiment, and emotion."""
+        out_path = self._output_folder / "vlm_complete_analysis.csv"
+        mode = "w" if overwrite or not out_path.exists() else "a"
+        write_header = mode == "w"
+
+        with out_path.open(mode, newline="", encoding="utf-8") as fh:
+            writer = csv.DictWriter(fh, fieldnames=VLM_COMPLETE_COLUMNS)
+            if write_header:
+                writer.writeheader()
+
+            for rec in records:
+                ocr = rec.ocr_result
+                sentiment = rec.sentiment_result
+                emotion = rec.emotion_result
+                
+                row: dict = {
+                    "image_path": rec.image_path_str,
+                    "ig_handle": rec.ig_handle,
+                    "post_date": rec.post_date.isoformat(),
+                    "image_index": rec.image_index,
+                    # OCR & Text
+                    "ocr_text_raw": ocr.ocr_text_raw if ocr else "",
+                    "ocr_text_clean": ocr.ocr_text_clean if ocr else "",
+                    "ocr_detected_bool": ocr.ocr_detected_bool if ocr else False,
+                    # Sentiment
+                    "sentiment_label": sentiment.sentiment_label if sentiment else "",
+                    "sentiment_score": sentiment.sentiment_score if sentiment else "",
+                    # VLM Scene Description
+                    "scene_description": rec.image_description or "",
+                    # VLM Emotion Analysis
+                    "vlm_emotion_description": rec.vlm_emotion_description or "",
+                    # Face Emotion Detection
+                    "face_detected_bool": emotion.face_detected_bool if emotion else False,
+                    "face_emotion_label": emotion.emotion_label if emotion else "",
+                    "face_emotion_score": emotion.emotion_score if emotion else 0.0,
+                    # Metadata
+                    "processed_at": rec.processed_at.isoformat(),
+                }
+                writer.writerow(row)
+
+        logger.info("Complete VLM analysis written to %s (%d rows)", out_path, len(records))
         return out_path

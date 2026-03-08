@@ -23,7 +23,24 @@ transformers==4.48.3
 accelerate>=0.30.0
 sentencepiece>=0.2.0
 
+# --- OpenRouter API (for Qwen VLM) ---
+openai>=1.0.0          # OpenAI-compatible client for OpenRouter
+
 # --- Testing ---
 pytest>=8.2.0
 pytest-asyncio>=0.23.0
 httpx>=0.27.0          # async test client for FastAPI
+requests
+pyjwt
+scrapfly-sdk==0.8.5
+loguru==0.7.0
+jmespath==1.0.1
+httpx==0.28.1
+beautifulsoup4==4.14.3
+cryptography
+uvicorn
+
+fastapi
+
+# --- File watching ---
+watchdog>=4.0.0        # Watch for new images automatically

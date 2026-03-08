@@ -36,34 +36,19 @@ class SmolVLMAdapter:
         import torch as _torch  # noqa: PLC0415
         from transformers import AutoProcessor, AutoModelForImageTextToText  # noqa: PLC0415
         from transformers.image_utils import load_image as _load_image  # noqa: PLC0415
+        from config.device_utils import get_device, get_torch_dtype  # noqa: PLC0415
 
         self._torch = _torch
         self._load_image = _load_image
 
-        # Resolve device from explicit input or auto-detect, with safe fallback.
-        requested_device = (device or "").strip().lower()
-        if requested_device == "cuda":
-            if _torch.cuda.is_available():
-                self.device = "cuda"
-            else:
-                self.device = "cpu"
-                logger.warning("Requested device 'cuda' is not available. Falling back to cpu.")
-        elif requested_device == "mps":
-            if hasattr(_torch.backends, "mps") and _torch.backends.mps.is_available():
-                self.device = "mps"
-            else:
-                self.device = "cpu"
-                logger.warning("Requested device 'mps' is not available. Falling back to cpu.")
-        elif requested_device == "cpu":
-            self.device = "cpu"
-        else:
-            self.device = "cuda" if _torch.cuda.is_available() else "cpu"
+        # Use centralized device detection utility
+        self.device = get_device(prefer=device)
         logger.info("Loading SmolVLM model 'HuggingFaceTB/SmolVLM-Instruct' on %s…", self.device)
 
         self.processor = AutoProcessor.from_pretrained("HuggingFaceTB/SmolVLM-Instruct")
         self.model = AutoModelForImageTextToText.from_pretrained(
             "HuggingFaceTB/SmolVLM-Instruct",
-            torch_dtype=_torch.bfloat16 if self.device == "cuda" else _torch.float32,
+            torch_dtype=get_torch_dtype(self.device),
             attn_implementation="eager",   # 👈 FORCE disable flash attention
         ).to(self.device)
         logger.info("SmolVLM model ready.")

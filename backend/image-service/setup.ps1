@@ -111,8 +111,8 @@ Write-Host ""
 
 Write-Host "Next steps:" -ForegroundColor Yellow
 Write-Host "1. Place images in: data\post_images\" -ForegroundColor White
-Write-Host "2. Start service: uvicorn api.main:app --host 0.0.0.0 --port 8002" -ForegroundColor White
-Write-Host "3. Run analysis: Invoke-RestMethod -Uri 'http://localhost:8002/run' -Method POST" -ForegroundColor White
+Write-Host "2. Start service: uvicorn api.main:app --host 0.0.0.0 --port 8004" -ForegroundColor White
+Write-Host "3. Run analysis: Invoke-RestMethod -Uri 'http://localhost:8004/run' -Method POST" -ForegroundColor White
 Write-Host "4. Check results in MongoDB (dellinnovate.image_analysis_results)" -ForegroundColor White
 Write-Host ""
 Write-Host "For detailed documentation, see SETUP_GUIDE.md" -ForegroundColor Gray

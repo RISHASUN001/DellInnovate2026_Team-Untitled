@@ -43,6 +43,8 @@ class HuggingFaceEmotionAdapter(EmotionPort):
             AutoImageProcessor,
             AutoModelForImageClassification,
         )
+        from config.device_utils import get_device  # noqa: PLC0415
+        
         self._cv2 = _cv2
         self._np = _np
         self._torch = _torch
@@ -57,14 +59,16 @@ class HuggingFaceEmotionAdapter(EmotionPort):
         self._model = AutoModelForImageClassification.from_pretrained(model_name)
         self._model.eval()
 
-        # Move to device if possible
-        self._device = settings.device
+        # Move to device using centralized device detection
+        self._device = get_device(prefer=settings.device)
         try:
             self._model = self._model.to(self._device)
-        except Exception:  # noqa: BLE001
+            logger.info("Emotion model loaded on device: %s", self._device)
+        except Exception as e:  # noqa: BLE001
             self._device = "cpu"
             self._model = self._model.to("cpu")
-            logger.warning("Could not move emotion model to '%s', falling back to cpu.", settings.device)
+            logger.warning("Could not move emotion model to '%s' (%s), falling back to cpu.", 
+                         settings.device, str(e))
 
         # OpenCV face detector
         haar_path = (

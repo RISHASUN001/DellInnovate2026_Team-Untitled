@@ -136,3 +136,8 @@ class ImageRecord:
     @property
     def image_index(self) -> int:
         return self.job.image_index
+
+    @property
+    def has_error(self) -> bool:
+        """Check if there were any errors during processing."""
+        return bool(self.error_ocr or self.error_emotion)

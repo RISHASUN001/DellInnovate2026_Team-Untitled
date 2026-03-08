@@ -1,0 +1,26 @@
+image_path,ig_handle,post_date,image_index,ocr_text_raw,ocr_text_clean,ocr_detected_bool,sentiment_label,sentiment_score,scene_description,vlm_emotion_description,face_detected_bool,face_emotion_label,face_emotion_score,processed_at
+/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/backend/image-service/data/post_images/johndoe__20260226__1.png,johndoe,2026-02-26,1,"DEPRESSION has
+no GENDER,
+no AGE,
+no RACE,
+no STATUS
+be KIND.
+You dont know what DEMON
+people are fighting for!
+691","DEPRESSION has
+no GENDER,
+no AGE,
+no RACE,
+no STATUS
+be KIND.
+You dont know what DEMON
+people are fighting for!
+691",True,NEGATIVE,0.8159561157226562,"The image depicts a solitary figure huddled on the floor with their head buried in their arms, a posture that screams of withdrawal and deep emotional pain. Rendered in stark black and white, the scene utilizes dim lighting and heavy shadows to create a somber, oppressive atmosphere that perfectly matches the serious text floating above. By placing the small, isolated figure against a vast, empty wall, the composition emphasizes a crushing sense of loneliness and the overwhelming weight of the message.","Emotion: Sad
+Evidence:
+- Face: Head is bowed down with the face obscured/hidden.
+- Body: Posture is slumped and curled up in a fetal position, with arms wrapped tightly around the knees.
+- Colors: The image is in black and white, creating a muted and somber palette.
+- Lighting: The lighting is somewhat dim and shadowy, contributing to a heavy atmosphere.
+- Setting: The figure is isolated against a plain, empty wall.",False,sad,0.72556,2026-03-08T05:38:16.866030
+/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/backend/image-service/data/post_images/johndoe__20260226__0.png,johndoe,2026-02-26,0,NONE,NONE,False,,,"A solitary figure is captured in deep silhouette against a backdrop of bright, sheer curtains, their posture hunched and hands clasped in a gesture of prayer or deep contemplation. The stark contrast between the heavy shadows and the soft, diffused light creates a somber and introspective mood, emphasizing a profound sense of isolation and quiet despair.","Emotion: sad
+Evidence: The subject is depicted as a dark silhouette with a bowed head and slumped posture, indicating defeat or grief. Their hands are clasped tightly together near their face, a gesture often associated with distress, prayer, or holding back emotion. The lighting is dim and high-contrast, casting the figure in shadow against a window, which creates a somber, isolated atmosphere. The muted, monochromatic color palette reinforces the heavy, melancholic mood.",False,fear,0.5083,2026-03-08T05:38:16.821951

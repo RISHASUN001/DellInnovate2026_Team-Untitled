@@ -10,6 +10,9 @@ POST /run
 GET /health
     Lightweight liveness / readiness probe.
 
+GET /device
+    Get information about the device being used for model inference (CUDA/MPS/CPU).
+
 GET /outputs
     List files in the output folder.
 """
@@ -191,6 +194,27 @@ async def health() -> HealthResponse:
         service="image-service",
         version="1.0.0",
     )
+
+
+@router.get("/device", summary="Get device information")
+async def device_info() -> dict:
+    """Returns information about the device being used for model inference.
+    
+    Useful for debugging and verifying GPU acceleration is working.
+    
+    **Example response:**
+    ```json
+    {
+        "os": "Darwin",
+        "torch_available": true,
+        "cuda_available": false,
+        "mps_available": true,
+        "selected_device": "mps"
+    }
+    ```
+    """
+    from config.device_utils import get_device_info  # noqa: PLC0415
+    return get_device_info()
 
 
 @router.get("/outputs", response_model=OutputsResponse, summary="List output files")
