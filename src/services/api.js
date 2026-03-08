@@ -3,13 +3,16 @@
  * Handles all communication with case-service backend (MongoDB)
  */
 
-const CASE_SERVICE_URL = import.meta.env.VITE_CASE_SERVICE_URL || "http://localhost:8003";
+const CASE_SERVICE_URL =
+  import.meta.env.VITE_CASE_SERVICE_URL || "http://localhost:8003";
 
 // ─── Helper Functions ──────────────────────────────────────────────────────
 
 const handleResponse = async (response) => {
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: "Network error" }));
+    const error = await response
+      .json()
+      .catch(() => ({ error: "Network error" }));
     throw new Error(error.message || error.error || `HTTP ${response.status}`);
   }
   return response.json();
@@ -39,7 +42,7 @@ export const caseAPI = {
    */
   async getAllCases(filters = {}) {
     const params = new URLSearchParams();
-    
+
     if (filters.category) params.append("category", filters.category);
     if (filters.case_status) params.append("case_status", filters.case_status);
     if (filters.work_status) params.append("work_status", filters.work_status);
@@ -193,8 +196,8 @@ export const transformCase = (mongoCase) => {
     riskLevel: Math.ceil(mongoCase.current_risk_score / 20), // Convert 0-100 to 1-5
     risk_score: mongoCase.current_risk_score,
     current_risk_score: mongoCase.current_risk_score,
-    category: mongoCase.category,
-    platform: "Instagram", // Default platform
+    category: mongoCase.current_category || mongoCase.category || "Unknown",
+    platform: mongoCase.platform || "Instagram",
     lastSignal: mongoCase.updated_at || mongoCase.created_at,
     status: mongoCase.work_status || "new",
     assignedTo: mongoCase.assigned_to || "—",
@@ -207,14 +210,25 @@ export const transformCase = (mongoCase) => {
     created_at: mongoCase.created_at,
     updated_at: mongoCase.updated_at,
     youth: {
-      name: mongoCase.user_id.replace(/@|_/g, " ").replace(/\b\w/g, c => c.toUpperCase()),
+      name: mongoCase.user_id
+        .replace(/@|_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase()),
       age: 15, // Default - would need to be in DB
-      avatar: "👤",
+      avatar: "U",
       handle: mongoCase.user_id,
-      instagramUrl: `https://instagram.com/${mongoCase.user_id.replace('@', '')}`,
+      instagramUrl: `https://instagram.com/${mongoCase.user_id.replace("@", "")}`,
     },
-    signals: extractSignals(mongoCase.ai_explanation),
-    summary: mongoCase.ai_explanation || "No explanation available",
+    signals:
+      mongoCase.ai_explanation_signals ||
+      extractSignals(mongoCase.ai_explanation),
+    ai_explanation_paragraph: mongoCase.ai_explanation_paragraph || "",
+    recommended_actions_paragraph:
+      mongoCase.recommended_actions_paragraph || "",
+    recommendations: mongoCase.recommended_actions || [],
+    summary:
+      mongoCase.ai_explanation_paragraph ||
+      mongoCase.ai_explanation ||
+      "No explanation available",
     ai_explanation: mongoCase.ai_explanation,
   };
 };
@@ -224,25 +238,29 @@ export const transformCase = (mongoCase) => {
  */
 const extractSignals = (aiExplanation) => {
   if (!aiExplanation) return [];
-  
+
   // Extract lines starting with • or -
-  const lines = aiExplanation.split('\n');
+  const lines = aiExplanation.split("\n");
   const signals = lines
-    .filter(line => line.trim().startsWith('•') || line.trim().startsWith('-'))
-    .map(line => line.replace(/^[•\-]\s*/, '').trim())
-    .filter(line => line.length > 0);
-  
-  return signals.length > 0 ? signals.slice(0, 5) : [aiExplanation.split('\n\n')[0]];
+    .filter(
+      (line) => line.trim().startsWith("•") || line.trim().startsWith("-"),
+    )
+    .map((line) => line.replace(/^[•\-]\s*/, "").trim())
+    .filter((line) => line.length > 0);
+
+  return signals.length > 0
+    ? signals.slice(0, 5)
+    : [aiExplanation.split("\n\n")[0]];
 };
 
 /**
  * Map MongoDB priority to frontend risk level
  */
 export const priorityToRiskLevel = {
-  "low": 1,
-  "medium": 3,
-  "high": 4,
-  "critical": 5,
+  low: 1,
+  medium: 3,
+  high: 4,
+  critical: 5,
 };
 
 /**
@@ -258,7 +276,8 @@ export const riskLevelToPriority = {
 
 // ─── Chatbot API ───────────────────────────────────────────────────────────
 
-const CHATBOT_SERVICE_URL = import.meta.env.VITE_CHATBOT_SERVICE_URL || "http://localhost:8000";
+const CHATBOT_SERVICE_URL =
+  import.meta.env.VITE_CHATBOT_SERVICE_URL || "http://localhost:8000";
 
 export const chatbotAPI = {
   /**
