@@ -7,6 +7,12 @@ from fastapi import APIRouter, HTTPException, Request, Body
 from pydantic import BaseModel
 from ..database import get_db, serialize_doc, get_next_id
 from ..auth import get_current_user, require_admin, AuthUser
+from ..services.risk_profile_sync import (
+    sync_risk_profiles_to_cases,
+    sync_risk_profiles_to_cases_with_llm,
+    generate_case_summary,
+    get_sync_service
+)
 
 router = APIRouter(prefix="/cases", tags=["cases"])
 
@@ -748,3 +754,106 @@ async def get_cases_by_category(request: Request):
         })
     
     return stats
+
+
+# ─── Get LLM summary for a case ───────────────────────────────────────────────
+@router.get("/{case_id}/summary")
+async def get_case_summary(case_id: str, request: Request):
+    """
+    Generate an LLM summary for a case on demand.
+    
+    This endpoint:
+    1. Finds the case in scs_cases
+    2. Maps user_id back to case_user
+    3. Queries instagram_scraper.case_risk_profiles
+    4. Sends full profile to OpenRouter LLM
+    5. Returns the generated summary
+    
+    NOTE: This only generates a summary when called - not automatically for all cases.
+    """
+    user = get_current_user(request)
+    db = await get_db()
+    
+    # Verify case exists and access
+    cases_col = db['scs_cases']
+    case = await cases_col.find_one({"case_id": case_id})
+    
+    if not case:
+        raise HTTPException(404, {"error": "Case not found", "case_id": case_id})
+    
+    # Access control: helpers can only see their assigned cases
+    if user.is_helper and case.get("assigned_to") != user.user_id:
+        raise HTTPException(
+            403,
+            {
+                "error": "ACCESS_DENIED",
+                "message": "This case is not assigned to you",
+                "case_id": case_id
+            }
+        )
+    
+    # Audit the summary request
+    await _audit(db, user, "REQUEST_SUMMARY", case_id)
+    
+    # Generate the LLM summary
+    result = await generate_case_summary(case_id)
+    
+    if result.get("status") == "error":
+        raise HTTPException(404, {"error": result.get("error", "Failed to generate summary")})
+    
+    return result
+
+
+# ─── Sync risk profiles to cases (admin only) ─────────────────────────────────
+@router.post("/sync-risk-profiles")
+async def sync_risk_profiles(request: Request):
+    """
+    Sync risk profiles from instagram_scraper.case_risk_profiles
+    to dellinnovate.scs_cases.
+    
+    Admin only endpoint for manual sync.
+    """
+    user = await require_admin(request)
+    
+    # Run the sync
+    stats = await sync_risk_profiles_to_cases()
+    
+    # Audit the sync
+    db = await get_db()
+    await _audit(db, user, "SYNC_RISK_PROFILES", "batch", stats)
+    
+    return {
+        "status": "success",
+        "message": "Risk profiles synced to cases",
+        "statistics": stats
+    }
+
+
+# ─── Sync risk profiles with LLM analysis (admin only) ────────────────────────
+@router.post("/sync-risk-profiles-llm")
+async def sync_risk_profiles_llm(request: Request):
+    """
+    Sync risk profiles from instagram_scraper.case_risk_profiles
+    to dellinnovate.scs_cases WITH LLM-generated analysis.
+    
+    This endpoint generates:
+    - Category (e.g., "Bullying", "Self-Harm Risk" instead of "Low Risk")
+    - AI Explanation Signals (behavioral signals detected)
+    - Recommended Actions (specific intervention steps)
+    
+    Admin only endpoint. May take longer due to LLM calls.
+    """
+    user = await require_admin(request)
+    
+    # Run the sync with LLM analysis
+    stats = await sync_risk_profiles_to_cases_with_llm()
+    
+    # Audit the sync
+    db = await get_db()
+    await _audit(db, user, "SYNC_RISK_PROFILES_LLM", "batch", stats)
+    
+    return {
+        "status": "success",
+        "message": "Risk profiles synced with LLM analysis",
+        "statistics": stats
+    }
