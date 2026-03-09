@@ -24,8 +24,8 @@ const ROLE_BADGE = {
 };
 
 export default function LoginPage() {
-  const { login, authError, setAuthError } = useAuth();
-  const [email, setEmail] = useState("");
+  const { login, loginWithGoogle, authError, setAuthError } = useAuth();
+  const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -143,6 +143,41 @@ export default function LoginPage() {
           <p style={{ margin: "0 0 20px", fontSize: 12, color: T.muted }}>
             Use your @scs.org.sg credentials to access the dashboard.
           </p>
+
+          <button
+            type="button"
+            onClick={loginWithGoogle}
+            style={{
+              width: "100%",
+              padding: "11px",
+              marginBottom: 14,
+              background: "#fff",
+              color: T.navyMid,
+              border: `1.5px solid ${T.border}`,
+              borderRadius: 9,
+              fontWeight: 700,
+              fontSize: 14,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 8,
+            }}
+          >
+            <Icon.Shield size={15} color={T.indigoDark} />
+            Sign in with Google OAuth
+          </button>
+
+          <div style={{
+            textAlign: "center",
+            fontSize: 11,
+            color: T.muted,
+            marginBottom: 12,
+            letterSpacing: "0.4px",
+            textTransform: "uppercase"
+          }}>
+            Or use demo credentials
+          </div>
 
           {/* Global auth error */}
           {authError && (

@@ -8,7 +8,7 @@ import jmespath
 from loguru import logger as log
 from scrapfly import ScrapeConfig, ScrapflyClient
 
-SCRAPFLY = ScrapflyClient(key=os.environ["SCRAPFLY_KEY"])
+SCRAPFLY = os.getenv('SCRAPFLY_KEY')
 BASE_CONFIG = {
     "asp": True,
     "country": "CA",

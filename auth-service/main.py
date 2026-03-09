@@ -8,9 +8,16 @@ from urllib.parse import urlencode
 app = FastAPI()
 
 
+@app.get("/health")
+async def health():
+    """Health check endpoint"""
+    return {"status": "healthy", "service": "auth-service"}
+
+
 OAUTH_AUTHORIZE_URL = os.getenv("OAUTH_AUTHORIZE_URL")
 OAUTH_TOKEN_URL = os.getenv("OAUTH_TOKEN_URL")
 OAUTH_REDIRECT_URI = os.getenv("OAUTH_REDIRECT_URI")
+FRONTEND_REDIRECT_URL = os.getenv("FRONTEND_REDIRECT_URL", "http://localhost:5174")
 
 def read_secret(secret_path):
     try:
@@ -53,45 +60,28 @@ async def token(code: str = Body(..., embed=True)):
     return {"tokens": tokens, "userinfo": userinfo}
 
 @app.get("/login")
-def login():
+def login(frontend_redirect: str | None = None):
+    state = frontend_redirect or FRONTEND_REDIRECT_URL
     params = {
         "response_type": "code",
         "client_id": OAUTH_CLIENT_ID,
         "redirect_uri": OAUTH_REDIRECT_URI,
         "scope": "openid profile email",
         "access_type": "offline",
-        "prompt": "consent"
+        "prompt": "consent",
+        "state": state,
     }
     url = f"{OAUTH_AUTHORIZE_URL}?{urlencode(params)}"
     return RedirectResponse(url)
 
 @app.get("/callback")
-async def callback(code: str):
-    # Exchange code for tokens
-    async with httpx.AsyncClient() as client:
-        token_resp = await client.post(
-            OAUTH_TOKEN_URL,
-            data={
-                "code": code,
-                "client_id": OAUTH_CLIENT_ID,
-                "client_secret": OAUTH_CLIENT_SECRET,
-                "redirect_uri": OAUTH_REDIRECT_URI,
-                "grant_type": "authorization_code"
-            },
-            headers={"Content-Type": "application/x-www-form-urlencoded"}
-        )
-        if token_resp.status_code != 200:
-            return JSONResponse(status_code=400, content={"error": "Token exchange failed", "details": token_resp.text})
-        tokens = token_resp.json()
-        # Fetch user info
-        userinfo_resp = await client.get(
-            GOOGLE_USERINFO_URL,
-            headers={"Authorization": f"Bearer {tokens['access_token']}"}
-        )
-        if userinfo_resp.status_code != 200:
-            return JSONResponse(status_code=400, content={"error": "Userinfo fetch failed", "details": userinfo_resp.text})
-        userinfo = userinfo_resp.json()
-    return {"tokens": tokens, "userinfo": userinfo}
+async def callback(code: str, state: str | None = None):
+    redirect_base = state or FRONTEND_REDIRECT_URL
+    if not redirect_base.startswith("http://") and not redirect_base.startswith("https://"):
+        redirect_base = FRONTEND_REDIRECT_URL
+
+    redirect_url = f"{redirect_base}?{urlencode({'code': code})}"
+    return RedirectResponse(redirect_url)
 
 # Example protected endpoint (for API Gateway to validate tokens)
 @app.get("/me")
