@@ -16,14 +16,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);   // true while validating persisted session
   const [authError, setAuthError] = useState("");
 
-  const normalizeGoogleUser = (userinfo = {}) => ({
-    id: userinfo.sub || userinfo.email || "google-user",
-    name: userinfo.name || userinfo.email || "Google User",
-    email: userinfo.email || "",
-    role: "admin",
-    provider: "google",
-    picture: userinfo.picture,
-  });
+  const normalizeGoogleUser = (userinfo = {}) => {
+    const email = userinfo.email || "";
+    // Assign role based on email
+    let role = "admin";
+    if (email === "lisa12072004l@gmail.com") {
+      role = "Youth Helper";
+    }
+    
+    return {
+      id: userinfo.sub || userinfo.email || "google-user",
+      name: userinfo.name || userinfo.email || "Google User",
+      email: email,
+      role: role,
+      provider: "google",
+      picture: userinfo.picture,
+    };
+  };
 
   const exchangeGoogleCode = async (code) => {
     const resp = await fetch(`${API_GATEWAY_URL}/token`, {

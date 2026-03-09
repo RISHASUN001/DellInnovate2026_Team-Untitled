@@ -24,7 +24,7 @@ app.add_middleware(
 assistant = SCSAssistant()
 
 # MCP Service URL - use environment variable or default to localhost for dev
-MCP_SERVICE_URL = os.getenv("MCP_SERVICE_URL", "http://localhost:8003")
+MCP_SERVICE_URL = os.getenv("MCP_SERVICE_URL", "http://localhost:8007")
 
 class ChatRequest(BaseModel):
     message: str

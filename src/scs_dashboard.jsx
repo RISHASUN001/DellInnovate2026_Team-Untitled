@@ -6,7 +6,7 @@ import { caseAPI, historyAPI } from "./services/api.js";
 // ─── SERVICE URLS (proxied via Vite dev server in dev; adjust for prod) ───────
 const CASE_SERVICE_URL = "http://localhost:8003";
 const CHATBOT_SERVICE_URL = "http://localhost:8000";
-const MCP_SERVICE_URL = "http://localhost:8002";
+const MCP_SERVICE_URL = "http://localhost:8007";
 
 // ─── CURRENT USER FALLBACK — used only if no auth prop provided ───────────────
 // AUTH_SERVICE_CALL: In production this object comes from the auth context;

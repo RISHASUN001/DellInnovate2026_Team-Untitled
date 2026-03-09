@@ -3,10 +3,26 @@ from typing import Any, Dict, List, Optional
 
 import httpx
 from fastapi import Body, FastAPI, HTTPException, Query, Request, status
-from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 
 app = FastAPI(title="SCS API Gateway", version="1.1.0")
+
+raw_cors_origins = os.getenv(
+    "CORS_ALLOW_ORIGINS",
+    "http://localhost:5173,http://localhost:5174,http://127.0.0.1:5173,http://127.0.0.1:5174",
+)
+cors_origins = [origin.strip() for origin in raw_cors_origins.split(",") if origin.strip()]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8000")
 SCRAPER_SERVICE_URL = os.getenv("SCRAPER_SERVICE_URL", "http://scraper-service:8000/scrape")
@@ -244,12 +260,22 @@ async def callback(code: str):
 
 @app.post("/token")
 async def token(code: str = Body(..., embed=True)):
-    async with httpx.AsyncClient(timeout=30.0) as client:
-        resp = await client.post(f"{AUTH_SERVICE_URL}/token", json={"code": code})
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(f"{AUTH_SERVICE_URL}/token", json={"code": code})
+    except httpx.RequestError as exc:
+        return JSONResponse(
+            status_code=502,
+            content={"error": "Unable to reach auth-service", "details": str(exc)},
+        )
+
     try:
         content = resp.json()
     except ValueError:
-        content = {"error": "Invalid response from auth-service", "details": resp.text}
+        content = {
+            "error": "Auth-service returned non-JSON response",
+            "details": resp.text,
+        }
 
     return JSONResponse(status_code=resp.status_code, content=content)
 
