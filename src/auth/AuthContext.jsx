@@ -19,8 +19,15 @@ export function AuthProvider({ children }) {
   const normalizeGoogleUser = (userinfo = {}) => {
     const email = userinfo.email || "";
     // Assign role based on email
+    const youthHelperEmails = [
+      "lisa12072004l@gmail.com",
+      "moontoseokjin@gmail.com",
+      "risha.shetty2004@gmail.com",
+      "rishikamehta2004@gmail.com"
+    ];
+    
     let role = "admin";
-    if (email === "lisa12072004l@gmail.com") {
+    if (youthHelperEmails.includes(email)) {
       role = "Youth Helper";
     }
     
