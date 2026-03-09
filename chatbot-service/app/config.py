@@ -16,7 +16,7 @@ class Settings(BaseSettings):
 
     # ── Inter-service URLs ──────────────────────────────────────────────────
     case_service_url: str = "http://localhost:8003"
-    mcp_service_url: str = "http://localhost:8007"
+    mcp_service_url: str = "http://localhost:8002"
 
     # ── Auth defaults ───────────────────────────────────────────────────────
     default_user_id: str = "sarah_l"
