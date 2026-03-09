@@ -94,6 +94,9 @@ class ScraperService:
                     logger.info(f"Reached maximum posts limit ({max_posts}) for user {username}")
                     break
                 
+                # Add username to the post data
+                post_data["username"] = username
+                
                 # Ensure comments field exists and is a list
                 if "comments" not in post_data:
                     post_data["comments"] = []
@@ -108,8 +111,16 @@ class ScraperService:
                 if "tagged_users" not in post_data:
                     post_data["tagged_users"] = []
                 
-                # Ensure captions exists
-                if "captions" not in post_data:
+                # Convert caption string to captions list (scraped data uses 'caption' but model uses 'captions')
+                if "caption" in post_data and post_data["caption"]:
+                    caption_text = post_data["caption"]
+                    if isinstance(caption_text, str):
+                        post_data["captions"] = [caption_text]
+                    elif isinstance(caption_text, dict) and "text" in caption_text:
+                        post_data["captions"] = [caption_text["text"]]
+                    else:
+                        post_data["captions"] = []
+                elif "captions" not in post_data:
                     post_data["captions"] = []
                 
                 # Create model instance
@@ -144,15 +155,25 @@ class ScraperService:
 
                 # Prepare a temporary JSON file for the posts
                 import json, tempfile
+                from datetime import datetime as dt
+                
+                def json_serial(obj):
+                    """JSON serializer for objects not serializable by default json code"""
+                    if isinstance(obj, dt):
+                        return obj.isoformat()
+                    raise TypeError(f"Type {type(obj)} not serializable")
+                
                 with tempfile.NamedTemporaryFile(mode="w+", suffix=".json", delete=False) as tmpfile:
-                    json.dump(posts, tmpfile)
+                    json.dump(posts, tmpfile, default=json_serial)
                     tmpfile_path = Path(tmpfile.name)
                 
-                # Call the pipeline
+                # Call the pipeline - go up from services/ to backend/ then into image-service/
+                backend_dir = Path(__file__).parent.parent
+                image_output_folder = backend_dir / "image-service" / "data" / "post_images"
                 run_pipeline(
                     json_path=tmpfile_path,
                     username=username,
-                    output_folder=Path(__file__).parent / "image-service" / "data" / "post_images",
+                    output_folder=image_output_folder,
                     max_posts=0,           # all posts in JSON
                     skip_existing=True,
                     delay=0.5

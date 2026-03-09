@@ -27,6 +27,7 @@ class NLPService:
         """Initialize NLP models"""
         self.emotion_analyzer = None
         self.sentiment_analyzer = None
+        self.pattern_service = get_pattern_service()
         self._load_models()
     
     def _load_models(self):

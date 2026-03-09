@@ -44,3 +44,27 @@ You dont know what DEMON
 people are fighting for!
 691",True,NEGATIVE,0.8159561157226562,"Rendered in stark black and white, the image establishes a somber and melancholic mood through its muted tones and heavy shadows. A solitary figure sits huddled on the floor with their head buried in their knees, their posture radiating despair and withdrawal. The isolation of the person against the vast, empty wall, combined with the looming text, creates a sense of overwhelming emotional weight and quiet struggle.","Emotion: sad
 Evidence: The person is curled up in a fetal position with their head bowed down, hiding their face. The image is in black and white, creating a somber and muted atmosphere. The lighting is dim with shadows, and the setting is isolated against a plain, empty wall. The text overlay explicitly mentions ""DEPRESSION"" and ""DEMON.""",False,sad,0.72556,2026-03-09T11:26:04.184317
+/Users/rishi/GitHub/DellInnovate2026_Team-Untitled/backend/image-service/data/post_images/priyankachopra__20260304__2.jpg,priyankachopra,2026-03-04,2,NONE,NONE,False,,,"The subject stands with a poised, upright posture, her hand raised to her chest in a gesture that suggests a mix of elegance and guardedness. The visual mood is cool and somewhat somber, driven by the dominant greys of her coat and the muted, desaturated colors of the background environment. Soft, natural lighting isolates her figure against the distant, blurred crowd, creating an atmosphere of quiet, contemplative sophistication.","Emotion: Neutral
+Evidence: The subject maintains a composed, upright posture with a direct gaze and a closed-mouth expression that lacks a distinct smile or frown. Her hands are relaxed, holding the lapel of her coat, indicating confidence rather than anxiety or distress. The lighting is natural daylight, and the setting appears to be a public outdoor event with a crowd in the background, suggesting a professional or social context rather than an isolated or intimate emotional moment.",True,neutral,0.490871,2026-03-09T16:13:02.434933
+/Users/rishi/GitHub/DellInnovate2026_Team-Untitled/backend/image-service/data/post_images/priyankachopra__20260308__0.jpg,priyankachopra,2026-03-08,0,"This is who's so
+grateful.","This is who's so
+grateful.",True,NEGATIVE,0.6457057595252991,"The young child stands with arms crossed tightly across their chest, creating a posture that feels defensive or stoic against the backdrop of a sunlit field. The image is washed in faded, warm tones of green and pink, evoking a distinct sense of vintage nostalgia and timelessness. Soft, natural lighting casts gentle shadows, enhancing the hazy, dreamlike quality of this isolated, candid moment.","Emotion: Happy
+Evidence: The child is standing upright with a slight smile on their face and head held up. They are wearing a vibrant red skirt and a yellow shirt, which adds warmth to the image. The lighting is natural and bright, suggesting a sunny day outdoors in a grassy field. The text overlay ""This is who's so grateful"" further reinforces a positive sentiment.",True,sad,0.304686,2026-03-09T16:12:57.894049
+/Users/rishi/GitHub/DellInnovate2026_Team-Untitled/backend/image-service/data/post_images/priyankachopra__20260305__1.jpg,priyankachopra,2026-03-05,1,"PRESENTERS
+WILL ARNETT
+PRIYANKA CHOPRA JONAS
+ROBERT DOWNEY JR.
+ANNE HATHAWAY
+PAUL MESCAL
+GWYNETH PALTROW
+OSCARS
+THE 94TH ACADEMY AWARDS","PRESENTERS
+WILL ARNETT
+PRIYANKA CHOPRA JONAS
+ROBERT DOWNEY JR.
+ANNE HATHAWAY
+PAUL MESCAL
+GWYNETH PALTROW
+OSCARS
+THE 94TH ACADEMY AWARDS",True,NEUTRAL,0.7102093696594238,"The image establishes a mood of luxurious elegance and anticipation through its dominant deep red tones, accented by falling rose petals and gold foliage that suggest a festive, high-profile event. The centered, white typography listing the presenters creates a formal and structured composition, replacing physical figures with the weight of their names to convey prestige. Overall, the warm color palette and decorative elements evoke the sophisticated atmosphere of a major awards ceremony.","Emotion: UNKNOWN
+Evidence: The image is a graphic title card featuring text and decorative elements, with no human figures present. Therefore, there are no faces or bodies to analyze for expressions or posture. The visual cues include a warm, reddish-orange gradient background (colors), soft lighting, and falling red rose petals and leaves (setting/decor), which suggest a celebratory or formal tone, but a specific human emotion cannot be determined.",False,fear,0.257486,2026-03-09T16:12:59.846865
