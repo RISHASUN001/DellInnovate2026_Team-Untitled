@@ -1,7 +1,7 @@
 INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/chatbot-service']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [25686] using WatchFiles
-INFO:     Started server process [25695]
+INFO:     Started reloader process [37402] using WatchFiles
+INFO:     Started server process [37411]
 INFO:     Waiting for application startup.
 INFO:     Application startup complete.
 Initializing SCS Assistant with RAG...
@@ -10,4 +10,9 @@ Connecting to ChromaDB at /Users/risha/Documents/GitHub/SC4000-ML/DellInnovate20
 ✓ ChromaDB ready. Collection has 252 documents.
 Collection already populated with 252 documents.
 ✓ SCS Assistant ready!
-INFO:     127.0.0.1:51991 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53280 - "GET /health HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [37411]
+INFO:     Stopping reloader process [37402]

@@ -31,7 +31,6 @@ from adapters.qwen_adapter import QwenAdapter
 from adapters.preprocessing_adapter import PillowPreprocessingAdapter
 from adapters.optimized_preprocessing_adapter import OptimizedPreprocessingAdapter
 from adapters.sentiment_adapter import HuggingFaceSentimentAdapter
-from adapters.mongodb_storage_adapter import MongoDBStorageAdapter
 from adapters.storage_adapter import CsvStorageAdapter
 from api.routes import router, set_runner
 from application.use_cases import ProcessSingleImage, RunBatchProcessing
@@ -119,11 +118,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Instantiate other ML adapters (model warm-loading happens in __init__)
     sentiment = HuggingFaceSentimentAdapter()
     emotion = HuggingFaceEmotionAdapter()
-    storage = MongoDBStorageAdapter()
     
-    # Initialize CSV storage adapter for VLM results (saved to data/analytics folder)
-    csv_storage = CsvStorageAdapter(output_folder=Path(settings.input_folder).parent / "data" / "analytics")
-    logger.info("CSV storage configured: %s", csv_storage._output_folder)
+    # Initialize unified storage adapter (CSV + MongoDB with complete VLM data)
+    storage = CsvStorageAdapter(output_folder=Path(settings.input_folder).parent / "data" / "analytics")
+    logger.info("✓ Unified storage configured: %s", storage._output_folder)
+    logger.info("✓ Storage outputs: CSV + MongoDB (complete VLM analysis)")
 
     # Wire use cases
     process_single = ProcessSingleImage(
@@ -133,8 +132,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         emotion=emotion,
     )
     
-    # Make CSV storage available globally for file watcher
-    app.state.csv_storage = csv_storage
+    # Make storage available globally for file watcher
+    app.state.csv_storage = storage
     
     # Select processing runner based on settings
     processing_mode = settings.processing_mode.lower()
@@ -280,7 +279,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         watch_folder=watch_folder,
         done_folder=done_folder,
         process_single=process_single,
-        csv_storage=csv_storage,
+        csv_storage=storage,
         processing_delay=1.0,  # Wait 1 second before processing new files
         process_existing=False,  # Don't process existing images on startup (avoid blocking)
     )
@@ -294,7 +293,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         from application.file_watcher import process_existing_images
         try:
             logger.info("🔄 Starting background processing of existing images...")
-            process_existing_images(watch_folder, done_folder, process_single, csv_storage)
+            process_existing_images(watch_folder, done_folder, process_single, storage)
         except Exception as e:
             logger.error("Background processing failed: %s", e)
     

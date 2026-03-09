@@ -108,10 +108,11 @@ class ParallelBatchProcessing:
                     summary.ocr_failures += 1
                     summary.emotion_failures += 1
 
-        # Persist results
-        logger.info("Persisting %d records to storage...", len(records))
-        summary.ocr_sentiment_output = self._storage.save_ocr_sentiment(records, overwrite=overwrite)
-        summary.face_emotion_output = self._storage.save_emotion(records, overwrite=overwrite)
+        # Persist results with complete VLM data (CSV + MongoDB)
+        logger.info("Persisting %d records with complete VLM analysis...", len(records))
+        vlm_output = self._storage.save_vlm_complete(records, overwrite=overwrite)
+        summary.ocr_sentiment_output = str(vlm_output)
+        summary.face_emotion_output = str(vlm_output)
         
         summary.finished_at = datetime.utcnow()
         summary.log_summary()
@@ -178,10 +179,11 @@ class ParallelBatchProcessing:
                 100 * completed / len(jobs), rate, eta
             )
 
-        # Persist all results
-        logger.info("Persisting %d records to storage...", len(all_records))
-        summary.ocr_sentiment_output = self._storage.save_ocr_sentiment(all_records, overwrite=overwrite)
-        summary.face_emotion_output = self._storage.save_emotion(all_records, overwrite=overwrite)
+        # Persist all results with complete VLM data (CSV + MongoDB)
+        logger.info("Persisting %d records with complete VLM analysis...", len(all_records))
+        vlm_output = self._storage.save_vlm_complete(all_records, overwrite=overwrite)
+        summary.ocr_sentiment_output = str(vlm_output)
+        summary.face_emotion_output = str(vlm_output)
         
         summary.finished_at = datetime.utcnow()
         summary.log_summary()
@@ -278,9 +280,8 @@ class StreamingBatchProcessing:
                         summary.ocr_failures += 1
                         summary.emotion_failures += 1
             
-            # Immediately persist this chunk (stream to disk)
-            self._storage.save_ocr_sentiment(chunk_records, overwrite=(overwrite and chunk_idx == 0))
-            self._storage.save_emotion(chunk_records, overwrite=(overwrite and chunk_idx == 0))
+            # Immediately persist this chunk with complete VLM data (stream to CSV + MongoDB)
+            self._storage.save_vlm_complete(chunk_records, overwrite=(overwrite and chunk_idx == 0))
             
             # Progress
             completed = end_idx

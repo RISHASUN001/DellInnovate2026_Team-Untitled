@@ -1,10 +1,17 @@
 INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/mcp-service']
 INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
-INFO:     Started reloader process [25688] using WatchFiles
-INFO:     Started server process [25694]
+INFO:     Started reloader process [37404] using WatchFiles
+INFO:     Started server process [37410]
 INFO:     Waiting for application startup.
-2026-03-08 13:36:53.492 | INFO     | app.main:lifespan:54 - mcp-service starting up...
-2026-03-08 13:36:53.499 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
-2026-03-08 13:36:55.272 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+2026-03-09 19:23:07.334 | INFO     | app.main:lifespan:54 - mcp-service starting up...
+2026-03-09 19:23:07.343 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-09 19:23:09.678 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
 INFO:     Application startup complete.
-INFO:     127.0.0.1:51993 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:53282 - "GET /health HTTP/1.1" 200 OK
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+2026-03-09 19:27:53.602 | INFO     | app.database:close_db:57 - MongoDB connection closed
+2026-03-09 19:27:53.602 | INFO     | app.main:lifespan:58 - mcp-service shut down.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [37410]
+INFO:     Stopping reloader process [37404]

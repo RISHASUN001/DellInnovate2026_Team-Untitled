@@ -366,13 +366,10 @@ class RunBatchProcessing:
             if rec.error_emotion:
                 summary.emotion_failures += 1
 
-        # ---- Persist -------------------------------------------------------
-        summary.ocr_sentiment_output = self._storage.save_ocr_sentiment(
-            records, overwrite=overwrite
-        )
-        summary.face_emotion_output = self._storage.save_emotion(
-            records, overwrite=overwrite
-        )
+        # ---- Persist with complete VLM data (CSV + MongoDB) ----------------
+        vlm_output = self._storage.save_vlm_complete(records, overwrite=overwrite)
+        summary.ocr_sentiment_output = str(vlm_output)
+        summary.face_emotion_output = str(vlm_output)
 
         summary.finished_at = datetime.utcnow()
         summary.log_summary()
