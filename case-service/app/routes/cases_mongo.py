@@ -10,6 +10,7 @@ from ..auth import get_current_user, require_admin, AuthUser
 from ..services.risk_profile_sync import (
     sync_risk_profiles_to_cases,
     sync_risk_profiles_to_cases_with_llm,
+    sync_user_risk_profile_to_case_with_llm,
     generate_case_summary,
     get_sync_service
 )
@@ -856,4 +857,40 @@ async def sync_risk_profiles_llm(request: Request):
         "status": "success",
         "message": "Risk profiles synced with LLM analysis",
         "statistics": stats
+    }
+
+
+# ─── Sync single user's risk profile with LLM (admin only) ────────────────────
+@router.post("/sync-user-risk-profile-llm/{case_user}")
+async def sync_user_risk_profile_llm(case_user: str, request: Request):
+    """
+    Sync a single user's risk profile from instagram_scraper.case_risk_profiles
+    to dellinnovate.scs_cases WITH LLM-generated analysis.
+    
+    This endpoint:
+    - Finds the specific user's risk profile
+    - Generates LLM analysis (category, explanation, actions)
+    - Creates or updates the case in scs_cases
+    
+    Admin only endpoint.
+    """
+    user = await require_admin(request)
+    
+    # Run the sync for single user
+    result = await sync_user_risk_profile_to_case_with_llm(case_user)
+    
+    # Audit the sync
+    db = await get_db()
+    await _audit(db, user, "SYNC_USER_RISK_PROFILE_LLM", case_user, result)
+    
+    if result.get("status") == "not_found":
+        raise HTTPException(404, {"error": f"Risk profile not found for user: {case_user}"})
+    
+    if result.get("status") == "error":
+        raise HTTPException(500, {"error": result.get("error", "Unknown error")})
+    
+    return {
+        "status": "success",
+        "message": f"Risk profile synced for {case_user}",
+        "result": result
     }

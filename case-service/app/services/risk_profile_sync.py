@@ -734,6 +734,100 @@ class RiskProfileSyncService:
         logger.info(f"Sync with LLM completed: {stats}")
         return stats
 
+    async def sync_user_risk_profile_with_llm(self, case_user: str) -> Dict[str, Any]:
+        """
+        Sync a SINGLE user's risk profile from instagram_scraper to scs_cases,
+        generating LLM-based category, ai_explanation, and recommended_actions.
+        
+        Args:
+            case_user: The Instagram username to sync
+            
+        Returns:
+            Dict with sync result
+        """
+        client = await self._get_client()
+        
+        instagram_db = client[INSTAGRAM_DB_NAME]
+        scs_db = client[SCS_DB_NAME]
+        
+        risk_profiles_col = instagram_db["case_risk_profiles"]
+        cases_col = scs_db[SCS_COLLECTION_CASES]
+        
+        result = {
+            "case_user": case_user,
+            "status": "not_found",
+            "case_id": None,
+            "category": None
+        }
+        
+        # Find the specific user's risk profile
+        profile = await risk_profiles_col.find_one({"case_user": case_user})
+        
+        if not profile:
+            logger.warning(f"No risk profile found for case_user: {case_user}")
+            return result
+        
+        try:
+            # Map fields according to specification
+            user_id = self._map_user_id(case_user)
+            
+            # Generate LLM analysis
+            logger.info(f"Generating LLM analysis for {case_user}...")
+            llm_analysis = await self.generate_structured_analysis(profile)
+            
+            # Check if case already exists for this user
+            existing_case = await cases_col.find_one({"user_id": user_id})
+            
+            now = datetime.now(timezone.utc)
+            
+            # Build case data with LLM-generated fields
+            case_data = {
+                "user_id": user_id,
+                "current_risk_score": profile.get("risk_score", 0),
+                "current_category": llm_analysis.get("category", "General Distress"),
+                "current_risk_signals": self._format_key_signals(profile.get("key_signals", [])),
+                "ai_explanation": llm_analysis.get("ai_explanation", ""),
+                "ai_explanation_paragraph": llm_analysis.get("ai_explanation_paragraph", ""),
+                "ai_explanation_signals": llm_analysis.get("ai_explanation_signals", []),
+                "recommended_actions_paragraph": llm_analysis.get("recommended_actions_paragraph", ""),
+                "recommended_actions": llm_analysis.get("recommended_actions", []),
+                "priority": self._map_priority(profile.get("priority", 3)),
+                "platform": "Instagram",
+                "updated_at": now
+            }
+            
+            if existing_case:
+                # Update existing case
+                await cases_col.update_one(
+                    {"_id": existing_case["_id"]},
+                    {"$set": case_data}
+                )
+                result["status"] = "updated"
+                result["case_id"] = existing_case.get("case_id")
+                result["category"] = llm_analysis.get("category")
+                logger.info(f"Updated case for user: {user_id} with category: {llm_analysis.get('category')}")
+            else:
+                # Create new case
+                case_id = await self._get_next_case_id(scs_db)
+                case_data["case_id"] = case_id
+                case_data["assigned_to"] = None
+                case_data["case_status"] = "unassigned"
+                case_data["work_status"] = "not_started"
+                case_data["created_at"] = now
+                
+                await cases_col.insert_one(case_data)
+                result["status"] = "created"
+                result["case_id"] = case_id
+                result["category"] = llm_analysis.get("category")
+                logger.info(f"Created case {case_id} for user: {user_id} with category: {llm_analysis.get('category')}")
+                
+        except Exception as e:
+            result["status"] = "error"
+            result["error"] = str(e)
+            logger.error(f"Error syncing profile for {case_user}: {e}")
+        
+        return result
+
 
 # Singleton instance for use across the application
 _sync_service: Optional[RiskProfileSyncService] = None
@@ -781,3 +875,17 @@ async def sync_risk_profiles_to_cases_with_llm() -> Dict[str, Any]:
     """
     service = get_sync_service()
     return await service.sync_risk_profiles_to_cases_with_llm()
+
+
+async def sync_user_risk_profile_to_case_with_llm(case_user: str) -> Dict[str, Any]:
+    """
+    Convenience function to sync a single user's risk profile to cases with LLM analysis.
+    
+    Args:
+        case_user: The Instagram username to sync
+        
+    Returns:
+        Dict with sync result including case_id and category
+    """
+    service = get_sync_service()
+    return await service.sync_user_risk_profile_with_llm(case_user)
