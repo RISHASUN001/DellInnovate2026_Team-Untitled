@@ -1,4 +1,4 @@
-#!/Users/rishi/GitHub/DellInnovate2026_Team-Untitled/chatbot-service/.venv/bin/python3.11
+#!/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/chatbot-service/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys

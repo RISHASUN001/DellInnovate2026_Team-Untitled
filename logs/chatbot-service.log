@@ -1,18 +1,18 @@
-INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/chatbot-service']
+INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/chatbot-service']
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Started reloader process [37402] using WatchFiles
-INFO:     Started server process [37411]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
+INFO:     Started reloader process [69810] using WatchFiles
 Initializing SCS Assistant with RAG...
 Initializing OpenAI embeddings client...
-Connecting to ChromaDB at /Users/risha/Documents/GitHub/SC4000-ML/DellInnovate2026_Team-Untitled/data/chromadb...
+Connecting to ChromaDB at ../data/chromadb...
 ✓ ChromaDB ready. Collection has 252 documents.
 Collection already populated with 252 documents.
 ✓ SCS Assistant ready!
-INFO:     127.0.0.1:53280 - "GET /health HTTP/1.1" 200 OK
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [37411]
-INFO:     Stopping reloader process [37402]
+INFO:     Started server process [69856]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     127.0.0.1:62765 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64157 - "OPTIONS /chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64157 - "POST /chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64159 - "POST /chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64635 - "POST /chat HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64966 - "POST /chat HTTP/1.1" 200 OK

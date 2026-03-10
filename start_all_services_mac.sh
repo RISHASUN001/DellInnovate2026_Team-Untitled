@@ -14,13 +14,15 @@ PID_FILE="$PROJECT_ROOT/.all_services_mac.pids"
 # OAuth config file used by auth-service
 AUTH_ENV_FILE="$PROJECT_ROOT/.env.auth"
 
-# Prefer repo venv python if available, fallback to python3/python
+# Bootstrap Python used only to create per-service virtualenvs.
 if [[ -x "$PROJECT_ROOT/.venv/bin/python" ]]; then
-  PYTHON_BIN="$PROJECT_ROOT/.venv/bin/python"
+  BOOTSTRAP_PYTHON="$PROJECT_ROOT/.venv/bin/python"
+elif command -v python3.11 >/dev/null 2>&1; then
+  BOOTSTRAP_PYTHON="$(command -v python3.11)"
 elif command -v python3 >/dev/null 2>&1; then
-  PYTHON_BIN="$(command -v python3)"
+  BOOTSTRAP_PYTHON="$(command -v python3)"
 elif command -v python >/dev/null 2>&1; then
-  PYTHON_BIN="$(command -v python)"
+  BOOTSTRAP_PYTHON="$(command -v python)"
 else
   echo "[ERROR] Python not found. Install Python or create .venv first."
   exit 1
@@ -67,6 +69,43 @@ fi
 
 > "$PID_FILE"
 
+setup_service_venv() {
+  local name="$1"
+  local dir="$2"
+  local req_file="$dir/requirements.txt"
+  local venv_dir="$dir/.venv"
+  local stamp_file="$venv_dir/.requirements.sha256"
+
+  if [[ ! -f "$req_file" ]]; then
+    echo "[WARN] $name has no requirements.txt in $dir. Using bootstrap Python." >&2
+    echo "$BOOTSTRAP_PYTHON"
+    return 0
+  fi
+
+  if [[ ! -x "$venv_dir/bin/python" ]]; then
+    echo "[SETUP] Creating venv for $name at $venv_dir" >&2
+    "$BOOTSTRAP_PYTHON" -m venv "$venv_dir"
+  fi
+
+  local req_hash
+  req_hash="$(shasum -a 256 "$req_file" | awk '{print $1}')"
+  local old_hash=""
+  if [[ -f "$stamp_file" ]]; then
+    old_hash="$(cat "$stamp_file")"
+  fi
+
+  if [[ "$req_hash" != "$old_hash" ]]; then
+    echo "[SETUP] Installing dependencies for $name from $req_file" >&2
+    "$venv_dir/bin/python" -m pip install --quiet --upgrade pip setuptools wheel
+    "$venv_dir/bin/python" -m pip install --quiet -r "$req_file"
+    echo "$req_hash" > "$stamp_file"
+  else
+    echo "[SETUP] $name dependencies unchanged. Skipping pip install." >&2
+  fi
+
+  echo "$venv_dir/bin/python"
+}
+
 start_service() {
   local name="$1"
   local dir="$2"
@@ -75,14 +114,17 @@ start_service() {
   local logfile="$LOG_DIR/${name}.log"
   shift 4
 
+  local service_python
+  service_python="$(setup_service_venv "$name" "$dir")"
+
   (
     cd "$dir"
-    env "$@" "$PYTHON_BIN" -m uvicorn "$module" --host 0.0.0.0 --port "$port" --reload
+    env "$@" "$service_python" -m uvicorn "$module" --host 0.0.0.0 --port "$port" --reload
   ) >"$logfile" 2>&1 &
 
   local pid=$!
   echo "$pid" >> "$PID_FILE"
-  echo "  -> started $name on :$port (PID $pid)"
+  echo "  -> started $name on :$port (PID $pid) [python: $service_python]"
 }
 
 echo ""
@@ -146,7 +188,7 @@ sleep 6
 
 echo ""
 echo "Service health checks:"
-for port in 8001 8003 8000 8007 8005 8004 8006 8010; do
+for port in 8001 8003 8000 8002 8005 8004 8006 8010; do
   if curl -fsS "http://localhost:${port}/health" >/dev/null 2>&1; then
     echo "  [OK] http://localhost:${port}/health"
   else

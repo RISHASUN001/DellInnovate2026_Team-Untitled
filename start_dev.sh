@@ -125,7 +125,7 @@ setup_venv "$ROOT/mcp-service"
 setup_venv "$ROOT/backend/image-service"
 
 log "Launching services…"
-start_service "case-service"    "$ROOT/case-service"    "${CASE_SERVICE_PORT:-8003}"    "app.main:app"
+start_service "case-service"    "$ROOT/case-service"    "${CASE_SERVICE_PORT:-8005}"    "app.main:app"
 sleep 2
 start_service "chatbot-service" "$ROOT/chatbot-service" "${CHATBOT_SERVICE_PORT:-8000}"  "app.main:app"
 start_service "mcp-service"     "$ROOT/mcp-service"     "${MCP_SERVICE_PORT:-8002}"      "app.main:app"
@@ -133,7 +133,7 @@ start_service "image-service"   "$ROOT/backend/image-service" "${IMAGE_SERVICE_P
 
 echo ""
 ok "All services running:"
-ok "  case-service    → http://localhost:${CASE_SERVICE_PORT:-8003}/docs"
+ok "  case-service    → http://localhost:${CASE_SERVICE_PORT:-8005}/docs"
 ok "  chatbot-service → http://localhost:${CHATBOT_SERVICE_PORT:-8000}/docs"
 ok "  mcp-service     → http://localhost:${MCP_SERVICE_PORT:-8002}/docs"
 ok "  image-service   → http://localhost:${IMAGE_SERVICE_PORT:-8004}/docs"
@@ -143,7 +143,7 @@ sleep 3
 
 # Health check
 log "Testing service health..."
-curl -s http://localhost:8003/health > /dev/null && ok "✓ case-service healthy" || err "✗ case-service not responding"
+curl -s http://localhost:8005/health > /dev/null && ok "✓ case-service healthy" || err "✗ case-service not responding"
 curl -s http://localhost:8000/health > /dev/null && ok "✓ chatbot-service healthy" || err "✗ chatbot-service not responding"  
 curl -s http://localhost:8002/health > /dev/null && ok "✓ mcp-service healthy" || err "✗ mcp-service not responding"
 curl -s http://localhost:8004/health > /dev/null && ok "✓ image-service healthy" || err "✗ image-service not responding"

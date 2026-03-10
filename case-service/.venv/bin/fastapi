@@ -1,8 +1,6 @@
-#!/Users/rishi/GitHub/DellInnovate2026_Team-Untitled/case-service/.venv/bin/python3.11
-# -*- coding: utf-8 -*-
-import re
+#!/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/case-service/.venv/bin/python
 import sys
 from fastapi.cli import main
 if __name__ == '__main__':
-    sys.argv[0] = re.sub(r'(-script\.pyw|\.exe)?$', '', sys.argv[0])
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
     sys.exit(main())

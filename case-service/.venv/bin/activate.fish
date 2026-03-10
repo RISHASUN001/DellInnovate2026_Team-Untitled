@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV "/Users/rishi/GitHub/DellInnovate2026_Team-Untitled/case-service/.venv"
+set -gx VIRTUAL_ENV "/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/case-service/.venv"
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/bin" $PATH

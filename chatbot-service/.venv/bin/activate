@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/rishi/GitHub/DellInnovate2026_Team-Untitled/chatbot-service/.venv"
+VIRTUAL_ENV="/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/chatbot-service/.venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

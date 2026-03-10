@@ -802,7 +802,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         // Also fetch LLM summaries for quick access
         try {
           const summariesRes = await fetch(
-            `${CASE_SERVICE_URL.replace(":8003", ":8000")}/api/analytics/llm-summaries?limit=50`,
+            `${CASE_SERVICE_URL.replace(":8003", ":8004")}/api/analytics/llm-summaries?limit=50`,
           );
           if (summariesRes.ok) {
             const summariesData = await summariesRes.json();
@@ -955,7 +955,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
     setGeneratingSummary(true);
     try {
       const response = await fetch(
-        `${CASE_SERVICE_URL.replace(":8003", ":8000")}/api/analytics/generate-llm-summaries?limit=10`,
+        `${CASE_SERVICE_URL.replace(":8003", ":8004")}/api/analytics/generate-llm-summaries?limit=10`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -969,7 +969,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         setTimeout(async () => {
           try {
             const summariesRes = await fetch(
-              `${CASE_SERVICE_URL.replace(":8003", ":8000")}/api/analytics/llm-summaries?limit=50`,
+              `${CASE_SERVICE_URL.replace(":8003", ":8004")}/api/analytics/llm-summaries?limit=50`,
             );
             if (summariesRes.ok) {
               const data = await summariesRes.json();
@@ -1010,7 +1010,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   const handleGenerateSingleSummary = async (username) => {
     try {
       const response = await fetch(
-        `${CASE_SERVICE_URL.replace(":8003", ":8000")}/api/analytics/generate-summary/${username}`,
+        `${CASE_SERVICE_URL.replace(":8003", ":8004")}/api/analytics/generate-summary/${username}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -1022,7 +1022,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         setTimeout(async () => {
           try {
             const summariesRes = await fetch(
-              `${CASE_SERVICE_URL.replace(":8003", ":8000")}/api/analytics/llm-summaries/${username}`,
+              `${CASE_SERVICE_URL.replace(":8003", ":8004")}/api/analytics/llm-summaries/${username}`,
             );
             if (summariesRes.ok) {
               const data = await summariesRes.json();
@@ -4463,10 +4463,20 @@ function ChecklistPanel({
       try {
         console.log("Fetching checklist for case:", caseId);
         setLoading(true);
+        const normalizedRole =
+          currentUser?.role === "Admin" || currentUser?.role === "admin"
+            ? "Admin"
+            : "Youth Helper";
         const res = await fetch(`${CASE_SERVICE_URL}/cases/${caseId}`, {
           headers: {
-            "X-User-Id": currentUser?.user_id || currentUser?.id || "admin",
-            "X-User-Role": currentUser?.role || "Admin",
+            "X-User-Id": (
+              currentUser?.email ||
+              currentUser?.user_id ||
+              currentUser?.id ||
+              "admin"
+            ).toString(),
+            "X-User-Email": (currentUser?.email || "").toString(),
+            "X-User-Role": normalizedRole,
           },
         });
         if (!res.ok) throw new Error(`Failed to fetch: ${res.status}`);
@@ -5110,6 +5120,15 @@ function ChatbotPanel({
     id: "unknown",
     role: "Youth Helper",
   };
+  const currentUserHeaderId = (
+    currentUser?.email || currentUser?.user_id || currentUser?.id || ""
+  )
+    .toString()
+    .trim();
+  const currentUserRole =
+    currentUser?.role === "Admin" || currentUser?.role === "admin"
+      ? "Admin"
+      : "Youth Helper";
   const [messages, setMessages] = useState([
     {
       role: "bot",
@@ -5151,7 +5170,7 @@ function ChatbotPanel({
           "Content-Type": "application/json",
           "X-User-Id": currentUserHeaderId,
           "X-User-Email": (currentUser?.email || "").toString(),
-          "X-User-Role": currentUser.role,
+          "X-User-Role": currentUserRole,
         },
         body: JSON.stringify({
           message: t,
@@ -5275,7 +5294,7 @@ function ChatbotPanel({
               "Content-Type": "application/json",
               "X-User-Id": currentUserHeaderId,
               "X-User-Email": (currentUser?.email || "").toString(),
-              "X-User-Role": currentUser.role,
+              "X-User-Role": currentUserRole,
             },
             body: JSON.stringify({
               case_id: action.payload.case_id,
@@ -5351,7 +5370,7 @@ function ChatbotPanel({
           "Content-Type": "application/json",
           "X-User-Id": currentUserHeaderId,
           "X-User-Email": (currentUser?.email || "").toString(),
-          "X-User-Role": currentUser.role,
+          "X-User-Role": currentUserRole,
         },
         body: JSON.stringify(requestPayload),
       });
