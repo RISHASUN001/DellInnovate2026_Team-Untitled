@@ -69,6 +69,39 @@ async def _audit(db, actor: AuthUser, action: str, resource: str, detail: dict |
     })
 
 
+async def _helper_identity_candidates(db, user: AuthUser) -> list[str]:
+    """Resolve helper identifiers across OAuth email and internal user_id formats."""
+    candidates: list[str] = []
+
+    if user.user_id:
+        candidates.append(user.user_id.strip())
+    if user.email:
+        candidates.append(user.email.strip())
+
+    # Map OAuth email to canonical staff user_id when available.
+    if user.email:
+        users_col = db['scs_users']
+        staff = await users_col.find_one({"email": user.email.strip()})
+        if staff and staff.get("user_id"):
+            candidates.append(str(staff["user_id"]).strip())
+
+    # Deduplicate while preserving order.
+    seen = set()
+    normalized = []
+    for value in candidates:
+        if value and value not in seen:
+            seen.add(value)
+            normalized.append(value)
+    return normalized
+
+
+async def _helper_assignment_filter(db, user: AuthUser) -> dict:
+    helper_ids = await _helper_identity_candidates(db, user)
+    if helper_ids:
+        return {"assigned_to": {"$in": helper_ids}}
+    return {"assigned_to": user.user_id}
+
+
 # ─── List all cases (with filters) ────────────────────────────────────────────
 @router.get("")
 @router.get("/")
@@ -91,9 +124,9 @@ async def list_cases(
     # Build MongoDB query filter
     query_filter = {}
     
-    # Helpers can only see their assigned cases
+    # Helpers can only see their assigned cases.
     if user.is_helper:
-        query_filter["assigned_to"] = user.user_id
+        query_filter.update(await _helper_assignment_filter(db, user))
     elif assigned_to:
         query_filter["assigned_to"] = assigned_to
 
@@ -324,16 +357,18 @@ async def get_case(case_id: str, request: Request):
     if not case:
         raise HTTPException(404, {"error": "Case not found", "case_id": case_id})
     
-    # Access control: helpers can only see their assigned cases
-    if user.is_helper and case.get("assigned_to") != user.user_id:
-        raise HTTPException(
-            403,
-            {
-                "error": "ACCESS_DENIED",
-                "message": "This case is not assigned to you",
-                "case_id": case_id
-            }
-        )
+    # Access control: helpers can only see their assigned cases.
+    if user.is_helper:
+        helper_ids = await _helper_identity_candidates(db, user)
+        if case.get("assigned_to") not in helper_ids:
+            raise HTTPException(
+                403,
+                {
+                    "error": "ACCESS_DENIED",
+                    "message": "This case is not assigned to you",
+                    "case_id": case_id
+                }
+            )
     
     # Serialize the case
     case_data = serialize_doc(case)
@@ -452,8 +487,10 @@ async def update_case(
         raise HTTPException(404, {"error": "Case not found"})
     
     # Access control
-    if user.is_helper and case.get("assigned_to") != user.user_id:
-        raise HTTPException(403, {"error": "Not authorized to update this case"})
+    if user.is_helper:
+        helper_ids = await _helper_identity_candidates(db, user)
+        if case.get("assigned_to") not in helper_ids:
+            raise HTTPException(403, {"error": "Not authorized to update this case"})
     
     # Build update document
     update_doc = {"updated_at": datetime.now()}
@@ -501,8 +538,10 @@ async def create_review_request(
     if not case:
         raise HTTPException(404, {"error": "Case not found"})
     
-    if user.is_helper and case.get("assigned_to") != user.user_id:
-        raise HTTPException(403, {"error": "Not authorized - case not assigned to you"})
+    if user.is_helper:
+        helper_ids = await _helper_identity_candidates(db, user)
+        if case.get("assigned_to") not in helper_ids:
+            raise HTTPException(403, {"error": "Not authorized - case not assigned to you"})
     
     # Create review request
     review_col = db['scs_review_requests']
@@ -636,8 +675,10 @@ async def create_reassignment_request(
     if not case:
         raise HTTPException(404, {"error": "Case not found"})
     
-    if user.is_helper and case.get("assigned_to") != user.user_id:
-        raise HTTPException(403, {"error": "Not authorized - case not assigned to you"})
+    if user.is_helper:
+        helper_ids = await _helper_identity_candidates(db, user)
+        if case.get("assigned_to") not in helper_ids:
+            raise HTTPException(403, {"error": "Not authorized - case not assigned to you"})
     
     # Create reassignment request
     reassign_col = db['scs_reassignment_requests']
@@ -703,7 +744,7 @@ async def get_cases_by_priority(request: Request):
     # Build base query (helpers only see their cases)
     match_stage = {}
     if user.is_helper:
-        match_stage["assigned_to"] = user.user_id
+        match_stage.update(await _helper_assignment_filter(db, user))
     
     pipeline = [
         {"$match": match_stage},
@@ -733,7 +774,7 @@ async def get_cases_by_category(request: Request):
     # Build base query
     match_stage = {}
     if user.is_helper:
-        match_stage["assigned_to"] = user.user_id
+        match_stage.update(await _helper_assignment_filter(db, user))
     
     pipeline = [
         {"$match": match_stage},
@@ -783,15 +824,17 @@ async def get_case_summary(case_id: str, request: Request):
         raise HTTPException(404, {"error": "Case not found", "case_id": case_id})
     
     # Access control: helpers can only see their assigned cases
-    if user.is_helper and case.get("assigned_to") != user.user_id:
-        raise HTTPException(
-            403,
-            {
-                "error": "ACCESS_DENIED",
-                "message": "This case is not assigned to you",
-                "case_id": case_id
-            }
-        )
+    if user.is_helper:
+        helper_ids = await _helper_identity_candidates(db, user)
+        if case.get("assigned_to") not in helper_ids:
+            raise HTTPException(
+                403,
+                {
+                    "error": "ACCESS_DENIED",
+                    "message": "This case is not assigned to you",
+                    "case_id": case_id
+                }
+            )
     
     # Audit the summary request
     await _audit(db, user, "REQUEST_SUMMARY", case_id)

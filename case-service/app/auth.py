@@ -15,6 +15,7 @@ VALID_ROLES = {"Admin", "Youth Helper"}
 class AuthUser:
     user_id: str
     role: str
+    email: Optional[str] = None
 
     @property
     def is_admin(self) -> bool:
@@ -29,11 +30,12 @@ def get_current_user(request: Request) -> AuthUser:
     """Extract user identity from headers with env fallback."""
     user_id = request.headers.get("X-User-Id", settings.default_user_id).strip()
     role = request.headers.get("X-User-Role", settings.default_user_role).strip()
+    email = request.headers.get("X-User-Email", "").strip() or None
 
     if role not in VALID_ROLES:
         role = settings.default_user_role
 
-    return AuthUser(user_id=user_id, role=role)
+    return AuthUser(user_id=user_id, role=role, email=email)
 
 
 async def require_admin(request: Request) -> AuthUser:

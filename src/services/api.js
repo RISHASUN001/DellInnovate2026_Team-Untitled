@@ -14,9 +14,32 @@ const getAuthToken = () => {
   return sessionToken || localToken || "";
 };
 
+const getAuthUser = () => {
+  const sessionUser = sessionStorage.getItem("scs_auth_user");
+  const localUser = localStorage.getItem("scs_auth_user");
+  const rawUser = sessionUser || localUser;
+
+  if (!rawUser) return null;
+
+  try {
+    return JSON.parse(rawUser);
+  } catch {
+    return null;
+  }
+};
+
 const buildAuthHeaders = (headers = {}, requireAuth = false) => {
   const merged = { ...headers };
   const token = getAuthToken();
+  const authUser = getAuthUser();
+
+  // case-service currently reads identity from these headers.
+  if (authUser) {
+    const userId = authUser.email || authUser.id;
+    if (userId) merged["X-User-Id"] = String(userId).trim();
+    if (authUser.email) merged["X-User-Email"] = String(authUser.email).trim();
+    if (authUser.role) merged["X-User-Role"] = String(authUser.role).trim();
+  }
 
   if (token) {
     merged.Authorization = token.startsWith("Bearer ") ? token : `Bearer ${token}`;

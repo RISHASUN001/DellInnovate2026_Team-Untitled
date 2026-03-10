@@ -634,6 +634,18 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   const { logout } = useAuth();
   // Prefer the prop from the router; fall back to local const for standalone use
   const currentUser = propUser || CURRENT_USER_FALLBACK;
+  const currentUserHeaderId = (currentUser?.email || currentUser?.user_id || currentUser?.id || "")
+    .toString()
+    .trim();
+  const currentUserIdentity = (currentUser?.email || currentUser?.user_id || currentUser?.id || "")
+    .toString()
+    .trim()
+    .toLowerCase();
+
+  const isAssignedToCurrentUser = (assignedTo) => {
+    if (!assignedTo || !currentUserIdentity) return false;
+    return assignedTo.toString().trim().toLowerCase() === currentUserIdentity;
+  };
   const [activeTab, setActiveTab] = useState("all");
   const [selectedCase, setSelectedCase] = useState(null);
   const [detailTab, setDetailTab] = useState("overview"); // 'overview' | 'timeline'
@@ -735,8 +747,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
             priority: c.priority || "medium",
             assigned_to: c.assigned_to,
             assignedTo: c.assigned_to || "—",
-            assignedToMe:
-              c.assigned_to === (currentUser.user_id || currentUser.id),
+            assignedToMe: isAssignedToCurrentUser(c.assigned_to),
             created_at: c.created_at,
             updated_at: c.updated_at,
             user_id: c.user_id,
@@ -1047,9 +1058,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
 
   const openCase = (c) => {
     // Strict: helpers may not open cases not assigned to them
-    const isAssigned =
-      c.assignedToMe ||
-      (c.assigned_to && c.assigned_to === currentUser.user_id);
+    const isAssigned = c.assignedToMe || isAssignedToCurrentUser(c.assigned_to);
     if (!isAssigned && currentUser.role !== "Admin") {
       setAccessDeniedCase(c);
       return;
@@ -1066,7 +1075,8 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "X-User-Id": currentUser.user_id,
+          "X-User-Id": (currentUser?.email || currentUser?.user_id || currentUser?.id || "").toString(),
+          "X-User-Email": (currentUser?.email || "").toString(),
           "X-User-Role": currentUser.role,
         },
         body: JSON.stringify({ work_status: newWs }),
@@ -1137,7 +1147,8 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-User-Id": currentUser.user_id,
+            "X-User-Id": currentUserHeaderId,
+            "X-User-Email": (currentUser?.email || "").toString(),
             "X-User-Role": currentUser.role,
           },
           body: JSON.stringify({ reason: toReviewReason.trim() }),
@@ -1172,7 +1183,8 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "X-User-Id": currentUser.user_id,
+            "X-User-Id": currentUserHeaderId,
+            "X-User-Email": (currentUser?.email || "").toString(),
             "X-User-Role": currentUser.role,
           },
           body: JSON.stringify({ reason: reassignReason.trim() }),
@@ -5137,7 +5149,8 @@ function ChatbotPanel({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-User-Id": currentUser.user_id || currentUser.id,
+          "X-User-Id": currentUserHeaderId,
+          "X-User-Email": (currentUser?.email || "").toString(),
           "X-User-Role": currentUser.role,
         },
         body: JSON.stringify({
@@ -5152,7 +5165,7 @@ function ChatbotPanel({
                 signals: attachedCase.signals || [],
               }
             : null,
-          user_id: currentUser.user_id || currentUser.id,
+          user_id: currentUserHeaderId,
           execute_tools: false, // Never auto-execute, require approval
           conversation_history: messages.slice(-6).map((m) => ({
             role: m.role === "user" ? "user" : "assistant",
@@ -5260,7 +5273,8 @@ function ChatbotPanel({
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "X-User-Id": currentUser.user_id || currentUser.id,
+              "X-User-Id": currentUserHeaderId,
+              "X-User-Email": (currentUser?.email || "").toString(),
               "X-User-Role": currentUser.role,
             },
             body: JSON.stringify({
@@ -5335,7 +5349,8 @@ function ChatbotPanel({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-User-Id": currentUser.user_id || currentUser.id,
+          "X-User-Id": currentUserHeaderId,
+          "X-User-Email": (currentUser?.email || "").toString(),
           "X-User-Role": currentUser.role,
         },
         body: JSON.stringify(requestPayload),
