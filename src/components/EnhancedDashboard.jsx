@@ -448,7 +448,31 @@ export default function EnhancedDashboard({ currentUser }) {
       { day: "Sun", critical: stats.critical, high: stats.high, moderate: stats.medium, low: stats.low },
     ];
 
-    return { riskData, platformData, trendData, total: cases.length };
+    // My Cases specific data
+    const myCases = cases.filter((c) => c.mine);
+    const myRiskData = [
+      { name: "Critical", value: myCases.filter((c) => c.risk === "CRITICAL").length, color: CHART_COLORS.critical },
+      { name: "High", value: myCases.filter((c) => c.risk === "HIGH").length, color: CHART_COLORS.high },
+      { name: "Moderate", value: myCases.filter((c) => c.risk === "MEDIUM").length, color: CHART_COLORS.moderate },
+      { name: "Low", value: myCases.filter((c) => c.risk === "LOW").length, color: CHART_COLORS.low },
+    ];
+
+    const myCategoryCounts = myCases.reduce((acc, c) => {
+      acc[c.category] = (acc[c.category] || 0) + 1;
+      return acc;
+    }, {});
+    const myCategoryData = Object.entries(myCategoryCounts)
+      .map(([category, count]) => ({ category, cases: count }))
+      .sort((a, b) => b.cases - a.cases);
+
+    const myWorkStatusData = [
+      { name: "Not Started", value: myCases.filter((c) => c.work_status === "not_started").length, color: "#94a3b8" },
+      { name: "In Progress", value: myCases.filter((c) => c.work_status === "in_progress").length, color: "#3b82f6" },
+      { name: "To Review", value: myCases.filter((c) => c.work_status === "to_review").length, color: "#f59e0b" },
+      { name: "Completed", value: myCases.filter((c) => c.work_status === "completed").length, color: "#10b981" },
+    ];
+
+    return { riskData, platformData, trendData, total: cases.length, myRiskData, myCategoryData, myWorkStatusData };
   }, [cases, stats]);
 
   // ─── Open Case ─────────────────────────────────────────────────────────────
@@ -963,7 +987,7 @@ export default function EnhancedDashboard({ currentUser }) {
              ASSIGNED TO ME TAB - Case List with Detail Panel
              ════════════════════════════════════════════════════════════════════ */
           <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-            {/* Left Panel: My Cases List + Stats */}
+            {/* Left Panel: My Cases List + Stats + Charts */}
             <div
               style={{
                 flex: selectedCase ? "0 0 50%" : 1,
@@ -976,35 +1000,108 @@ export default function EnhancedDashboard({ currentUser }) {
                 transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
               }}
             >
-              {/* My Stats Summary */}
+              {/* Charts + Stats - Only show when no case selected */}
               {!selectedCase && (
-                <div style={{ padding: 20, borderBottom: "1px solid #e2e8f0" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                <div style={{ padding: 20, overflowY: "auto" }}>
+                  {/* Stats Row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
                     {[
-                      { label: "My Cases", value: stats.assignedToMe, color: T.indigo, bg: "#eff6ff" },
-                      { label: "Critical", value: stats.myCritical, color: T.danger, bg: "#fef2f2" },
-                      { label: "High", value: stats.myHigh, color: "#ea580c", bg: "#fff7ed" },
-                      { label: "Med/Low", value: stats.myOther, color: T.success, bg: "#f0fdf4" },
+                      { label: "My Cases", value: stats.assignedToMe, color: T.indigo, bg: "#eff6ff", icon: "📋" },
+                      { label: "Critical", value: stats.myCritical, color: T.danger, bg: "#fef2f2", icon: "🚨" },
+                      { label: "High", value: stats.myHigh, color: "#ea580c", bg: "#fff7ed", icon: "⚠️" },
+                      { label: "Med/Low", value: stats.myOther, color: T.success, bg: "#f0fdf4", icon: "✅" },
                     ].map((s, i) => (
                       <div
                         key={i}
                         style={{
-                          background: s.bg,
-                          borderRadius: 12,
-                          padding: "14px 16px",
-                          textAlign: "center",
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 14,
+                          padding: "16px 18px",
+                          position: "relative",
+                          overflow: "hidden",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                         }}
                       >
-                        <div style={{ fontSize: 26, fontWeight: 800, color: s.color }}>{s.value}</div>
-                        <div style={{ fontSize: 11, color: s.color, fontWeight: 600 }}>{s.label}</div>
+                        <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div>
+                            <div style={{ fontSize: 11, color: T.muted, marginBottom: 4 }}>{s.label}</div>
+                            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+                          </div>
+                          <div style={{ fontSize: 24, background: s.bg, padding: "8px", borderRadius: 8 }}>{s.icon}</div>
+                        </div>
                       </div>
                     ))}
+                  </div>
+
+                  {/* Charts Row */}
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+                    {/* My Risk Distribution */}
+                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>My Risk Distribution</div>
+                      <ResponsiveContainer width="100%" height={140}>
+                        <PieChart>
+                          <Pie data={chartData.myRiskData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
+                            {chartData.myRiskData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                        {chartData.myRiskData.map((r, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
+                            <span style={{ color: T.slate }}>{r.name}: {r.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Work Status */}
+                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>Work Status</div>
+                      <ResponsiveContainer width="100%" height={140}>
+                        <PieChart>
+                          <Pie data={chartData.myWorkStatusData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
+                            {chartData.myWorkStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                        {chartData.myWorkStatusData.map((r, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10 }}>
+                            <div style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
+                            <span style={{ color: T.slate }}>{r.name}: {r.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Category Breakdown */}
+                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>By Category</div>
+                      <ResponsiveContainer width="100%" height={140}>
+                        <BarChart data={chartData.myCategoryData} layout="vertical">
+                          <XAxis type="number" tick={{ fontSize: 9, fill: T.muted }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fill: T.slate }} axisLine={false} tickLine={false} width={80} />
+                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                          <Bar dataKey="cases" fill={T.indigo} radius={[0, 6, 6, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Section Header */}
+                  <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                    <Icon.User size={16} color={T.indigo} /> My Assigned Cases ({myAssignedCases.length})
                   </div>
                 </div>
               )}
 
               {/* Case Cards */}
-              <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
+              <div style={{ flex: 1, overflowY: "auto", padding: selectedCase ? 20 : "0 20px 20px 20px" }}>
                 {myAssignedCases.length === 0 ? (
                   <div style={{ textAlign: "center", padding: 60, color: T.muted }}>
                     <Icon.User size={40} color="#e2e8f0" />
