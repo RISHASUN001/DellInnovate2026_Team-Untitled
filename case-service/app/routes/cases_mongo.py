@@ -123,6 +123,36 @@ async def _normalize_assignee(db, assignee: str) -> str:
     raise HTTPException(404, {"error": "Helper not found"})
 
 
+async def _ensure_case_checklist(db, case_id: str) -> int:
+    """Create checklist rows from active templates when a case has none."""
+    checklist_col = db['scs_checklist']
+    existing = await checklist_col.find_one({"case_id": case_id}, {"_id": 1})
+    if existing:
+        return 0
+
+    templates_col = db['scs_checklist_templates']
+    templates = templates_col.find({"is_active": True}).sort("display_order", 1)
+
+    created = 0
+    async for template in templates:
+        await checklist_col.insert_one({
+            "checklist_item_id": await get_next_id('scs_checklist', 'checklist_item_id'),
+            "case_id": case_id,
+            "template_id": template.get("template_id"),
+            "label": template.get("label", "Checklist Item"),
+            "is_mandatory": bool(template.get("is_mandatory", True)),
+            "completed": False,
+            "comments": [],
+            "completed_at": None,
+            "completed_by": None,
+            "display_order": template.get("display_order", created + 1),
+            "created_at": datetime.now(timezone.utc),
+        })
+        created += 1
+
+    return created
+
+
 # ─── List all cases (with filters) ────────────────────────────────────────────
 @router.get("")
 @router.get("/")
@@ -390,6 +420,9 @@ async def get_case(case_id: str, request: Request):
     
     # Serialize the case
     case_data = serialize_doc(case)
+
+    # Backfill checklist for pipeline-created cases that missed template expansion.
+    await _ensure_case_checklist(db, case_id)
     
     # Get case history (risk progression)
     history_col = db['scs_case_history']
