@@ -195,7 +195,9 @@ def extract_text_units_from_post(post_data: dict) -> List[dict]:
     post_id = post_data.get('shortcode') or post_data.get('post_id')
     
     # Extract captions
-    captions = post_data.get('captions', [])
+    captions = post_data.get('captions') or []
+    if not isinstance(captions, list):
+        captions = [captions] if isinstance(captions, str) else []
     for caption in captions:
         if caption and isinstance(caption, str) and caption.strip():
             text_units.append({
@@ -208,7 +210,9 @@ def extract_text_units_from_post(post_data: dict) -> List[dict]:
             })
     
     # Extract comments
-    comments = post_data.get('comments', [])
+    comments = post_data.get('comments') or []
+    if not isinstance(comments, list):
+        comments = []
     for comment in comments:
         if isinstance(comment, dict):
             comment_text = comment.get('text', '')

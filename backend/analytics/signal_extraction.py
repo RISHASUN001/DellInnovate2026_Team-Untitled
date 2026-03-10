@@ -39,7 +39,7 @@ class NLPSignalExtractor:
         Args:
             db_client: MongoDB client (uses default if None)
         """
-        self.db = db_client or MongoDB.get_db()
+        self.db = db_client if db_client is not None else MongoDB.get_db()
         self.nlp_pipeline = None  # Lazy load to avoid loading models unnecessarily
         self.preprocessor = TextPreprocessor(
             remove_urls=True,

@@ -34,7 +34,7 @@ class BehavioralFeatureEngineer:
         Args:
             db_client: MongoDB client (uses default if None)
         """
-        self.db = db_client or MongoDB.get_db()
+        self.db = db_client if db_client is not None else MongoDB.get_db()
         logger.info("Behavioral Feature Engineer initialized")
     
     async def get_case_users(self) -> List[str]:
