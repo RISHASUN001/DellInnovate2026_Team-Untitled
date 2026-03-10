@@ -102,6 +102,27 @@ async def _helper_assignment_filter(db, user: AuthUser) -> dict:
     return {"assigned_to": user.user_id}
 
 
+async def _normalize_assignee(db, assignee: str) -> str:
+    """Resolve helper identifier and store canonical assignee (prefer email)."""
+    assignee_value = (assignee or "").strip()
+    if not assignee_value:
+        raise HTTPException(400, {"error": "assigned_to is required"})
+
+    users_col = db['scs_users']
+    helper = await users_col.find_one({"$or": [{"user_id": assignee_value}, {"email": assignee_value}]})
+
+    if helper:
+        if helper.get("role") != "youth_helper":
+            raise HTTPException(400, {"error": "Can only assign to youth helpers"})
+        return str(helper.get("email") or helper.get("user_id") or assignee_value).strip()
+
+    # Allow direct OAuth email assignment even when helper isn't in scs_users yet.
+    if "@" in assignee_value:
+        return assignee_value
+
+    raise HTTPException(404, {"error": "Helper not found"})
+
+
 # ─── List all cases (with filters) ────────────────────────────────────────────
 @router.get("")
 @router.get("/")
@@ -114,20 +135,17 @@ async def list_cases(
     assigned_to: Optional[str] = None,
 ):
     """
-    List all cases (admin) or only assigned cases (helper).
+    List all cases for dashboard overview.
     Supports filtering by category, status, priority, etc.
     """
-    user = get_current_user(request)
     db = await get_db()
     cases_col = db['scs_cases']
 
     # Build MongoDB query filter
     query_filter = {}
-    
-    # Helpers can only see their assigned cases.
-    if user.is_helper:
-        query_filter.update(await _helper_assignment_filter(db, user))
-    elif assigned_to:
+
+    # Apply explicit assigned_to filter only when requested.
+    if assigned_to:
         query_filter["assigned_to"] = assigned_to
 
     if category:
@@ -210,8 +228,7 @@ async def get_reassignment_requests(
     status: Optional[str] = None
 ):
     """Get all reassignment requests (admin only), optionally filtered by status"""
-    user = get_current_user(request)
-    require_admin(user)
+    await require_admin(request)
     
     db = await get_db()
     reassign_col = db['scs_reassignment_requests']
@@ -249,8 +266,7 @@ async def review_reassignment_request(
     Admin reviews and approves/declines a reassignment request.
     If approved, the case is reassigned to the new helper.
     """
-    user = get_current_user(request)
-    require_admin(user)
+    user = await require_admin(request)
     
     db = await get_db()
     reassign_col = db['scs_reassignment_requests']
@@ -270,6 +286,7 @@ async def review_reassignment_request(
             final_assignee = reassign_req.get("suggested_helper")
         if not final_assignee:
             raise HTTPException(400, {"error": "Cannot approve: no helper specified in request or review"})
+        final_assignee = await _normalize_assignee(db, final_assignee)
     
     # Update reassignment request
     await reassign_col.update_one(
@@ -336,7 +353,8 @@ async def review_reassignment_request(
     return {
         "status": "success",
         "message": f"Reassignment request {review.status}",
-        "case_id": reassign_req["case_id"]
+        "case_id": reassign_req["case_id"],
+        "final_assigned_to": final_assignee if review.status == "approved" else reassign_req.get("current_assigned_to")
     }
 
 
@@ -425,27 +443,19 @@ async def assign_case(
     db = await get_db()
     
     cases_col = db['scs_cases']
-    users_col = db['scs_users']
-    
     # Verify case exists
     case = await cases_col.find_one({"case_id": case_id})
     if not case:
         raise HTTPException(404, {"error": "Case not found"})
-    
-    # Verify helper exists
-    helper = await users_col.find_one({"user_id": assignment.assigned_to})
-    if not helper:
-        raise HTTPException(404, {"error": "Helper not found"})
-    
-    if helper.get("role") != "youth_helper":
-        raise HTTPException(400, {"error": "Can only assign to youth helpers"})
+
+    canonical_assignee = await _normalize_assignee(db, assignment.assigned_to)
     
     # Update case
     result = await cases_col.update_one(
         {"case_id": case_id},
         {
             "$set": {
-                "assigned_to": assignment.assigned_to,
+                "assigned_to": canonical_assignee,
                 "case_status": "assigned",
                 "updated_at": datetime.now()
             }
@@ -457,7 +467,8 @@ async def assign_case(
     
     # Audit
     await _audit(db, user, "ASSIGN_CASE", case_id, {
-        "assigned_to": assignment.assigned_to
+        "assigned_to": canonical_assignee,
+        "requested_assigned_to": assignment.assigned_to
     })
     
     # Return updated case
@@ -694,13 +705,17 @@ async def create_reassignment_request(
     # Get next request_id
     request_id = await get_next_id('scs_reassignment_requests', 'request_id')
     
+    normalized_requested_to = None
+    if reassign_req.requested_to:
+        normalized_requested_to = await _normalize_assignee(db, reassign_req.requested_to)
+
     reassign_doc = {
         "request_id": request_id,
         "case_id": case_id,
         "requested_by": user.user_id,
         "current_assigned_to": case.get("assigned_to"),
         "reason": reassign_req.reason,
-        "suggested_helper": reassign_req.requested_to,
+        "suggested_helper": normalized_requested_to,
         "request_status": "pending",
         "requested_at": _now_iso(),
         "reviewed_by": None,

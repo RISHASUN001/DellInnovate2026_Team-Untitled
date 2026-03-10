@@ -866,28 +866,16 @@ function AdminCaseDetail({ c, helpers, onClose, onAssign, currentUser }) {
   }, [c.case_id]);
 
   const handleAssign = async () => {
+    if (!selectedHelper) {
+      setAssignMsg("Please select a helper.");
+      return;
+    }
     try {
-      const res = await fetch(`${CASE_SERVICE_URL}/cases/${c.case_id}/assign`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-Id": currentUser.user_id,
-          "X-User-Role": "Admin",
-        },
-        body: JSON.stringify({ assigned_to: selectedHelper || null }),
-      });
-      if (res.ok) {
-        setAssignMsg("Assigned successfully.");
-        onAssign(c.case_id, selectedHelper);
-        setAssigning(false);
-      } else {
-        setAssignMsg("API unavailable — assignment saved locally.");
-        onAssign(c.case_id, selectedHelper);
-        setAssigning(false);
-      }
-    } catch {
-      setAssignMsg("API unavailable — reflected in table.");
-      onAssign(c.case_id, selectedHelper);
+      await onAssign(c.case_id, selectedHelper);
+      setAssignMsg("Assigned successfully.");
+      setAssigning(false);
+    } catch (err) {
+      setAssignMsg(`Failed to assign: ${err?.message || "unknown error"}`);
       setAssigning(false);
     }
   };
@@ -1787,17 +1775,8 @@ function AssignModal({ caseRow, helpers, currentUser, onConfirm, onClose }) {
     if (!selectedHelper) return;
     setBusy(true);
     try {
-      await fetch(`${CASE_SERVICE_URL}/cases/${caseRow.case_id}/assign`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "X-User-Id": currentUser.user_id,
-          "X-User-Role": "Admin",
-        },
-        body: JSON.stringify({ assigned_to: selectedHelper }),
-      }).catch(() => {});
+      await onConfirm(caseRow.case_id, selectedHelper);
     } finally {
-      onConfirm(caseRow.case_id, selectedHelper);
       setBusy(false);
     }
   };
@@ -2167,7 +2146,8 @@ export default function AdminDashboard({ currentUser: propUser }) {
   const handleAssignment = async (caseId, helperId) => {
     try {
       // Call API to assign case
-      await caseAPI.assignCase(caseId, helperId);
+      const updatedCase = await caseAPI.assignCase(caseId, helperId);
+      const assignedTo = updatedCase?.assigned_to || helperId;
 
       // Update local state
       setCases((prev) =>
@@ -2175,9 +2155,9 @@ export default function AdminDashboard({ currentUser: propUser }) {
           (c.case_id || c.code) === caseId
             ? {
                 ...c,
-                assigned_to: helperId,
+                assigned_to: assignedTo,
                 status: c.status === "new" ? "in_progress" : c.status,
-                case_status: helperId ? "assigned" : "unassigned",
+                case_status: assignedTo ? "assigned" : "unassigned",
                 work_status: "not_started",
               }
             : c,
@@ -2190,8 +2170,8 @@ export default function AdminDashboard({ currentUser: propUser }) {
       ) {
         setSelectedCase((prev) => ({
           ...prev,
-          assigned_to: helperId,
-          case_status: helperId ? "assigned" : "unassigned",
+          assigned_to: assignedTo,
+          case_status: assignedTo ? "assigned" : "unassigned",
           work_status: "not_started",
         }));
       }
@@ -2261,6 +2241,7 @@ export default function AdminDashboard({ currentUser: propUser }) {
       if (action === "approved") {
         // Update the case: clear reassigned flag, assign to new helper
         const req = reassignments.find((r) => r.id === requestId);
+        const finalAssignedTo = result?.final_assigned_to || selectedHelper || req?.requested_to;
         if (req) {
           setCases((prev) =>
             prev.map((c) =>
@@ -2269,8 +2250,7 @@ export default function AdminDashboard({ currentUser: propUser }) {
                     ...c,
                     case_status: "assigned",
                     work_status: "not_started",
-                    assigned_to:
-                      selectedHelper || req.requested_to || c.assigned_to,
+                    assigned_to: finalAssignedTo || c.assigned_to,
                   }
                 : c,
             ),
