@@ -5204,17 +5204,14 @@ function ChatbotPanel({
           reasoning: data.reasoning || "Recommended based on SCS protocols",
         }));
 
-        let responseText = data.response || "";
-        if (data.reasoning) {
-          responseText = `**Recommended Actions:**\n\n${data.reasoning}${data.next_steps ? "\n\n**Next Steps:**\n" + data.next_steps : ""}`;
-        }
+        // Use the formatted response from backend (already user-friendly)
+        let responseText = data.response || "I've prepared some actions for you to review.";
 
         setMessages((prev) => [
           ...prev,
           {
             role: "bot",
-            text:
-              responseText || "I've prepared some actions for you to review.",
+            text: responseText,
             actions: actions,
             similar: data.similar_cases || [],
             toolCalls: data.tool_calls,
@@ -5254,6 +5251,7 @@ function ChatbotPanel({
       add_checklist_item: "add_checklist_item",
       create_checklist_item: "add_checklist_item", // Map singular create to add
       create_checklist_items: "add_checklist_items", // Map plural to bulk endpoint
+      add_checklist_items: "add_checklist_items", // Direct mapping for bulk
       update_checklist_item_status: "update_checklist_item_status",
       add_case_note: "add_case_note",
       schedule_followup: "schedule_followup",
@@ -5278,7 +5276,8 @@ function ChatbotPanel({
 
     // Special handling for creating multiple checklist items
     if (
-      action.action_type === "create_checklist_items" &&
+      (action.action_type === "create_checklist_items" ||
+        action.action_type === "add_checklist_items") &&
       action.payload?.items &&
       Array.isArray(action.payload.items)
     ) {
@@ -5951,7 +5950,8 @@ function ActionCard({ action, onApprove }) {
   // Helper to extract label from various possible field names
   const getInitialLabel = () => {
     if (
-      action.action_type === "create_checklist_items" &&
+      (action.action_type === "create_checklist_items" ||
+        action.action_type === "add_checklist_items") &&
       action.payload?.items
     ) {
       return action.payload.items
@@ -6022,7 +6022,8 @@ function ActionCard({ action, onApprove }) {
         setEditError("No label found to edit");
       }
     } else if (
-      action.action_type === "create_checklist_items" &&
+      (action.action_type === "create_checklist_items" ||
+        action.action_type === "add_checklist_items") &&
       action.payload?.items
     ) {
       // For multiple items, join them into lines
@@ -6050,7 +6051,10 @@ function ActionCard({ action, onApprove }) {
         }
         setEditError("");
         approve(updatedPayload);
-      } else if (action.action_type === "create_checklist_items") {
+      } else if (
+        action.action_type === "create_checklist_items" ||
+        action.action_type === "add_checklist_items"
+      ) {
         // For multiple items, parse the text (one per line)
         const lines = editLabel
           .split("\n")
@@ -6085,6 +6089,7 @@ function ActionCard({ action, onApprove }) {
       add_checklist_item: "Add Checklist Item",
       create_checklist_item: "Add Checklist Item",
       create_checklist_items: "Add Checklist Items",
+      add_checklist_items: "Add Checklist Items",
       update_checklist_item_status: "Update Checklist Status",
       add_case_note: "Add Case Note",
       schedule_followup: "Schedule Follow-up",
@@ -6269,7 +6274,8 @@ function ActionCard({ action, onApprove }) {
                 </div>
               )}
             </>
-          ) : action.action_type === "create_checklist_items" ? (
+          ) : action.action_type === "create_checklist_items" ||
+            action.action_type === "add_checklist_items" ? (
             // Textarea for multiple checklist items (one per line)
             <>
               <div style={{ fontSize: 11, color: "#64748b", marginBottom: 4 }}>
@@ -6440,7 +6446,8 @@ function ActionCard({ action, onApprove }) {
             (() => {
               // For multiple checklist items - show list
               if (
-                action.action_type === "create_checklist_items" &&
+                (action.action_type === "create_checklist_items" ||
+                  action.action_type === "add_checklist_items") &&
                 action.payload.items &&
                 Array.isArray(action.payload.items)
               ) {

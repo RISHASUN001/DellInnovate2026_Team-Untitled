@@ -55,11 +55,28 @@ async def execute_mcp_tools(tool_calls: List[Dict], case_id: str, user_id: str) 
             
             try:
                 # Map tool names to MCP endpoints
-                if tool_name == "add_checklist_item":
-                    url = f"{MCP_SERVICE_URL}/tools/add_checklist_item"
+                if tool_name == "add_checklist_items":
+                    # Bulk checklist items
+                    url = f"{MCP_SERVICE_URL}/tools/add_checklist_items"
                     response = await client.post(
                         url,
                         json=params,
+                        headers={"X-User-Id": user_id}
+                    )
+                elif tool_name == "add_checklist_item":
+                    # Legacy singular - redirect to bulk
+                    url = f"{MCP_SERVICE_URL}/tools/add_checklist_items"
+                    # Convert to bulk format
+                    bulk_params = {
+                        "case_id": params.get("case_id"),
+                        "items": [{
+                            "label": params.get("label"),
+                            "is_mandatory": params.get("is_mandatory", False)
+                        }]
+                    }
+                    response = await client.post(
+                        url,
+                        json=bulk_params,
                         headers={"X-User-Id": user_id}
                     )
                 elif tool_name == "update_checklist_item_status":
@@ -173,6 +190,40 @@ async def chat(request: ChatRequest):
             tool_calls = tool_data.get("tool_calls")
             reasoning = tool_data.get("reasoning")
             next_steps = tool_data.get("next_steps")
+            
+            # Generate user-friendly preview message (shown whether tools execute or not)
+            if tool_calls:
+                preview_msg = ""
+                for tool_call in tool_calls:
+                    tool_name = tool_call.get("tool")
+                    params = tool_call.get("parameters", {})
+                    
+                    if tool_name == "add_checklist_items":
+                        items = params.get("items", [])
+                        if items:
+                            preview_msg += "I recommend adding these checklist items:\n"
+                            for idx, item in enumerate(items, 1):
+                                preview_msg += f"{idx}. {item.get('label', 'Unknown item')}\n"
+                    elif tool_name == "add_case_note":
+                        preview_msg += f"I recommend adding a case note: {params.get('content', '')[:50]}...\n"
+                    elif tool_name == "request_reassignment":
+                        preview_msg += f"I recommend requesting reassignment: {params.get('reason', '')}\n"
+                    elif tool_name == "submit_review_request":
+                        preview_msg += f"I recommend submitting for review: {params.get('reason', '')}\n"
+                    elif tool_name == "update_case_status":
+                        preview_msg += f"I recommend updating case status to: {params.get('status', '')}\n"
+                    elif tool_name == "update_checklist_item_status":
+                        preview_msg += f"I recommend updating checklist item status.\n"
+                    else:
+                        preview_msg += f"I recommend: {tool_name}\n"
+                
+                if reasoning:
+                    preview_msg += f"\n**Reasoning:** {reasoning}\n"
+                if next_steps:
+                    preview_msg += f"\n**Next Steps:** {next_steps}\n"
+                
+                # Replace JSON with user-friendly preview
+                response = preview_msg.strip()
         
         # Execute tools if requested and case_info is provided
         if request.execute_tools and tool_calls and request.case_info:
@@ -180,16 +231,32 @@ async def chat(request: ChatRequest):
             if case_id:
                 tool_results = await execute_mcp_tools(tool_calls, case_id, request.user_id)
                 
-                # Format results back into response
-                if tool_results:
-                    results_summary = "\n\n**Tool Execution Results:**\n"
-                    for result in tool_results:
-                        if result["success"]:
-                            results_summary += f"✅ {result['tool']}: Success\n"
+                # Build user-friendly response
+                user_response = ""
+                
+                for i, (tool_call, result) in enumerate(zip(tool_calls, tool_results)):
+                    if tool_call.get("tool") == "add_checklist_items" and result["success"]:
+                        # Extract created items from result
+                        created_items = result.get("result", {}).get("created_items", [])
+                        if created_items:
+                            user_response += "✅ Added checklist items:\n"
+                            for idx, item in enumerate(created_items, 1):
+                                user_response += f"{idx}. {item.get('label', 'Unknown item')}\n"
                         else:
-                            results_summary += f"❌ {result['tool']}: {result.get('error', 'Failed')}\n"
-                    
-                    response += results_summary
+                            user_response += "✅ Checklist items added successfully.\n"
+                    elif result["success"]:
+                        user_response += f"✅ {tool_call.get('tool')}: Completed\n"
+                    else:
+                        user_response += f"❌ {tool_call.get('tool')}: {result.get('error', 'Failed')}\n"
+                
+                # Add reasoning and next steps if available
+                if reasoning:
+                    user_response += f"\n**Why:** {reasoning}\n"
+                if next_steps:
+                    user_response += f"\n**Next Steps:** {next_steps}\n"
+                
+                # Replace JSON response with user-friendly message
+                response = user_response.strip()
         
         return ChatResponse(
             response=response,
