@@ -1,4 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import {
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+} from "recharts";
 import { useAuth } from "./auth/AuthContext.jsx";
 import { Icon } from "./components/Icons.jsx";
 import { caseAPI, historyAPI } from "./services/api.js";
@@ -28,6 +41,45 @@ const RISK_COLORS = {
   3: { bg: "#fef3c7", text: "#92400e", label: "Medium" },
   4: { bg: "#ffedd5", text: "#c2410c", label: "High" },
   5: { bg: "#fee2e2", text: "#991b1b", label: "Critical" },
+};
+
+// ─── DESIGN TOKENS ───────────────────────────────────────────────────
+const T = {
+  navy: "#0f172a",
+  navyMid: "#1e293b",
+  slate: "#475569",
+  muted: "#94a3b8",
+  border: "#e2e8f0",
+  bg: "#f0f4f8",
+  cardBg: "#ffffff",
+  indigo: "#0672CB",
+  indigoDark: "#0460a9",
+  success: "#10b981",
+  danger: "#dc2626",
+  warning: "#f59e0b",
+};
+
+// ─── RISK COLOR MAPPINGS (string keys) ───────────────────────────────
+const riskColors = {
+  CRITICAL: { bg: "#fef2f2", text: "#991b1b", border: "#fecaca", dot: "#dc2626" },
+  HIGH: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa", dot: "#ea580c" },
+  MEDIUM: { bg: "#fefce8", text: "#a16207", border: "#fef08a", dot: "#ca8a04" },
+  LOW: { bg: "#f0fdf4", text: "#166534", border: "#bbf7d0", dot: "#16a34a" },
+};
+
+const riskLevelToLabel = (level) => {
+  if (level >= 5) return "CRITICAL";
+  if (level >= 4) return "HIGH";
+  if (level >= 3) return "MEDIUM";
+  return "LOW";
+};
+
+const CHART_COLORS = {
+  critical: "#dc2626",
+  high: "#ea580c",
+  moderate: "#ca8a04",
+  low: "#16a34a",
+  primary: "#0672CB",
 };
 
 const PRESET_QUESTIONS = [
@@ -629,6 +681,169 @@ function WorkStatusBadge({ workStatus }) {
   );
 }
 
+// ─── CASE PANEL CARD (grid display) ──────────────────────────────────────────
+function CasePanelCard({ c, onClick, isSelected }) {
+  const rc = riskColors[c.risk] || riskColors.MEDIUM;
+  return (
+    <div
+      onClick={() => onClick(c)}
+      style={{
+        background: isSelected ? "#eff6ff" : "#fff",
+        border: isSelected ? `2px solid ${T.indigo}` : "1px solid #e2e8f0",
+        borderRadius: 14,
+        padding: "18px 20px",
+        cursor: "pointer",
+        transition: "all 0.2s",
+        boxShadow: isSelected ? "0 6px 20px rgba(6,114,203,0.2)" : "0 2px 8px rgba(0,0,0,0.04)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        minHeight: 140,
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
+      }}
+    >
+      {/* Header Row */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: T.navyMid }}>{c.id || c.code}</div>
+          <div style={{ fontSize: 13, color: T.slate, marginTop: 3 }}>{c.user || c.user_id || c.youth?.handle}</div>
+        </div>
+        <span
+          style={{
+            background: rc.bg,
+            color: rc.text,
+            border: `1px solid ${rc.border}`,
+            borderRadius: 8,
+            padding: "4px 10px",
+            fontSize: 11,
+            fontWeight: 700,
+          }}
+        >
+          {c.risk || riskLevelToLabel(c.riskLevel || 3)}
+        </span>
+      </div>
+
+      {/* Middle Info */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span style={{ background: "#f1f5f9", padding: "3px 8px", borderRadius: 6, fontSize: 11, color: T.slate }}>{c.platform}</span>
+        <span style={{ background: "#f1f5f9", padding: "3px 8px", borderRadius: 6, fontSize: 11, color: T.slate }}>{c.category}</span>
+      </div>
+
+      {/* Footer */}
+      <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ fontSize: 11, color: T.muted }}>
+          <Icon.Clock size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+          {c.lastSignal}
+        </div>
+        {(c.mine || c.assignedToMe) && (
+          <span
+            style={{
+              background: "#eff6ff",
+              color: T.indigo,
+              border: "1px solid #bfdbfe",
+              borderRadius: 4,
+              fontSize: 9,
+              padding: "2px 6px",
+              fontWeight: 700,
+            }}
+          >
+            ASSIGNED TO ME
+          </span>
+        )}
+        {c.work_status && c.work_status !== "not_started" && (
+          <WorkStatusBadge workStatus={c.work_status} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── YOUTH HELPER PROFILE CARD ───────────────────────────────────────────────
+function YouthHelperCard({ user, stats }) {
+  const userInitials =
+    user?.username?.split(" ").map((n) => n[0]).join("").slice(0, 2) ||
+    user?.name?.split(" ").map((n) => n[0]).join("").slice(0, 2) ||
+    user?.avatar_initials ||
+    "YH";
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        border: "1px solid #e2e8f0",
+        padding: 24,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+      }}
+    >
+      {/* Avatar & Name */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "50%",
+            background: `linear-gradient(135deg, ${T.indigo}, ${T.indigoDark})`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: 20,
+            fontWeight: 700,
+            color: "#fff",
+            boxShadow: "0 4px 12px rgba(6,114,203,0.3)",
+          }}
+        >
+          {userInitials}
+        </div>
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: T.navyMid }}>
+            {user?.username || user?.name || "Youth Helper"}
+          </div>
+          <div style={{ fontSize: 12, color: T.muted }}>{user?.role || "Youth Helper"}</div>
+        </div>
+      </div>
+
+      {/* Stats Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ background: "#fef2f2", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#dc2626" }}>{stats.myCritical}</div>
+          <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 600, textTransform: "uppercase" }}>Critical</div>
+        </div>
+        <div style={{ background: "#fff7ed", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#ea580c" }}>{stats.myHigh}</div>
+          <div style={{ fontSize: 10, color: "#c2410c", fontWeight: 600, textTransform: "uppercase" }}>High</div>
+        </div>
+        <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#16a34a" }}>{stats.myOther}</div>
+          <div style={{ fontSize: 10, color: "#166534", fontWeight: 600, textTransform: "uppercase" }}>Med/Low</div>
+        </div>
+        <div style={{ background: "#eff6ff", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
+          <div style={{ fontSize: 24, fontWeight: 800, color: T.indigo }}>{stats.assignedToMe}</div>
+          <div style={{ fontSize: 10, color: T.indigoDark, fontWeight: 600, textTransform: "uppercase" }}>Total Mine</div>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div style={{ marginTop: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, marginBottom: 10, textTransform: "uppercase" }}>Quick Actions</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <button style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: T.slate, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
+            <Icon.FileText size={14} color={T.indigo} /> View My Reports
+          </button>
+          <button style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: T.slate, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
+            <Icon.Calendar size={14} color={T.indigo} /> Schedule Follow-up
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP (Youth Helper Dashboard) ──────────────────────────────
 export default function YouthHelperDashboard({ currentUser: propUser }) {
   const { logout } = useAuth();
@@ -677,6 +892,10 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   // ── AI Recommendations ──
   const [recommendations, setRecommendations] = useState([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
+
+  // ── Case History (Timeline) ──
+  const [caseHistory, setCaseHistory] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // ── LLM Summary Integration ──
   const [llmSummaries, setLlmSummaries] = useState({});
@@ -915,6 +1134,75 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
     const maxRiskB = Math.max(...casesByCategory[b].map((c) => c.riskLevel));
     return maxRiskB - maxRiskA;
   });
+
+  // ── Enhanced Dashboard Stats ──
+  const stats = useMemo(() => {
+    return {
+      total: cases.length,
+      critical: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL").length,
+      high: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH").length,
+      medium: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "MEDIUM").length,
+      low: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "LOW").length,
+      assignedToMe: myAssignedCases.length,
+      myCritical: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL").length,
+      myHigh: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH").length,
+      myOther: myAssignedCases.filter((c) => {
+        const r = c.risk || riskLevelToLabel(c.riskLevel || 3);
+        return r === "MEDIUM" || r === "LOW";
+      }).length,
+    };
+  }, [cases, myAssignedCases]);
+
+  const chartData = useMemo(() => {
+    const riskData = [
+      { name: "Critical", value: stats.critical, color: CHART_COLORS.critical },
+      { name: "High", value: stats.high, color: CHART_COLORS.high },
+      { name: "Moderate", value: stats.medium, color: CHART_COLORS.moderate },
+      { name: "Low", value: stats.low, color: CHART_COLORS.low },
+    ];
+
+    const platformCounts = cases.reduce((acc, c) => {
+      acc[c.platform] = (acc[c.platform] || 0) + 1;
+      return acc;
+    }, {});
+    const platformData = Object.entries(platformCounts)
+      .map(([platform, count]) => ({ platform, cases: count }))
+      .sort((a, b) => b.cases - a.cases);
+
+    const trendData = [
+      { day: "Mon", critical: 2, high: 4, moderate: 3, low: 1 },
+      { day: "Tue", critical: 3, high: 3, moderate: 4, low: 2 },
+      { day: "Wed", critical: 2, high: 5, moderate: 3, low: 1 },
+      { day: "Thu", critical: 4, high: 4, moderate: 2, low: 2 },
+      { day: "Fri", critical: 3, high: 6, moderate: 4, low: 1 },
+      { day: "Sat", critical: 2, high: 3, moderate: 2, low: 3 },
+      { day: "Sun", critical: stats.critical, high: stats.high, moderate: stats.medium, low: stats.low },
+    ];
+
+    const myRiskData = [
+      { name: "Critical", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL").length, color: CHART_COLORS.critical },
+      { name: "High", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH").length, color: CHART_COLORS.high },
+      { name: "Moderate", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "MEDIUM").length, color: CHART_COLORS.moderate },
+      { name: "Low", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "LOW").length, color: CHART_COLORS.low },
+    ];
+
+    const myCategoryCounts = myAssignedCases.reduce((acc, c) => {
+      acc[c.category] = (acc[c.category] || 0) + 1;
+      return acc;
+    }, {});
+    const myCategoryData = Object.entries(myCategoryCounts)
+      .map(([category, count]) => ({ category, cases: count }))
+      .sort((a, b) => b.cases - a.cases);
+
+    const myWorkStatusData = [
+      { name: "Not Started", value: myAssignedCases.filter((c) => (c.work_status || "not_started") === "not_started").length, color: "#94a3b8" },
+      { name: "In Progress", value: myAssignedCases.filter((c) => c.work_status === "in_progress").length, color: "#3b82f6" },
+      { name: "To Review", value: myAssignedCases.filter((c) => c.work_status === "to_review").length, color: "#f59e0b" },
+      { name: "Completed", value: myAssignedCases.filter((c) => c.work_status === "completed").length, color: "#10b981" },
+    ];
+
+    return { riskData, platformData, trendData, myRiskData, myCategoryData, myWorkStatusData };
+  }, [cases, myAssignedCases, stats]);
 
   // Drag and drop handlers
   const handleDragStart = (index, e) => {
@@ -2527,113 +2815,218 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
             </div>
             {/* Case list */}
             {activeTab === "all" ? (
-              // Category columns view for All Cases
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: "auto",
-                  overflowX: "auto",
-                  padding: "16px 20px",
-                  display: "flex",
-                  gap: 16,
-                }}
-              >
-                {sortedCategories.map((category) => (
-                  <div
-                    key={category}
-                    style={{
-                      width: 300,
-                      flexShrink: 0,
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 14,
-                    }}
-                  >
-                    <div
-                      style={{
-                        position: "sticky",
-                        top: 0,
-                        background: "linear-gradient(135deg, #1e40af, #3b82f6)",
-                        color: "#fff",
-                        padding: "10px 14px",
-                        borderRadius: 10,
-                        fontWeight: 600,
-                        fontSize: 13,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        zIndex: 1,
-                        boxShadow: "0 2px 8px rgba(30, 64, 175, 0.25)",
-                      }}
-                    >
-                      <span style={{ letterSpacing: "0.3px" }}>{category}</span>
-                      <span
+              <div style={{ flex: 1, display: "flex", padding: 24, gap: 24, overflow: "hidden" }}>
+                <div style={{ width: 280, flexShrink: 0, overflowY: "auto" }}>
+                  <YouthHelperCard user={currentUser} stats={stats} />
+                </div>
+
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20, overflow: "auto" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+                    {[
+                      { label: "Total Cases", value: stats.total, color: T.indigo, bg: "#eff6ff", icon: "📋" },
+                      { label: "Critical", value: stats.critical, color: T.danger, bg: "#fef2f2", icon: "🚨" },
+                      { label: "High Risk", value: stats.high, color: "#ea580c", bg: "#fff7ed", icon: "⚠️" },
+                      { label: "Med/Low", value: stats.medium + stats.low, color: T.success, bg: "#f0fdf4", icon: "✅" },
+                    ].map((s, i) => (
+                      <div
+                        key={i}
                         style={{
-                          background: "rgba(255,255,255,0.2)",
-                          borderRadius: 10,
-                          padding: "2px 8px",
-                          fontSize: 11,
-                          fontWeight: 700,
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 14,
+                          padding: "18px 20px",
+                          position: "relative",
+                          overflow: "hidden",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                         }}
                       >
-                        {casesByCategory[category].length}
-                      </span>
-                    </div>
-                    {casesByCategory[category].map((c) => (
-                      <CaseCard
-                        key={c.id}
-                        c={c}
-                        isAssignedView={false}
-                        highlight={
-                          highlightTarget === "workspace-panel" &&
-                          c.id === myAssignedCases[0]?.id
-                        }
-                        onClick={openCase}
-                        llmSummary={llmSummaries[c.case_user || c.user_id]}
-                        onViewSummary={handleViewSummary}
-                      />
+                        <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color }} />
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                          <div>
+                            <div style={{ fontSize: 12, color: T.muted, marginBottom: 6 }}>{s.label}</div>
+                            <div style={{ fontSize: 32, fontWeight: 800, color: s.color }}>{s.value}</div>
+                          </div>
+                          <div style={{ fontSize: 28, background: s.bg, padding: "10px", borderRadius: 10 }}>{s.icon}</div>
+                        </div>
+                      </div>
                     ))}
                   </div>
-                ))}
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>Risk Distribution</div>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <PieChart>
+                          <Pie data={chartData.riskData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3} dataKey="value">
+                            {chartData.riskData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                          </Pie>
+                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div style={{ display: "flex", justifyContent: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
+                        {chartData.riskData.map((r, i) => (
+                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
+                            <div style={{ width: 10, height: 10, borderRadius: 3, background: r.color }} />
+                            <span style={{ color: T.slate }}>{r.name}: {r.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>Weekly Risk Trend</div>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <AreaChart data={chartData.trendData}>
+                          <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} width={28} />
+                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                          <Area type="monotone" dataKey="critical" stackId="1" stroke="#dc2626" fill="#fecaca" />
+                          <Area type="monotone" dataKey="high" stackId="1" stroke="#ea580c" fill="#fed7aa" />
+                          <Area type="monotone" dataKey="moderate" stackId="1" stroke="#ca8a04" fill="#fef08a" />
+                          <Area type="monotone" dataKey="low" stackId="1" stroke="#16a34a" fill="#bbf7d0" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>By Platform</div>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <BarChart data={chartData.platformData} layout="vertical">
+                          <XAxis type="number" tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="platform" tick={{ fontSize: 11, fill: T.slate }} axisLine={false} tickLine={false} width={70} />
+                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
+                          <Bar dataKey="cases" fill={T.indigo} radius={[0, 6, 6, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14 }}>All Active Cases ({cases.length})</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                      {cases.map((c) => (
+                        <CasePanelCard key={c.id} c={{ ...c, risk: c.risk || riskLevelToLabel(c.riskLevel || 3), user: c.user || c.user_id || c.youth?.handle }} onClick={openCase} isSelected={false} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             ) : activeTab === "assigned" ? (
-              // List view with drag-and-drop for Assigned to Me
-              <div
-                style={{
-                  flex: 1,
-                  overflowY: "auto",
-                  padding: 20,
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 16,
-                }}
-              >
-                {myAssignedCases.map((c, index) => (
-                  <div
-                    key={c.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(index, e)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragEnd={handleDragEnd}
-                    style={{
-                      cursor: isDragging ? "move" : "pointer",
-                      opacity: draggedIndex === index ? 0.5 : 1,
-                      transition: "opacity 0.2s",
-                    }}
-                  >
-                    <CaseCard
-                      c={c}
-                      isAssignedView={true}
-                      highlight={
-                        highlightTarget === "workspace-panel" &&
-                        c.id === myAssignedCases[0]?.id
-                      }
-                      onClick={handleCaseClick}
-                      llmSummary={llmSummaries[c.case_user || c.user_id]}
-                      onViewSummary={handleViewSummary}
-                    />
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <div
+                  style={{
+                    flex: selectedCase ? "0 0 50%" : 1,
+                    minWidth: selectedCase ? 460 : undefined,
+                    background: "#fff",
+                    borderRight: selectedCase ? "1px solid #e5e7eb" : "none",
+                    display: "flex",
+                    flexDirection: "column",
+                    overflow: "hidden",
+                    transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+                  }}
+                >
+                  {!selectedCase && (
+                    <div style={{ padding: 20, overflowY: "auto" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+                        {[
+                          { label: "My Cases", value: stats.assignedToMe, color: T.indigo, bg: "#eff6ff", icon: "📋" },
+                          { label: "Critical", value: stats.myCritical, color: T.danger, bg: "#fef2f2", icon: "🚨" },
+                          { label: "High", value: stats.myHigh, color: "#ea580c", bg: "#fff7ed", icon: "⚠️" },
+                          { label: "Med/Low", value: stats.myOther, color: T.success, bg: "#f0fdf4", icon: "✅" },
+                        ].map((s, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              background: "#fff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 14,
+                              padding: "16px 18px",
+                              position: "relative",
+                              overflow: "hidden",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                            }}
+                          >
+                            <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color }} />
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                              <div>
+                                <div style={{ fontSize: 11, color: T.muted, marginBottom: 4 }}>{s.label}</div>
+                                <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+                              </div>
+                              <div style={{ fontSize: 24, background: s.bg, padding: "8px", borderRadius: 8 }}>{s.icon}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+                        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>My Risk Distribution</div>
+                          <ResponsiveContainer width="100%" height={140}>
+                            <PieChart>
+                              <Pie data={chartData.myRiskData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
+                                {chartData.myRiskData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                              </Pie>
+                              <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>Work Status</div>
+                          <ResponsiveContainer width="100%" height={140}>
+                            <PieChart>
+                              <Pie data={chartData.myWorkStatusData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
+                                {chartData.myWorkStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                              </Pie>
+                              <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+
+                        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>By Category</div>
+                          <ResponsiveContainer width="100%" height={140}>
+                            <BarChart data={chartData.myCategoryData} layout="vertical">
+                              <XAxis type="number" tick={{ fontSize: 9, fill: T.muted }} axisLine={false} tickLine={false} />
+                              <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fill: T.slate }} axisLine={false} tickLine={false} width={80} />
+                              <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                              <Bar dataKey="cases" fill={T.indigo} radius={[0, 6, 6, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
+                        <Icon.User size={16} color={T.indigo} /> My Assigned Cases ({myAssignedCases.length})
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ flex: 1, overflowY: "auto", padding: selectedCase ? 20 : "0 20px 20px 20px" }}>
+                    {myAssignedCases.length === 0 ? (
+                      <div style={{ textAlign: "center", padding: 60, color: T.muted }}>
+                        <Icon.User size={40} color="#e2e8f0" />
+                        <div style={{ fontSize: 16, fontWeight: 600, marginTop: 16, color: T.slate }}>No cases assigned to you yet</div>
+                        <div style={{ fontSize: 13, marginTop: 6 }}>Cases will appear here when assigned by your supervisor.</div>
+                      </div>
+                    ) : (
+                      <div style={{ display: "grid", gridTemplateColumns: selectedCase ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                        {myAssignedCases.map((c, index) => (
+                          <div
+                            key={c.id}
+                            draggable
+                            onDragStart={(e) => handleDragStart(index, e)}
+                            onDragOver={(e) => handleDragOver(e, index)}
+                            onDragEnd={handleDragEnd}
+                            style={{ cursor: isDragging ? "move" : "pointer", opacity: draggedIndex === index ? 0.5 : 1, transition: "opacity 0.2s" }}
+                          >
+                            <CasePanelCard c={{ ...c, risk: c.risk || riskLevelToLabel(c.riskLevel || 3), user: c.user || c.user_id || c.youth?.handle }} onClick={handleCaseClick} isSelected={selectedCase?.id === c.id} />
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                ))}
+                </div>
               </div>
             ) : (
               // Needs Review list (admin only)
