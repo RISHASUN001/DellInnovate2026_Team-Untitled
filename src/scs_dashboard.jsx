@@ -1328,20 +1328,6 @@ function LiveNewsWidget() {
           </div>
         )}
       </div>
-
-      <style jsx>{`
-        @keyframes pulse {
-          0% {
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.4;
-          }
-          100% {
-            opacity: 1;
-          }
-        }
-      `}</style>
     </div>
   );
 }
@@ -1405,6 +1391,13 @@ function StraitsTimesNewsWidget() {
         overflow: "hidden",
       }}
     >
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
+        @keyframes stNewsSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `,
+        }}
+      />
       {/* Header */}
       <div
         style={{
@@ -1479,7 +1472,9 @@ function StraitsTimesNewsWidget() {
           <Icon.RefreshCw
             size={10}
             color={loading ? "#94a3b8" : "#0672CB"}
-            style={{ animation: loading ? "spin 1s linear infinite" : "none" }}
+            style={{
+              animation: loading ? "stNewsSpin 1s linear infinite" : "none",
+            }}
           />
           Refresh
         </button>
@@ -1602,18 +1597,964 @@ function StraitsTimesNewsWidget() {
           })}
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* CSS for spin animation */}
-      <style jsx>{`
-        @keyframes spin {
-          from {
-            transform: rotate(0deg);
-          }
-          to {
-            transform: rotate(360deg);
-          }
-        }
-      `}</style>
+// ─── SINGAPORE STRESS HEATMAP ─────────────────────────────────────────────────
+function SingaporeStressHeatmap() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastUpdate, setLastUpdate] = useState(null);
+  const [hoveredRegion, setHoveredRegion] = useState(null);
+  const [selectedRegion, setSelectedRegion] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Fetch cached stress data from MongoDB (on initial load)
+  const fetchCachedData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(`${CASE_SERVICE_URL}/stress-map`);
+      if (!response.ok) throw new Error("Failed to fetch cached stress data");
+      const result = await response.json();
+      
+      if (result.cached && result.data) {
+        setData(result.data);
+        setLastUpdate(new Date(result.cached_at));
+      } else {
+        // No cached data available - show message but don't error
+        setData(null);
+        setLastUpdate(null);
+      }
+    } catch (err) {
+      console.error("Error fetching cached stress data:", err);
+      setError("Unable to load stress data");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Refresh stress data from webhook and cache to MongoDB
+  const refreshStressData = useCallback(async () => {
+    setIsRefreshing(true);
+    setError(null);
+    try {
+      const response = await fetch(`${CASE_SERVICE_URL}/stress-map/refresh`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error("Failed to refresh stress data");
+      const result = await response.json();
+      
+      if (result.data) {
+        setData(result.data);
+        setLastUpdate(new Date(result.cached_at));
+      }
+    } catch (err) {
+      console.error("Error refreshing stress data:", err);
+      setError("Unable to refresh stress data");
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  // Load cached data on mount
+  useEffect(() => {
+    fetchCachedData();
+  }, [fetchCachedData]);
+
+  // More realistic Singapore region SVG paths based on actual geography
+  const regionPaths = {
+    North:
+      "M 145,45 C 155,40 175,35 200,32 C 230,28 260,30 285,35 C 310,42 330,55 345,75 C 352,88 355,100 352,115 C 348,130 340,142 325,150 C 305,160 280,165 255,162 C 225,158 195,150 175,140 C 155,130 140,115 138,95 C 136,75 140,55 145,45 Z",
+    "North-East":
+      "M 345,75 C 365,68 385,65 405,70 C 425,78 440,92 450,112 C 458,135 460,160 455,182 C 448,205 435,220 415,230 C 395,238 375,235 358,225 C 345,215 338,200 335,180 C 332,160 335,138 340,120 C 345,102 348,88 345,75 Z",
+    East: "M 415,230 C 435,238 455,250 470,270 C 482,290 488,315 485,340 C 480,365 465,385 445,395 C 420,405 390,400 365,388 C 345,378 330,360 325,338 C 322,315 328,292 340,272 C 355,248 380,235 400,232 C 408,230 412,230 415,230 Z",
+    Central:
+      "M 255,162 C 280,165 305,160 325,150 C 340,142 348,130 352,115 C 355,100 352,88 345,75 L 340,120 C 335,138 332,160 335,180 C 338,200 345,215 358,225 C 375,235 395,238 415,230 C 400,232 380,235 365,248 L 340,272 C 328,292 322,315 325,338 C 310,350 290,355 268,352 C 245,348 225,338 210,322 C 198,308 192,290 195,270 C 200,245 215,225 235,210 C 250,198 260,180 258,165 L 255,162 Z",
+    West: "M 45,140 C 60,125 82,115 108,110 C 135,105 160,108 175,120 C 190,132 195,150 195,170 C 195,195 185,218 170,238 C 152,262 128,280 105,292 C 80,305 55,310 38,298 C 22,285 18,265 22,242 C 28,215 40,188 48,165 C 52,150 50,145 45,140 Z",
+    South:
+      "M 170,238 C 185,218 195,195 195,270 C 192,290 198,308 210,322 C 225,338 245,348 268,352 C 290,355 310,350 325,338 C 330,360 320,382 302,398 C 280,418 250,430 218,432 C 185,432 155,422 132,405 C 112,390 100,368 98,345 C 96,320 105,298 118,280 C 135,258 155,248 170,238 Z",
+  };
+
+  const regionCenters = {
+    North: { x: 245, y: 95 },
+    "North-East": { x: 395, y: 155 },
+    East: { x: 420, y: 320 },
+    Central: { x: 290, y: 250 },
+    West: { x: 95, y: 200 },
+    South: { x: 210, y: 370 },
+  };
+
+  // Match API's field names: `name` instead of `region`, `stress_level` instead of `stress_score`
+  const getRegionData = (regionName) => {
+    if (!data?.regions) return null;
+    return data.regions.find((r) => r.name === regionName);
+  };
+
+  const getRegionColor = (regionName) => {
+    const regionData = getRegionData(regionName);
+    if (!regionData) return "#e2e8f0";
+    return regionData.color || "#e2e8f0";
+  };
+
+  const getStressLevel = (score) => {
+    if (score >= 75) return "Critical";
+    if (score >= 50) return "High";
+    if (score >= 25) return "Moderate";
+    return "Low";
+  };
+
+  const overallStats = useMemo(() => {
+    if (!data?.regions) return null;
+    // Use stress_level from API
+    const avgStress =
+      data.regions.reduce((sum, r) => sum + (r.stress_level || 0), 0) /
+      data.regions.length;
+    const totalArticles =
+      data.summary?.total_articles_analyzed || data.articles_analyzed || 0;
+    const highestRegion = data.regions.reduce(
+      (max, r) => (r.stress_level > (max?.stress_level || 0) ? r : max),
+      null,
+    );
+    return { avgStress: avgStress.toFixed(0), totalArticles, highestRegion };
+  }, [data]);
+
+  // Inline keyframes for spin animation
+  const spinKeyframes = `
+    @keyframes stressMapSpin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  `;
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        border: "1px solid #e2e8f0",
+        padding: 20,
+        boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
+        marginTop: 16,
+      }}
+    >
+      <style dangerouslySetInnerHTML={{ __html: spinKeyframes }} />
+
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 10,
+              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
+            }}
+          >
+            <Icon.MapPin size={20} color="#fff" />
+          </div>
+          <div>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 16,
+                color: "#1e293b",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              Singapore Stress Heatmap
+              <span
+                style={{
+                  background: loading ? "#f1f5f9" : isRefreshing ? "#fef3c7" : "#dcfce7",
+                  color: loading ? "#64748b" : isRefreshing ? "#92400e" : "#166534",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  padding: "3px 8px",
+                  borderRadius: 12,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.5px",
+                }}
+              >
+                {loading ? "LOADING" : isRefreshing ? "REFRESHING" : data ? "CACHED" : "NO DATA"}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+              Regional stress analysis •{" "}
+              {data?.time_range || "Click refresh to load data"}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          {lastUpdate && (
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>
+              Cached:{" "}
+              {lastUpdate.toLocaleTimeString("en-SG", {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          )}
+          <button
+            onClick={refreshStressData}
+            disabled={loading || isRefreshing}
+            style={{
+              background: (loading || isRefreshing)
+                ? "#f1f5f9"
+                : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              border: "none",
+              borderRadius: 8,
+              padding: "8px 14px",
+              color: (loading || isRefreshing) ? "#94a3b8" : "#fff",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: (loading || isRefreshing) ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              boxShadow: (loading || isRefreshing) ? "none" : "0 2px 8px rgba(99,102,241,0.3)",
+              transition: "all 0.2s",
+            }}
+          >
+            <Icon.RefreshCw
+              size={12}
+              color={(loading || isRefreshing) ? "#94a3b8" : "#fff"}
+              style={{
+                animation: isRefreshing
+                  ? "stressMapSpin 1s linear infinite"
+                  : "none",
+              }}
+            />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      {loading && !data ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: 300,
+            color: "#64748b",
+          }}
+        >
+          <div
+            style={{
+              width: 40,
+              height: 40,
+              border: "3px solid #e2e8f0",
+              borderTopColor: "#6366f1",
+              borderRadius: "50%",
+              animation: "stressMapSpin 1s linear infinite",
+              marginBottom: 12,
+            }}
+          />
+          <div style={{ fontSize: 13, fontWeight: 500 }}>
+            Loading cached stress data...
+          </div>
+        </div>
+      ) : error ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: 300,
+            color: "#dc2626",
+          }}
+        >
+          <Icon.AlertCircle
+            size={40}
+            color="#dc2626"
+            style={{ marginBottom: 12 }}
+          />
+          <div style={{ fontSize: 14, fontWeight: 600 }}>{error}</div>
+          <button
+            onClick={refreshStressData}
+            style={{
+              marginTop: 12,
+              background: "#fee2e2",
+              border: "none",
+              borderRadius: 6,
+              padding: "8px 16px",
+              color: "#dc2626",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Try Again
+          </button>
+        </div>
+      ) : !data ? (
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            height: 300,
+            color: "#64748b",
+          }}
+        >
+          <Icon.MapPin
+            size={48}
+            color="#94a3b8"
+            style={{ marginBottom: 12 }}
+          />
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>No cached data available</div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Click refresh to fetch stress map data</div>
+          <button
+            onClick={refreshStressData}
+            disabled={isRefreshing}
+            style={{
+              background: isRefreshing ? "#f1f5f9" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              border: "none",
+              borderRadius: 8,
+              padding: "10px 20px",
+              color: isRefreshing ? "#94a3b8" : "#fff",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: isRefreshing ? "not-allowed" : "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              boxShadow: isRefreshing ? "none" : "0 2px 8px rgba(99,102,241,0.3)",
+            }}
+          >
+            <Icon.RefreshCw
+              size={14}
+              style={{
+                animation: isRefreshing ? "stressMapSpin 1s linear infinite" : "none",
+              }}
+            />
+            {isRefreshing ? "Fetching..." : "Fetch Data"}
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 24 }}>
+          {/* Map Section */}
+          <div style={{ flex: 1, position: "relative" }}>
+            <svg
+              viewBox="0 0 520 480"
+              style={{
+                width: "100%",
+                height: "auto",
+                maxHeight: 420,
+              }}
+            >
+              {/* Background - Ocean */}
+              <defs>
+                <linearGradient
+                  id="oceanGradient"
+                  x1="0%"
+                  y1="0%"
+                  x2="100%"
+                  y2="100%"
+                >
+                  <stop offset="0%" stopColor="#e0f2fe" />
+                  <stop offset="50%" stopColor="#bae6fd" />
+                  <stop offset="100%" stopColor="#7dd3fc" />
+                </linearGradient>
+                <filter
+                  id="regionShadow"
+                  x="-20%"
+                  y="-20%"
+                  width="140%"
+                  height="140%"
+                >
+                  <feDropShadow
+                    dx="0"
+                    dy="2"
+                    stdDeviation="3"
+                    floodOpacity="0.15"
+                  />
+                </filter>
+                <filter
+                  id="regionGlow"
+                  x="-50%"
+                  y="-50%"
+                  width="200%"
+                  height="200%"
+                >
+                  <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+                  <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
+
+              {/* Ocean Background */}
+              <rect
+                x="0"
+                y="0"
+                width="520"
+                height="480"
+                fill="url(#oceanGradient)"
+                rx="16"
+              />
+
+              {/* Wave patterns for ocean effect */}
+              <g opacity="0.3">
+                <path
+                  d="M0,420 Q130,400 260,420 T520,420"
+                  fill="none"
+                  stroke="#0ea5e9"
+                  strokeWidth="1"
+                />
+                <path
+                  d="M0,440 Q130,420 260,440 T520,440"
+                  fill="none"
+                  stroke="#0ea5e9"
+                  strokeWidth="1"
+                />
+                <path
+                  d="M0,460 Q130,440 260,460 T520,460"
+                  fill="none"
+                  stroke="#0ea5e9"
+                  strokeWidth="1"
+                />
+              </g>
+
+              {/* Singapore Title */}
+              <text
+                x="260"
+                y="25"
+                textAnchor="middle"
+                style={{
+                  fontSize: 14,
+                  fill: "#0c4a6e",
+                  fontWeight: 700,
+                  letterSpacing: "1px",
+                }}
+              >
+                SINGAPORE
+              </text>
+
+              {/* Region paths */}
+              {Object.entries(regionPaths).map(([region, path]) => {
+                const regionData = getRegionData(region);
+                const isHovered = hoveredRegion === region;
+                const isSelected = selectedRegion === region;
+                const color = regionData?.color || "#e2e8f0";
+                const stressLevel = regionData?.stress_level || 0;
+
+                return (
+                  <g key={region}>
+                    <path
+                      d={path}
+                      fill={color}
+                      stroke={
+                        isHovered || isSelected
+                          ? "#1e293b"
+                          : "rgba(255,255,255,0.8)"
+                      }
+                      strokeWidth={isHovered || isSelected ? 3 : 2}
+                      filter={
+                        isHovered ? "url(#regionGlow)" : "url(#regionShadow)"
+                      }
+                      style={{
+                        cursor: "pointer",
+                        transition: "all 0.3s ease",
+                        opacity: isHovered ? 1 : 0.92,
+                      }}
+                      onMouseEnter={() => setHoveredRegion(region)}
+                      onMouseLeave={() => setHoveredRegion(null)}
+                      onClick={() =>
+                        setSelectedRegion(
+                          selectedRegion === region ? null : region,
+                        )
+                      }
+                    />
+                    {/* Region label */}
+                    <text
+                      x={regionCenters[region].x}
+                      y={regionCenters[region].y - 8}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      style={{
+                        fontSize: region === "North-East" ? 10 : 11,
+                        fontWeight: 700,
+                        fill: stressLevel >= 50 ? "#fff" : "#1e293b",
+                        pointerEvents: "none",
+                        textShadow:
+                          stressLevel >= 50
+                            ? "0 1px 3px rgba(0,0,0,0.4)"
+                            : "0 1px 2px rgba(255,255,255,0.8)",
+                        letterSpacing: "0.5px",
+                      }}
+                    >
+                      {region}
+                    </text>
+                    {/* Stress percentage */}
+                    {regionData && (
+                      <text
+                        x={regionCenters[region].x}
+                        y={regionCenters[region].y + 8}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 800,
+                          fill:
+                            stressLevel >= 50
+                              ? "rgba(255,255,255,0.95)"
+                              : "#374151",
+                          pointerEvents: "none",
+                          textShadow:
+                            stressLevel >= 50
+                              ? "0 1px 2px rgba(0,0,0,0.3)"
+                              : "none",
+                        }}
+                      >
+                        {stressLevel}%
+                      </text>
+                    )}
+                    {/* Status badge */}
+                    {regionData && isHovered && (
+                      <g>
+                        <rect
+                          x={regionCenters[region].x - 25}
+                          y={regionCenters[region].y + 20}
+                          width="50"
+                          height="16"
+                          rx="8"
+                          fill="rgba(0,0,0,0.7)"
+                        />
+                        <text
+                          x={regionCenters[region].x}
+                          y={regionCenters[region].y + 30}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          style={{
+                            fontSize: 8,
+                            fontWeight: 600,
+                            fill: "#fff",
+                            pointerEvents: "none",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {regionData.status}
+                        </text>
+                      </g>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* Compass */}
+              <g transform="translate(470, 60)">
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="18"
+                  fill="rgba(255,255,255,0.9)"
+                  stroke="#94a3b8"
+                  strokeWidth="1"
+                />
+                <text
+                  x="0"
+                  y="-5"
+                  textAnchor="middle"
+                  style={{ fontSize: 10, fill: "#1e293b", fontWeight: 700 }}
+                >
+                  N
+                </text>
+                <path d="M0,-12 L3,-6 L0,-8 L-3,-6 Z" fill="#dc2626" />
+                <path d="M0,12 L3,6 L0,8 L-3,6 Z" fill="#64748b" />
+              </g>
+
+              {/* Footer instruction */}
+              <text
+                x="260"
+                y="465"
+                textAnchor="middle"
+                style={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }}
+              >
+                Click on a region for detailed analysis
+              </text>
+            </svg>
+          </div>
+
+          {/* Info Panel */}
+          <div
+            style={{
+              width: 280,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
+            {/* Legend */}
+            <div
+              style={{
+                background: "#f8fafc",
+                borderRadius: 10,
+                padding: 14,
+                border: "1px solid #e2e8f0",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 700,
+                  color: "#1e293b",
+                  marginBottom: 10,
+                }}
+              >
+                Stress Level Legend
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  { color: "#00ff00", label: "Low", range: "0-24%" },
+                  { color: "#ffff00", label: "Moderate", range: "25-49%" },
+                  { color: "#ff9900", label: "High", range: "50-74%" },
+                  { color: "#ff0000", label: "Critical", range: "75-100%" },
+                ].map((item) => (
+                  <div
+                    key={item.label}
+                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                  >
+                    <div
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: 4,
+                        background: item.color,
+                        border: "1px solid rgba(0,0,0,0.15)",
+                        boxShadow:
+                          "inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 3px rgba(0,0,0,0.1)",
+                      }}
+                    />
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: "#475569",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {item.label}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "#94a3b8",
+                        marginLeft: "auto",
+                      }}
+                    >
+                      {item.range}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Summary Stats */}
+            {overallStats && (
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                  borderRadius: 10,
+                  padding: 14,
+                  color: "#fff",
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    opacity: 0.9,
+                    marginBottom: 10,
+                  }}
+                >
+                  Summary Statistics
+                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 800 }}>
+                      {overallStats.avgStress}%
+                    </div>
+                    <div style={{ fontSize: 9, opacity: 0.8 }}>Avg Stress</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 22, fontWeight: 800 }}>
+                      {overallStats.totalArticles}
+                    </div>
+                    <div style={{ fontSize: 9, opacity: 0.8 }}>Articles</div>
+                  </div>
+                </div>
+                {overallStats.highestRegion && (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: "8px 10px",
+                      background: "rgba(255,255,255,0.15)",
+                      borderRadius: 6,
+                      fontSize: 10,
+                    }}
+                  >
+                    <span style={{ opacity: 0.8 }}>Highest:</span>{" "}
+                    <strong>{overallStats.highestRegion.name}</strong> (
+                    {overallStats.highestRegion.stress_level}%)
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Selected Region Details */}
+            {selectedRegion &&
+              getRegionData(selectedRegion) &&
+              (() => {
+                const rd = getRegionData(selectedRegion);
+                return (
+                  <div
+                    style={{
+                      background: "#fff",
+                      borderRadius: 10,
+                      padding: 14,
+                      border: `2px solid ${rd.color}`,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          color: "#1e293b",
+                        }}
+                      >
+                        {selectedRegion} Region
+                      </div>
+                      <span
+                        style={{
+                          background: rd.color,
+                          color: rd.stress_level >= 50 ? "#fff" : "#1e293b",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          padding: "3px 8px",
+                          borderRadius: 12,
+                        }}
+                      >
+                        {rd.status}
+                      </span>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 8,
+                        marginBottom: 10,
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: "#f8fafc",
+                          borderRadius: 6,
+                          padding: 8,
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 800,
+                            color: "#1e293b",
+                          }}
+                        >
+                          {rd.stress_level}%
+                        </div>
+                        <div style={{ fontSize: 9, color: "#64748b" }}>
+                          Stress Level
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: "#f8fafc",
+                          borderRadius: 6,
+                          padding: 8,
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 18,
+                            fontWeight: 800,
+                            color: "#1e293b",
+                          }}
+                        >
+                          {rd.article_count || 0}
+                        </div>
+                        <div style={{ fontSize: 9, color: "#64748b" }}>
+                          Articles
+                        </div>
+                      </div>
+                    </div>
+
+                    {rd.top_keywords?.length > 0 && (
+                      <div style={{ marginBottom: 10 }}>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: "#64748b",
+                            marginBottom: 6,
+                          }}
+                        >
+                          Top Keywords
+                        </div>
+                        <div
+                          style={{ display: "flex", flexWrap: "wrap", gap: 4 }}
+                        >
+                          {rd.top_keywords.slice(0, 5).map((kw, i) => (
+                            <span
+                              key={i}
+                              style={{
+                                background: "#eff6ff",
+                                color: "#1e40af",
+                                fontSize: 9,
+                                padding: "3px 6px",
+                                borderRadius: 4,
+                                fontWeight: 500,
+                              }}
+                            >
+                              {kw}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {rd.main_stressors?.length > 0 && (
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: "#64748b",
+                            marginBottom: 6,
+                          }}
+                        >
+                          Main Stressors
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 4,
+                          }}
+                        >
+                          {rd.main_stressors.slice(0, 3).map((stressor, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 6,
+                                fontSize: 10,
+                                color: "#475569",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: "50%",
+                                  background: "#f59e0b",
+                                  flexShrink: 0,
+                                }}
+                              />
+                              {stressor}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {rd.recent_articles?.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          paddingTop: 10,
+                          borderTop: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 10,
+                            fontWeight: 600,
+                            color: "#64748b",
+                            marginBottom: 6,
+                          }}
+                        >
+                          Recent Articles
+                        </div>
+                        <div style={{ fontSize: 9, color: "#475569" }}>
+                          {rd.recent_articles.length} article(s) analyzed
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+            {!selectedRegion && (
+              <div
+                style={{
+                  background: "#f8fafc",
+                  borderRadius: 10,
+                  padding: 20,
+                  border: "1px dashed #cbd5e1",
+                  textAlign: "center",
+                }}
+              >
+                <Icon.MousePointer
+                  size={24}
+                  color="#94a3b8"
+                  style={{ marginBottom: 8 }}
+                />
+                <div style={{ fontSize: 11, color: "#64748b" }}>
+                  Click on a region to view detailed stress analysis
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1687,6 +2628,80 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   const [expandedSummary, setExpandedSummary] = useState(null);
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
   const [selectedSummary, setSelectedSummary] = useState(null);
+
+  // // ── Instagram Stories Integration ──
+  // const [instagramStories, setInstagramStories] = useState(null);
+  // const [loadingStories, setLoadingStories] = useState(false);
+  // const [storiesError, setStoriesError] = useState(null);
+
+  // Extract clean Instagram username from case data
+  const extractInstagramUsername = (caseData) => {
+    // Try to get username from various sources
+    let username =
+      caseData?.youth?.handle ||
+      caseData?.user_id ||
+      caseData?.instagram_handle ||
+      "";
+
+    // Clean the username: remove @ and "case_" prefix
+    username = username
+      .replace(/^@/, "") // Remove leading @
+      .replace(/^case_/i, "") // Remove "case_" prefix (case insensitive)
+      .trim();
+
+    return username;
+  };
+
+  // // Fetch Instagram story timestamps
+  // const fetchInstagramStories = async (caseData) => {
+  //   const username = extractInstagramUsername(caseData);
+
+  //   if (!username) {
+  //     setStoriesError("No Instagram username found for this case");
+  //     return;
+  //   }
+
+  //   // console.log("Fetching Instagram stories for username:", username);
+
+  //   setLoadingStories(true);
+  //   setStoriesError(null);
+  //   setInstagramStories(null);
+
+  //   try {
+  //     const CASE_SERVICE_URL =
+  //       import.meta.env.VITE_CASE_SERVICE_URL || "http://localhost:8003";
+  //     const response = await fetch(
+  //       `${CASE_SERVICE_URL}/instagram/stories/${encodeURIComponent(username)}`,
+  //     );
+
+  //     if (!response.ok) {
+  //       const errorText = await response.text();
+  //       console.error(
+  //         "Instagram stories API error:",
+  //         response.status,
+  //         errorText,
+  //       );
+  //       throw new Error(`Failed to fetch stories: ${response.status}`);
+  //     }
+
+  //     const data = await response.json();
+  //     setInstagramStories(data);
+  //   } catch (err) {
+  //     console.error("Error fetching Instagram stories:", err);
+  //     setStoriesError(err.message || "Failed to fetch stories");
+  //   } finally {
+  //     setLoadingStories(false);
+  //   }
+  // };
+
+  // // Format time remaining for display
+  // const formatTimeRemaining = (seconds) => {
+  //   if (seconds <= 0) return "Expired";
+  //   const hours = Math.floor(seconds / 3600);
+  //   const minutes = Math.floor((seconds % 3600) / 60);
+  //   if (hours > 0) return `${hours}h ${minutes}m`;
+  //   return `${minutes}m`;
+  // };
 
   useEffect(() => {
     const loadCases = async () => {
@@ -1882,6 +2897,12 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
 
     fetchRecommendations();
   }, [selectedCase]);
+
+  // // Clear Instagram stories when case changes
+  // useEffect(() => {
+  //   setInstagramStories(null);
+  //   setStoriesError(null);
+  // }, [selectedCase?.id || selectedCase?.case_id]);
 
   const [assignedCasesOrder, setAssignedCasesOrder] = useState([]);
   // Keep order in sync when cases update
@@ -2089,6 +3110,9 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
     // Only open case if not actively dragging
     if (!isDragging) {
       setSelectedCase(c);
+      // Clear Instagram stories when switching cases
+      // setInstagramStories(null);
+      // setStoriesError(null);
     }
   };
 
@@ -2398,6 +3422,19 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         ONBOARDING_STEPS[onboardingStep]?.target
       : null;
 
+  // Global CSS animations
+  const globalStyles = `
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.4; }
+      100% { opacity: 1; }
+    }
+  `;
+
   return (
     <div
       style={{
@@ -2416,6 +3453,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         overflow: "hidden",
       }}
     >
+      <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
       {/* ── TOP NAV ── */}
       <nav
         style={{
@@ -4105,6 +5143,9 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                     <StraitsTimesNewsWidget />
                   </div>
                 </div>
+
+                {/* Singapore Stress Heatmap */}
+                <SingaporeStressHeatmap />
               </div>
             ) : activeTab === "all" ? (
               <div style={{ flex: 1, padding: 24, overflowY: "auto" }}>
@@ -5323,6 +6364,9 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                           </button>
                         </div>
                       </div>
+
+                      {/* Instagram Stories section removed - was causing build errors */}
+
                       <div
                         style={{
                           background: "#fef3c7",
@@ -5334,6 +6378,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                           display: "flex",
                           alignItems: "flex-start",
                           gap: 8,
+                          marginTop: 12,
                         }}
                       >
                         <Icon.AlertTriangle
