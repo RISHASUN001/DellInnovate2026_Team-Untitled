@@ -1,15 +1,10 @@
-INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/mcp-service']
+INFO:     Will watch for changes in these directories: ['/Users/pandeymahi/Documents/GitHub/DellInnovate2026_Team-Untitled/mcp-service']
 INFO:     Uvicorn running on http://0.0.0.0:8002 (Press CTRL+C to quit)
-INFO:     Started reloader process [69818] using WatchFiles
-INFO:     Started server process [69860]
+INFO:     Started reloader process [51079] using WatchFiles
+INFO:     Started server process [51116]
 INFO:     Waiting for application startup.
-2026-03-10 23:08:42.928 | INFO     | app.main:lifespan:54 - mcp-service starting up...
-2026-03-10 23:08:42.937 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
-2026-03-10 23:08:45.158 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
+2026-03-12 12:31:12.058 | INFO     | app.main:lifespan:54 - mcp-service starting up...
+2026-03-12 12:31:12.067 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-12 12:31:15.668 | INFO     | app.database:_ensure_indexes:47 - MCP service indexes ensured
 INFO:     Application startup complete.
-INFO:     127.0.0.1:62768 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64263 - "OPTIONS /tools/get_case_context HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64263 - "POST /tools/get_case_context HTTP/1.1" 404 Not Found
-INFO:     127.0.0.1:64567 - "OPTIONS /tools/add_checklist_items HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64567 - "POST /tools/add_checklist_items HTTP/1.1" 422 Unprocessable Entity
-INFO:     127.0.0.1:64569 - "POST /tools/add_checklist_items HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52259 - "GET /health HTTP/1.1" 200 OK

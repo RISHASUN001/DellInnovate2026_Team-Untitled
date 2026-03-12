@@ -1,42 +1,31 @@
-INFO:     Will watch for changes in these directories: ['/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/case-service']
+INFO:     Will watch for changes in these directories: ['/Users/pandeymahi/Documents/GitHub/DellInnovate2026_Team-Untitled/case-service']
 INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
-INFO:     Started reloader process [69802] using WatchFiles
-INFO:     Started server process [69848]
+INFO:     Started reloader process [51066] using WatchFiles
+INFO:     Started server process [51121]
 INFO:     Waiting for application startup.
-2026-03-10 23:08:42.820 | INFO     | app.main:startup:36 - SCS Case Service starting (MongoDB mode)...
-2026-03-10 23:08:42.829 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
-2026-03-10 23:08:42.829 | INFO     | app.main:startup:40 - ✅ Connected to MongoDB database: dellinnovate
+2026-03-12 12:31:12.058 | INFO     | app.main:startup:36 - SCS Case Service starting (MongoDB mode)...
+2026-03-12 12:31:12.067 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-12 12:31:12.067 | INFO     | app.main:startup:40 - ✅ Connected to MongoDB database: dellinnovate
 INFO:     Application startup complete.
-INFO:     127.0.0.1:62743 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62992 - "OPTIONS /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62994 - "OPTIONS /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62992 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62992 - "OPTIONS /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62994 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62996 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:62996 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63041 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63043 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63041 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63041 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63041 - "OPTIONS /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63043 - "OPTIONS /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63041 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63041 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63464 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63464 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63462 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63462 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63462 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63750 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63750 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63748 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63748 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:63748 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64109 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64109 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64109 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64109 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64109 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64109 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:64810 - "GET /cases/CASE_2026_085 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52248 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52343 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52345 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52343 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52345 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52345 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52345 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52406 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52406 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52427 - "OPTIONS /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52428 - "OPTIONS /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52428 - "GET /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52427 - "GET /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52432 - "OPTIONS /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52433 - "OPTIONS /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52433 - "GET /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52432 - "GET /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52440 - "OPTIONS /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52440 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52440 - "OPTIONS /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52438 - "GET /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
+INFO:     127.0.0.1:52440 - "GET /users?role=youth_helper HTTP/1.1" 200 OK

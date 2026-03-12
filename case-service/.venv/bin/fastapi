@@ -1,4 +1,4 @@
-#!/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/case-service/.venv/bin/python
+#!/Users/pandeymahi/Documents/GitHub/DellInnovate2026_Team-Untitled/case-service/.venv/bin/python
 import sys
 from fastapi.cli import main
 if __name__ == '__main__':

@@ -828,18 +828,6 @@ function YouthHelperCard({ user, stats }) {
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div style={{ marginTop: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, marginBottom: 10, textTransform: "uppercase" }}>Quick Actions</div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <button style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: T.slate, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
-            <Icon.FileText size={14} color={T.indigo} /> View My Reports
-          </button>
-          <button style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: T.slate, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
-            <Icon.Calendar size={14} color={T.indigo} /> Schedule Follow-up
-          </button>
-        </div>
-      </div>
     </div>
   );
 }
@@ -863,7 +851,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   };
   const [activeTab, setActiveTab] = useState("all");
   const [selectedCase, setSelectedCase] = useState(null);
-  const [detailTab, setDetailTab] = useState("overview"); // 'overview' | 'timeline'
+  const [detailTab, setDetailTab] = useState("overview"); // 'overview' | 'timeline' | 'checklist' | 'reassign'
   const [accessDeniedCase, setAccessDeniedCase] = useState(null); // case that triggered access denied
   // Work status state for open case
   const [workStatus, setWorkStatus] = useState(null);
@@ -2821,37 +2809,6 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                 </div>
 
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20, overflow: "auto" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
-                    {[
-                      { label: "Total Cases", value: stats.total, color: T.indigo, bg: "#eff6ff", icon: "📋" },
-                      { label: "Critical", value: stats.critical, color: T.danger, bg: "#fef2f2", icon: "🚨" },
-                      { label: "High Risk", value: stats.high, color: "#ea580c", bg: "#fff7ed", icon: "⚠️" },
-                      { label: "Med/Low", value: stats.medium + stats.low, color: T.success, bg: "#f0fdf4", icon: "✅" },
-                    ].map((s, i) => (
-                      <div
-                        key={i}
-                        style={{
-                          background: "#fff",
-                          border: "1px solid #e2e8f0",
-                          borderRadius: 14,
-                          padding: "18px 20px",
-                          position: "relative",
-                          overflow: "hidden",
-                          boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
-                        }}
-                      >
-                        <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color }} />
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                          <div>
-                            <div style={{ fontSize: 12, color: T.muted, marginBottom: 6 }}>{s.label}</div>
-                            <div style={{ fontSize: 32, fontWeight: 800, color: s.color }}>{s.value}</div>
-                          </div>
-                          <div style={{ fontSize: 28, background: s.bg, padding: "10px", borderRadius: 10 }}>{s.icon}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
                     <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
                       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>Risk Distribution</div>
@@ -2912,10 +2869,17 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                 </div>
               </div>
             ) : activeTab === "assigned" ? (
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+              <div
+                style={{
+                  flex: 1,
+                  display: selectedCase ? "flex" : "block",
+                  overflow: "hidden",
+                }}
+              >
                 <div
                   style={{
                     flex: selectedCase ? "0 0 50%" : 1,
+                    width: selectedCase ? "auto" : "100%",
                     minWidth: selectedCase ? 460 : undefined,
                     background: "#fff",
                     borderRight: selectedCase ? "1px solid #e5e7eb" : "none",
@@ -2927,32 +2891,96 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                 >
                   {!selectedCase && (
                     <div style={{ padding: 20, overflowY: "auto" }}>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+                      <div
+                        style={{
+                          background: "linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)",
+                          border: "1px solid #dbeafe",
+                          borderRadius: 14,
+                          padding: 12,
+                          marginBottom: 20,
+                          display: "grid",
+                          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                          gap: 10,
+                        }}
+                      >
                         {[
-                          { label: "My Cases", value: stats.assignedToMe, color: T.indigo, bg: "#eff6ff", icon: "📋" },
-                          { label: "Critical", value: stats.myCritical, color: T.danger, bg: "#fef2f2", icon: "🚨" },
-                          { label: "High", value: stats.myHigh, color: "#ea580c", bg: "#fff7ed", icon: "⚠️" },
-                          { label: "Med/Low", value: stats.myOther, color: T.success, bg: "#f0fdf4", icon: "✅" },
-                        ].map((s, i) => (
+                          {
+                            label: "Assigned",
+                            value: stats.assignedToMe,
+                            icon: "📋",
+                            color: T.indigo,
+                          },
+                          {
+                            label: "Critical",
+                            value: stats.myCritical,
+                            icon: "🚨",
+                            color: T.danger,
+                          },
+                          {
+                            label: "High",
+                            value: stats.myHigh,
+                            icon: "⚠️",
+                            color: "#ea580c",
+                          },
+                          {
+                            label: "Med / Low",
+                            value: stats.myOther,
+                            icon: "✅",
+                            color: T.success,
+                          },
+                        ].map((kpi, i) => (
                           <div
                             key={i}
                             style={{
-                              background: "#fff",
+                              background: "rgba(255,255,255,0.8)",
                               border: "1px solid #e2e8f0",
-                              borderRadius: 14,
-                              padding: "16px 18px",
-                              position: "relative",
-                              overflow: "hidden",
-                              boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                              borderRadius: 10,
+                              padding: "10px 12px",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              gap: 10,
                             }}
                           >
-                            <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color }} />
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                              <div>
-                                <div style={{ fontSize: 11, color: T.muted, marginBottom: 4 }}>{s.label}</div>
-                                <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: T.muted,
+                                  textTransform: "uppercase",
+                                  letterSpacing: "0.4px",
+                                  fontWeight: 700,
+                                }}
+                              >
+                                {kpi.label}
                               </div>
-                              <div style={{ fontSize: 24, background: s.bg, padding: "8px", borderRadius: 8 }}>{s.icon}</div>
+                              <div
+                                style={{
+                                  fontSize: 22,
+                                  lineHeight: 1.1,
+                                  fontWeight: 800,
+                                  color: kpi.color,
+                                  marginTop: 2,
+                                }}
+                              >
+                                {kpi.value}
+                              </div>
+                            </div>
+                            <div
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 8,
+                                background: "#fff",
+                                border: "1px solid #e2e8f0",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: 16,
+                                flexShrink: 0,
+                              }}
+                            >
+                              {kpi.icon}
                             </div>
                           </div>
                         ))}
@@ -2969,6 +2997,14 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                               <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
                             </PieChart>
                           </ResponsiveContainer>
+                          <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                            {chartData.myRiskData.map((r, i) => (
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: T.slate }}>
+                                <div style={{ width: 9, height: 9, borderRadius: 3, background: r.color }} />
+                                <span>{r.name}: {r.value}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
                         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
@@ -2981,6 +3017,14 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                               <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
                             </PieChart>
                           </ResponsiveContainer>
+                          <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                            {chartData.myWorkStatusData.map((s, i) => (
+                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: T.slate }}>
+                                <div style={{ width: 9, height: 9, borderRadius: 3, background: s.color }} />
+                                <span>{s.name}: {s.value}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
 
                         <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
@@ -3310,6 +3354,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
               >
                 {[
                   { id: "overview", label: "Overview" },
+                  { id: "checklist", label: "Checklist" },
                   { id: "timeline", label: "Timeline" },
                   { id: "reassign", label: "Reassign" },
                 ].map((t) => (
@@ -4158,7 +4203,22 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                   <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{selectedCase.summary}</p>
                 </div> */}
 
-                    {/* Case Checklist - Now inline in vertical flow */}
+                  </div>
+                )}
+
+                {detailTab === "timeline" && (
+                  <CaseTimeline
+                    caseId={
+                      selectedCase.case_id ||
+                      selectedCase.code ||
+                      selectedCase.id
+                    }
+                    currentUser={currentUser}
+                  />
+                )}
+
+                {detailTab === "checklist" && (
+                  <div style={{ flex: 1, padding: 20, overflowY: "auto" }}>
                     <div
                       style={{
                         background: "#fff",
@@ -4176,17 +4236,6 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                       />
                     </div>
                   </div>
-                )}
-
-                {detailTab === "timeline" && (
-                  <CaseTimeline
-                    caseId={
-                      selectedCase.case_id ||
-                      selectedCase.code ||
-                      selectedCase.id
-                    }
-                    currentUser={currentUser}
-                  />
                 )}
 
                 {detailTab === "reassign" && (
@@ -4510,6 +4559,26 @@ function CaseTimeline({ caseId, currentUser }) {
     return { bg: "#d1fae5", text: "#065f46", label: "Low" };
   };
 
+  const chartData = useMemo(() => {
+    return [...history].reverse().map((entry, index) => {
+      const score = Number(entry.risk_score) || 0;
+      return {
+        idx: index + 1,
+        ingestionDate: entry.ingestion_date,
+        label: new Date(entry.ingestion_date).toLocaleDateString("en-SG", {
+          month: "short",
+          day: "numeric",
+        }),
+        riskScore: score,
+        riskLabel: getRiskColor(score).label,
+      };
+    });
+  }, [history]);
+
+  const latestScore = Number(history[0]?.risk_score) || 0;
+  const earliestScore = Number(history[history.length - 1]?.risk_score) || 0;
+  const riskDelta = latestScore - earliestScore;
+
   if (loading)
     return (
       <div
@@ -4618,6 +4687,102 @@ function CaseTimeline({ caseId, currentUser }) {
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 12,
+              border: "1px solid #e2e8f0",
+              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+              padding: "16px 18px",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "#1e293b",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <Icon.Activity size={14} color="#0672CB" />
+                Risk Trend Graph
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "#64748b",
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "center",
+                }}
+              >
+                <span>
+                  Latest: <strong style={{ color: "#1e293b" }}>{latestScore.toFixed(1)}%</strong>
+                </span>
+                <span>
+                  Change: <strong style={{ color: riskDelta >= 0 ? "#dc2626" : "#16a34a" }}>{riskDelta >= 0 ? "+" : ""}{riskDelta.toFixed(1)}%</strong>
+                </span>
+              </div>
+            </div>
+
+            <div style={{ width: "100%", height: 220 }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={chartData}
+                  margin={{ top: 10, right: 8, left: -20, bottom: 0 }}
+                >
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={{ stroke: "#e2e8f0" }}
+                    tickLine={{ stroke: "#e2e8f0" }}
+                  />
+                  <YAxis
+                    domain={[0, 100]}
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={{ stroke: "#e2e8f0" }}
+                    tickLine={{ stroke: "#e2e8f0" }}
+                  />
+                  <Tooltip
+                    formatter={(value, _name, payload) => [
+                      `${Number(value).toFixed(1)}% (${payload?.payload?.riskLabel || "Unknown"})`,
+                      "Risk",
+                    ]}
+                    labelFormatter={(_label, payload) => {
+                      if (!payload?.[0]?.payload?.ingestionDate) return "";
+                      return formatDate(payload[0].payload.ingestionDate);
+                    }}
+                    contentStyle={{
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                      fontSize: 12,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="riskScore"
+                    stroke="#0672CB"
+                    strokeWidth={3}
+                    fill="#0672CB"
+                    fillOpacity={0.2}
+                    activeDot={{ r: 5, fill: "#0672CB" }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
           {history.map((entry, index) => {
             const signals = extractSignals(entry.ai_explanation);
             const riskColor = getRiskColor(entry.risk_score);

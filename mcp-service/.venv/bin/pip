@@ -1,4 +1,4 @@
-#!/Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/mcp-service/.venv/bin/python
+#!/Users/pandeymahi/Documents/GitHub/DellInnovate2026_Team-Untitled/mcp-service/.venv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
