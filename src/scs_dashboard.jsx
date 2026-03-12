@@ -849,7 +849,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
     if (!assignedTo || !currentUserIdentity) return false;
     return assignedTo.toString().trim().toLowerCase() === currentUserIdentity;
   };
-  const [activeTab, setActiveTab] = useState("all");
+  const [activeTab, setActiveTab] = useState("analytics");
   const [selectedCase, setSelectedCase] = useState(null);
   const [detailTab, setDetailTab] = useState("overview"); // 'overview' | 'timeline' | 'checklist' | 'reassign'
   const [accessDeniedCase, setAccessDeniedCase] = useState(null); // case that triggered access denied
@@ -2649,12 +2649,14 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
               style={{
                 display: "flex",
                 background:
+                  highlightTarget === "tab-analytics" ||
                   highlightTarget === "tab-all" ||
                   highlightTarget === "tab-assigned"
                     ? "#eef2ff"
                     : "#fff",
                 transition: "background 0.3s",
                 border:
+                  highlightTarget === "tab-analytics" ||
                   highlightTarget === "tab-all" ||
                   highlightTarget === "tab-assigned"
                     ? "2px solid #0672CB"
@@ -2663,6 +2665,39 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                 borderRadius: "0 0 0 0",
               }}
             >
+              <button
+                id="tab-analytics"
+                onClick={() => {
+                  setActiveTab("analytics");
+                  setSelectedCase(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: "13px 0",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  fontWeight: activeTab === "analytics" ? 700 : 500,
+                  color: activeTab === "analytics" ? "#0672CB" : "#64748b",
+                  borderBottom:
+                    activeTab === "analytics"
+                      ? "3px solid #0672CB"
+                      : "3px solid transparent",
+                  transition: "all 0.2s",
+                }}
+              >
+                <Icon.Activity
+                  size={13}
+                  color={activeTab === "analytics" ? "#0672CB" : "#94a3b8"}
+                  style={{
+                    display: "inline",
+                    verticalAlign: "middle",
+                    marginRight: 6,
+                  }}
+                />
+                Analytics
+              </button>
               <button
                 onClick={() => {
                   setActiveTab("all");
@@ -2802,7 +2837,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
               )}
             </div>
             {/* Case list */}
-            {activeTab === "all" ? (
+            {activeTab === "analytics" ? (
               <div style={{ flex: 1, display: "flex", padding: 24, gap: 24, overflow: "hidden" }}>
                 <div style={{ width: 280, flexShrink: 0, overflowY: "auto" }}>
                   <YouthHelperCard user={currentUser} stats={stats} />
@@ -2857,15 +2892,26 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                       </ResponsiveContainer>
                     </div>
                   </div>
-
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14 }}>All Active Cases ({cases.length})</div>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
-                      {cases.map((c) => (
-                        <CasePanelCard key={c.id} c={{ ...c, risk: c.risk || riskLevelToLabel(c.riskLevel || 3), user: c.user || c.user_id || c.youth?.handle }} onClick={openCase} isSelected={false} />
-                      ))}
-                    </div>
-                  </div>
+                </div>
+              </div>
+            ) : activeTab === "all" ? (
+              <div style={{ flex: 1, padding: 24, overflowY: "auto" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14 }}>
+                  All Active Cases ({cases.length})
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                  {cases.map((c) => (
+                    <CasePanelCard
+                      key={c.id}
+                      c={{
+                        ...c,
+                        risk: c.risk || riskLevelToLabel(c.riskLevel || 3),
+                        user: c.user || c.user_id || c.youth?.handle,
+                      }}
+                      onClick={openCase}
+                      isSelected={false}
+                    />
+                  ))}
                 </div>
               </div>
             ) : activeTab === "assigned" ? (
@@ -4401,27 +4447,6 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
           </div>
         )}
 
-        {/* ── EMPTY STATE ── */}
-        {!loading && !error && !selectedCase && activeTab === "assigned" && (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#94a3b8",
-            }}
-          >
-            <div style={{ textAlign: "center" }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#64748b" }}>
-                Select a case to view details
-              </div>
-              <div style={{ fontSize: 13, marginTop: 4 }}>
-                Click any card in your assigned list
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── CHATBOT TOGGLE ── */}
