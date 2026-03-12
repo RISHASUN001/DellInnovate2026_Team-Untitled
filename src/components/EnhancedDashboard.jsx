@@ -48,7 +48,12 @@ const RISK_COLORS = {
 };
 
 const riskColors = {
-  CRITICAL: { bg: "#fef2f2", text: "#991b1b", border: "#fecaca", dot: "#dc2626" },
+  CRITICAL: {
+    bg: "#fef2f2",
+    text: "#991b1b",
+    border: "#fecaca",
+    dot: "#dc2626",
+  },
   HIGH: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa", dot: "#ea580c" },
   MEDIUM: { bg: "#fefce8", text: "#a16207", border: "#fef08a", dot: "#ca8a04" },
   LOW: { bg: "#f0fdf4", text: "#166534", border: "#bbf7d0", dot: "#16a34a" },
@@ -86,7 +91,14 @@ function DataFreshnessIndicator() {
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
         <Icon.RefreshCw size={14} color="#cbd5e1" />
         <div>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#cbd5e1", letterSpacing: "0.5px" }}>
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 700,
+              color: "#cbd5e1",
+              letterSpacing: "0.5px",
+            }}
+          >
             LAST INGESTION
           </div>
           <div style={{ fontSize: 12, color: "#94a3b8" }}>
@@ -94,9 +106,24 @@ function DataFreshnessIndicator() {
           </div>
         </div>
       </div>
-      <div style={{ width: 1, height: 30, background: "rgba(255,255,255,0.2)", margin: "0 4px" }} />
-      <div style={{ fontSize: 10, color: "#94a3b8", maxWidth: 140, lineHeight: 1.35 }}>
-        Data refreshes every <strong>6 hours</strong> for privacy & platform compliance.
+      <div
+        style={{
+          width: 1,
+          height: 30,
+          background: "rgba(255,255,255,0.2)",
+          margin: "0 4px",
+        }}
+      />
+      <div
+        style={{
+          fontSize: 10,
+          color: "#94a3b8",
+          maxWidth: 140,
+          lineHeight: 1.35,
+        }}
+      >
+        Data refreshes every <strong>6 hours</strong> for privacy & platform
+        compliance.
       </div>
     </div>
   );
@@ -133,7 +160,11 @@ function WorkStatusBadge({ workStatus }) {
     to_review: { bg: "#fee2e2", text: "#991b1b", label: "To Review" },
     completed: { bg: "#d1fae5", text: "#065f46", label: "Completed" },
   };
-  const c = cfg[workStatus] || { bg: "#f3f4f6", text: "#4b5563", label: workStatus || "—" };
+  const c = cfg[workStatus] || {
+    bg: "#f3f4f6",
+    text: "#4b5563",
+    label: workStatus || "—",
+  };
   return (
     <span
       style={{
@@ -163,24 +194,38 @@ function CasePanelCard({ c, onClick, isSelected }) {
         padding: "18px 20px",
         cursor: "pointer",
         transition: "all 0.2s",
-        boxShadow: isSelected ? "0 6px 20px rgba(6,114,203,0.2)" : "0 2px 8px rgba(0,0,0,0.04)",
+        boxShadow: isSelected
+          ? "0 6px 20px rgba(6,114,203,0.2)"
+          : "0 2px 8px rgba(0,0,0,0.04)",
         display: "flex",
         flexDirection: "column",
         gap: 12,
         minHeight: 140,
       }}
       onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+        if (!isSelected)
+          e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
       }}
       onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
+        if (!isSelected)
+          e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
       }}
     >
       {/* Header Row */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+        }}
+      >
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: T.navyMid }}>{c.id}</div>
-          <div style={{ fontSize: 13, color: T.slate, marginTop: 3 }}>{c.user}</div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: T.navyMid }}>
+            {c.id}
+          </div>
+          <div style={{ fontSize: 13, color: T.slate, marginTop: 3 }}>
+            {c.user}
+          </div>
         </div>
         <span
           style={{
@@ -198,15 +243,56 @@ function CasePanelCard({ c, onClick, isSelected }) {
       </div>
 
       {/* Middle Info */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-        <span style={{ background: "#f1f5f9", padding: "3px 8px", borderRadius: 6, fontSize: 11, color: T.slate }}>{c.platform}</span>
-        <span style={{ background: "#f1f5f9", padding: "3px 8px", borderRadius: 6, fontSize: 11, color: T.slate }}>{c.category}</span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            background: "#f1f5f9",
+            padding: "3px 8px",
+            borderRadius: 6,
+            fontSize: 11,
+            color: T.slate,
+          }}
+        >
+          {c.platform}
+        </span>
+        <span
+          style={{
+            background: "#f1f5f9",
+            padding: "3px 8px",
+            borderRadius: 6,
+            fontSize: 11,
+            color: T.slate,
+          }}
+        >
+          {c.category}
+        </span>
       </div>
 
       {/* Footer */}
-      <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div
+        style={{
+          marginTop: "auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <div style={{ fontSize: 11, color: T.muted }}>
-          <Icon.Clock size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+          <Icon.Clock
+            size={11}
+            style={{
+              display: "inline",
+              verticalAlign: "middle",
+              marginRight: 4,
+            }}
+          />
           {c.lastSignal}
         </div>
         {c.mine && (
@@ -234,9 +320,18 @@ function CasePanelCard({ c, onClick, isSelected }) {
 
 // ─── YOUTH HELPER PROFILE CARD ───────────────────────────────────────────────
 function YouthHelperCard({ user, stats }) {
-  const userInitials = user?.username?.split(" ").map(n => n[0]).join("").slice(0, 2) 
-    || user?.name?.split(" ").map(n => n[0]).join("").slice(0, 2) 
-    || "YH";
+  const userInitials =
+    user?.username
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2) ||
+    user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2) ||
+    "YH";
 
   return (
     <div
@@ -249,7 +344,14 @@ function YouthHelperCard({ user, stats }) {
       }}
     >
       {/* Avatar & Name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          marginBottom: 20,
+        }}
+      >
         <div
           style={{
             width: 56,
@@ -268,43 +370,665 @@ function YouthHelperCard({ user, stats }) {
           {userInitials}
         </div>
         <div>
-          <div style={{ fontWeight: 700, fontSize: 16, color: T.navyMid }}>{user?.username || user?.name || "Youth Helper"}</div>
-          <div style={{ fontSize: 12, color: T.muted }}>{user?.role || "Youth Helper"}</div>
+          <div style={{ fontWeight: 700, fontSize: 16, color: T.navyMid }}>
+            {user?.username || user?.name || "Youth Helper"}
+          </div>
+          <div style={{ fontSize: 12, color: T.muted }}>
+            {user?.role || "Youth Helper"}
+          </div>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div style={{ background: "#fef2f2", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#dc2626" }}>{stats.myCritical}</div>
-          <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 600, textTransform: "uppercase" }}>Critical</div>
+        <div
+          style={{
+            background: "#fef2f2",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#dc2626" }}>
+            {stats.myCritical}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "#991b1b",
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            Critical
+          </div>
         </div>
-        <div style={{ background: "#fff7ed", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#ea580c" }}>{stats.myHigh}</div>
-          <div style={{ fontSize: 10, color: "#c2410c", fontWeight: 600, textTransform: "uppercase" }}>High</div>
+        <div
+          style={{
+            background: "#fff7ed",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#ea580c" }}>
+            {stats.myHigh}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "#c2410c",
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            High
+          </div>
         </div>
-        <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#16a34a" }}>{stats.myOther}</div>
-          <div style={{ fontSize: 10, color: "#166534", fontWeight: 600, textTransform: "uppercase" }}>Med/Low</div>
+        <div
+          style={{
+            background: "#f0fdf4",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#16a34a" }}>
+            {stats.myOther}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "#166534",
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            Med/Low
+          </div>
         </div>
-        <div style={{ background: "#eff6ff", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: T.indigo }}>{stats.assignedToMe}</div>
-          <div style={{ fontSize: 10, color: T.indigoDark, fontWeight: 600, textTransform: "uppercase" }}>Total Mine</div>
+        <div
+          style={{
+            background: "#eff6ff",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: T.indigo }}>
+            {stats.assignedToMe}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: T.indigoDark,
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            Total Mine
+          </div>
         </div>
       </div>
 
       {/* Quick Actions */}
       <div style={{ marginTop: 20 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: T.muted, marginBottom: 10, textTransform: "uppercase" }}>Quick Actions</div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            color: T.muted,
+            marginBottom: 10,
+            textTransform: "uppercase",
+          }}
+        >
+          Quick Actions
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <button style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: T.slate, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
+          <button
+            style={{
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              padding: "10px 12px",
+              fontSize: 12,
+              color: T.slate,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              textAlign: "left",
+            }}
+          >
             <Icon.FileText size={14} color={T.indigo} /> View My Reports
           </button>
-          <button style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: T.slate, cursor: "pointer", display: "flex", alignItems: "center", gap: 8, textAlign: "left" }}>
+          <button
+            style={{
+              background: "#f8fafc",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              padding: "10px 12px",
+              fontSize: 12,
+              color: T.slate,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              textAlign: "left",
+            }}
+          >
             <Icon.Calendar size={14} color={T.indigo} /> Schedule Follow-up
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── CASE CLUSTER PANEL ──────────────────────────────────────────────────────
+function CaseClusterPanel({ caseServiceUrl }) {
+  const DEFAULT_PROTOTYPES = [
+    {
+      case_id: "CASE_PROTO_2026_001",
+      categories: ["Academic burnout"],
+      primary_concern: "Academic burnout",
+    },
+    {
+      case_id: "CASE_PROTO_2026_002",
+      categories: ["War/conflict displacement"],
+      primary_concern: "War/conflict displacement",
+    },
+    {
+      case_id: "CASE_PROTO_2026_003",
+      categories: ["Family pressure", "Financial stress"],
+      primary_concern: "Family pressure",
+    },
+    {
+      case_id: "CASE_PROTO_2026_004",
+      categories: ["Financial stress", "Social isolation"],
+      primary_concern: "Financial stress",
+    },
+    {
+      case_id: "CASE_PROTO_2026_005",
+      categories: ["Social isolation"],
+      primary_concern: "Social isolation",
+    },
+    {
+      case_id: "CASE_PROTO_2026_006",
+      categories: ["Grief/loss"],
+      primary_concern: "Grief/loss",
+    },
+    {
+      case_id: "CASE_PROTO_2026_007",
+      categories: ["Academic stress", "Relationship stress"],
+      primary_concern: "Academic stress",
+    },
+    {
+      case_id: "CASE_PROTO_2026_008",
+      categories: ["War trauma", "Identity pressure"],
+      primary_concern: "War trauma",
+    },
+  ];
+
+  const [clusterCases, setClusterCases] = useState(DEFAULT_PROTOTYPES);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+
+  const categoryMap = useMemo(() => {
+    const map = {};
+    clusterCases.forEach((c) => {
+      const cats = c.categories || [
+        c.primary_concern || c.current_category || c.category || "General",
+      ];
+      cats.forEach((cat) => {
+        if (!map[cat]) map[cat] = [];
+        map[cat].push({
+          id: c.case_id || c.id,
+          allCategories: cats,
+          primary: cats[0],
+        });
+      });
+    });
+    return map;
+  }, [clusterCases]);
+
+  const categories = Object.keys(categoryMap).sort();
+  const casesInSelectedCategory = selectedCategory
+    ? categoryMap[selectedCategory] || []
+    : [];
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 14,
+        padding: 24,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 14,
+          fontWeight: 700,
+          marginBottom: 16,
+          color: T.navyMid,
+        }}
+      >
+        Case Clusters by Category
+      </div>
+      <div style={{ display: "flex", gap: 20, minHeight: 180 }}>
+        {/* Left: Category Tabs */}
+        <div
+          style={{
+            width: 220,
+            borderRight: "1px solid #e2e8f0",
+            paddingRight: 16,
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            maxHeight: 300,
+            overflowY: "auto",
+          }}
+        >
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              onClick={() =>
+                setSelectedCategory(selectedCategory === cat ? null : cat)
+              }
+              style={{
+                padding: "10px 14px",
+                background: selectedCategory === cat ? "#eff6ff" : "#f8fafc",
+                border:
+                  selectedCategory === cat
+                    ? `1px solid ${T.indigo}`
+                    : "1px solid #e2e8f0",
+                borderRadius: 8,
+                cursor: "pointer",
+                fontSize: 12,
+                fontWeight: selectedCategory === cat ? 700 : 500,
+                color: selectedCategory === cat ? T.indigo : T.slate,
+                textAlign: "left",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span>{cat}</span>
+              <span
+                style={{
+                  background: selectedCategory === cat ? T.indigo : "#e2e8f0",
+                  color: selectedCategory === cat ? "#fff" : T.slate,
+                  borderRadius: 10,
+                  padding: "2px 8px",
+                  fontSize: 10,
+                  fontWeight: 700,
+                }}
+              >
+                {categoryMap[cat].length}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Right: Cases in Selected Category */}
+        <div style={{ flex: 1, paddingLeft: 8 }}>
+          {selectedCategory ? (
+            <div>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: T.navyMid,
+                  marginBottom: 12,
+                }}
+              >
+                Cases in "{selectedCategory}"
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                  maxHeight: 250,
+                  overflowY: "auto",
+                }}
+              >
+                {casesInSelectedCategory.map((caseItem) => {
+                  const otherCategories = caseItem.allCategories.filter(
+                    (c) => c !== selectedCategory,
+                  );
+                  return (
+                    <div
+                      key={caseItem.id}
+                      style={{
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 8,
+                        padding: "10px 14px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          fontSize: 13,
+                          color: T.navyMid,
+                        }}
+                      >
+                        {caseItem.id}
+                      </div>
+                      {otherCategories.length > 0 && (
+                        <div
+                          style={{
+                            marginTop: 6,
+                            display: "flex",
+                            gap: 6,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          {otherCategories.map((oc) => (
+                            <span
+                              key={oc}
+                              style={{
+                                background: "#e0e7ff",
+                                color: "#4338ca",
+                                borderRadius: 4,
+                                padding: "2px 8px",
+                                fontSize: 10,
+                                fontWeight: 600,
+                              }}
+                            >
+                              {oc}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: T.muted,
+                fontSize: 13,
+              }}
+            >
+              Select a category to view cases
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── STRAITS TIMES MENTAL HEALTH NEWS WIDGET ─────────────────────────────────
+function StraitsTimesNewsWidget() {
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
+
+  const fetchNews = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${CASE_SERVICE_URL}/rss/straits-times-mental-health?limit=5`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch news");
+      const data = await response.json();
+      setNews(data);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error("Error fetching Straits Times news:", err);
+      setError("Unable to load news");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-SG", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        border: "1px solid #e2e8f0",
+        padding: 20,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 14,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: "linear-gradient(135deg, #0672CB, #0460a9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon.FileText size={16} color="#fff" />
+          </div>
+          <div>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 13,
+                color: "#1e293b",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              Mental Health News
+              <span
+                style={{
+                  background: "#dbeafe",
+                  color: "#1e40af",
+                  fontSize: 9,
+                  fontWeight: 600,
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  textTransform: "uppercase",
+                }}
+              >
+                RSS
+              </span>
+            </div>
+            <div style={{ fontSize: 10, color: "#64748b", marginTop: 1 }}>
+              The Straits Times • Top 5 Articles
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={fetchNews}
+          disabled={loading}
+          style={{
+            background: loading ? "#f1f5f9" : "#eff6ff",
+            border: "1px solid #dbeafe",
+            borderRadius: 6,
+            padding: "5px 10px",
+            color: loading ? "#94a3b8" : "#0672CB",
+            fontSize: 11,
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Icon.RefreshCw
+            size={11}
+            color={loading ? "#94a3b8" : "#0672CB"}
+            style={{
+              animation: loading ? "spin 1s linear infinite" : "none",
+            }}
+          />
+          Refresh
+        </button>
+      </div>
+
+      {/* News List */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {loading && news.length === 0 ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "#94a3b8",
+              fontSize: 12,
+            }}
+          >
+            Loading news...
+          </div>
+        ) : error ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "#dc2626",
+              fontSize: 12,
+            }}
+          >
+            {error}
+          </div>
+        ) : news.length === 0 ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "#94a3b8",
+              fontSize: 12,
+            }}
+          >
+            No news available
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {news.map((item, index) => (
+              <a
+                key={index}
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "block",
+                  padding: "10px 12px",
+                  background: "#f8fafc",
+                  borderRadius: 8,
+                  border: "1px solid #e2e8f0",
+                  textDecoration: "none",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#eff6ff";
+                  e.currentTarget.style.borderColor = "#bfdbfe";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#f8fafc";
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#1e293b",
+                    lineHeight: 1.4,
+                    marginBottom: 4,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: 10,
+                    color: "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
+                >
+                  <Icon.Clock size={10} color="#94a3b8" />
+                  {formatDate(item.pubDate)}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Last refresh time */}
+      {lastRefresh && (
+        <div
+          style={{
+            marginTop: 10,
+            fontSize: 9,
+            color: "#94a3b8",
+            textAlign: "center",
+          }}
+        >
+          Last updated: {lastRefresh.toLocaleTimeString("en-SG")}
+        </div>
+      )}
+
+      {/* CSS for spin animation */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -333,7 +1057,11 @@ export default function EnhancedDashboard({ currentUser }) {
   const [showChatbot, setShowChatbot] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([
-    { role: "assistant", content: "Hello! I'm here to help you with case guidance based on SCS protocols. How can I assist you today?" }
+    {
+      role: "assistant",
+      content:
+        "Hello! I'm here to help you with case guidance based on SCS protocols. How can I assist you today?",
+    },
   ]);
   const [chatLoading, setChatLoading] = useState(false);
   const chatEndRef = useRef(null);
@@ -347,25 +1075,43 @@ export default function EnhancedDashboard({ currentUser }) {
       const transformedCases = data.map((c) => ({
         id: c.case_id || c.id,
         code: c.case_id || c.id,
-        user: c.username || c.social_handle || c.user_id || `@user_${c.case_id}`,
-        risk: riskLevelToLabel(c.current_risk_score ? c.current_risk_score / 20 : c.risk_level || 3),
-        riskLevel: c.current_risk_score ? Math.round(c.current_risk_score / 20) : c.risk_level || 3,
+        user:
+          c.username || c.social_handle || c.user_id || `@user_${c.case_id}`,
+        risk: riskLevelToLabel(
+          c.current_risk_score ? c.current_risk_score / 20 : c.risk_level || 3,
+        ),
+        riskLevel: c.current_risk_score
+          ? Math.round(c.current_risk_score / 20)
+          : c.risk_level || 3,
         score: c.current_risk_score || (c.risk_level || 3) * 20,
         current_risk_score: c.current_risk_score,
-        category: c.current_category || c.category || c.primary_concern || "General",
+        category:
+          c.current_category || c.category || c.primary_concern || "General",
         platform: c.platform || "Instagram",
         lastSignal: c.last_signal_at
-          ? new Date(c.last_signal_at).toLocaleDateString("en-US", { month: "short", day: "numeric" })
+          ? new Date(c.last_signal_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+            })
           : "Mar 10",
         assignee: c.assigned_helper || c.assigned_to || null,
         assigned_to: c.assigned_to,
-        mine: c.assigned_to === user?.user_id || c.assigned_helper === user?.user_id,
+        mine:
+          c.assigned_to === user?.user_id ||
+          c.assigned_helper === user?.user_id,
         status: c.case_status || "active",
         work_status: c.work_status || "not_started",
         ai_explanation: c.ai_explanation || "",
         ai_explanation_paragraph: c.ai_explanation_paragraph || "",
         recommended_actions_paragraph: c.recommended_actions_paragraph || "",
-        signals: c.ai_explanation_signals || (c.ai_explanation ? c.ai_explanation.split(/[\n•]/).filter(s => s.trim()).slice(0, 5) : []),
+        signals:
+          c.ai_explanation_signals ||
+          (c.ai_explanation
+            ? c.ai_explanation
+                .split(/[\n•]/)
+                .filter((s) => s.trim())
+                .slice(0, 5)
+            : []),
         youth: {
           name: c.user_id || "Unknown Youth",
           handle: `@${c.user_id || "unknown"}`,
@@ -384,14 +1130,169 @@ export default function EnhancedDashboard({ currentUser }) {
 
   const setDemoData = () => {
     const demoCases = [
-      { id: "CASE_2026_007", code: "CASE_2026_007", user: "@complex_case_07", risk: "CRITICAL", riskLevel: 5, score: 94.1, current_risk_score: 94.1, category: "Multiple Factors", platform: "Instagram", lastSignal: "Mar 10", assignee: user?.user_id, mine: true, work_status: "in_progress", ai_explanation_paragraph: "User shows multiple concerning signals including isolation language and mood deterioration.", signals: ["Frequent mentions of isolation", "Mood deterioration over time", "Decreased social engagement"], youth: { name: "complex_case_07", handle: "@complex_case_07" } },
-      { id: "CASE_2026_002", code: "CASE_2026_002", user: "@vulnerable_user_02", risk: "HIGH", riskLevel: 4, score: 92.3, current_risk_score: 92.3, category: "Self Harm", platform: "Instagram", lastSignal: "Mar 10", assignee: user?.user_id, mine: true, work_status: "not_started", ai_explanation_paragraph: "Recent posts contain self-harm related keywords and expressions of hopelessness.", signals: ["Self-harm keywords detected", "Expressions of hopelessness", "Withdrawal from activities"], youth: { name: "vulnerable_user_02", handle: "@vulnerable_user_02" } },
-      { id: "CASE_2026_010", code: "CASE_2026_010", user: "@needs_specialist_10", risk: "HIGH", riskLevel: 4, score: 91.8, current_risk_score: 91.8, category: "Complex Trauma", platform: "Instagram", lastSignal: "Mar 9", assignee: "helper_005", mine: false, work_status: "in_progress", ai_explanation_paragraph: "History indicates complex trauma patterns requiring specialist intervention.", signals: ["Complex trauma indicators", "Need for specialist support"], youth: { name: "needs_specialist_10", handle: "@needs_specialist_10" } },
-      { id: "CASE_2026_001", code: "CASE_2026_001", user: "@at_risk_teen_01", risk: "MEDIUM", riskLevel: 3, score: 78.5, current_risk_score: 78.5, category: "Depression", platform: "Instagram", lastSignal: "Mar 9", assignee: null, mine: false, work_status: "not_started", ai_explanation_paragraph: "Consistent low mood indicators and withdrawal from social activities.", signals: ["Low mood indicators", "Social withdrawal"], youth: { name: "at_risk_teen_01", handle: "@at_risk_teen_01" } },
-      { id: "CASE_2026_005", code: "CASE_2026_005", user: "@isolated_user_05", risk: "MEDIUM", riskLevel: 3, score: 71.4, current_risk_score: 71.4, category: "Social Isolation", platform: "TikTok", lastSignal: "Mar 9", assignee: user?.user_id, mine: true, work_status: "not_started", ai_explanation_paragraph: "Significant decrease in social interactions and expressions of loneliness.", signals: ["Decreased social interactions", "Loneliness expressions"], youth: { name: "isolated_user_05", handle: "@isolated_user_05" } },
-      { id: "CASE_2026_012", code: "CASE_2026_012", user: "@anxious_teen_12", risk: "MEDIUM", riskLevel: 3, score: 68.2, current_risk_score: 68.2, category: "Anxiety", platform: "X", lastSignal: "Mar 8", assignee: null, mine: false, work_status: "not_started", ai_explanation_paragraph: "Anxiety-related language patterns and sleep disturbance mentions.", signals: ["Anxiety language patterns", "Sleep disturbance mentions"], youth: { name: "anxious_teen_12", handle: "@anxious_teen_12" } },
-      { id: "CASE_2026_015", code: "CASE_2026_015", user: "@struggling_15", risk: "LOW", riskLevel: 2, score: 45.0, current_risk_score: 45.0, category: "Academic Stress", platform: "Reddit", lastSignal: "Mar 8", assignee: "helper_003", mine: false, work_status: "completed", ai_explanation_paragraph: "Academic stress expressions but maintaining positive coping strategies.", signals: ["Academic stress", "Positive coping present"], youth: { name: "struggling_15", handle: "@struggling_15" } },
-      { id: "CASE_2026_018", code: "CASE_2026_018", user: "@lonely_teen_18", risk: "CRITICAL", riskLevel: 5, score: 96.2, current_risk_score: 96.2, category: "Self Harm", platform: "TikTok", lastSignal: "Mar 10", assignee: "helper_002", mine: false, work_status: "in_progress", ai_explanation_paragraph: "Critical self-harm indicators requiring immediate attention.", signals: ["Critical self-harm indicators", "Immediate attention required"], youth: { name: "lonely_teen_18", handle: "@lonely_teen_18" } },
+      {
+        id: "CASE_2026_007",
+        code: "CASE_2026_007",
+        user: "@complex_case_07",
+        risk: "CRITICAL",
+        riskLevel: 5,
+        score: 94.1,
+        current_risk_score: 94.1,
+        category: "Multiple Factors",
+        platform: "Instagram",
+        lastSignal: "Mar 10",
+        assignee: user?.user_id,
+        mine: true,
+        work_status: "in_progress",
+        ai_explanation_paragraph:
+          "User shows multiple concerning signals including isolation language and mood deterioration.",
+        signals: [
+          "Frequent mentions of isolation",
+          "Mood deterioration over time",
+          "Decreased social engagement",
+        ],
+        youth: { name: "complex_case_07", handle: "@complex_case_07" },
+      },
+      {
+        id: "CASE_2026_002",
+        code: "CASE_2026_002",
+        user: "@vulnerable_user_02",
+        risk: "HIGH",
+        riskLevel: 4,
+        score: 92.3,
+        current_risk_score: 92.3,
+        category: "Self Harm",
+        platform: "Instagram",
+        lastSignal: "Mar 10",
+        assignee: user?.user_id,
+        mine: true,
+        work_status: "not_started",
+        ai_explanation_paragraph:
+          "Recent posts contain self-harm related keywords and expressions of hopelessness.",
+        signals: [
+          "Self-harm keywords detected",
+          "Expressions of hopelessness",
+          "Withdrawal from activities",
+        ],
+        youth: { name: "vulnerable_user_02", handle: "@vulnerable_user_02" },
+      },
+      {
+        id: "CASE_2026_010",
+        code: "CASE_2026_010",
+        user: "@needs_specialist_10",
+        risk: "HIGH",
+        riskLevel: 4,
+        score: 91.8,
+        current_risk_score: 91.8,
+        category: "Complex Trauma",
+        platform: "Instagram",
+        lastSignal: "Mar 9",
+        assignee: "helper_005",
+        mine: false,
+        work_status: "in_progress",
+        ai_explanation_paragraph:
+          "History indicates complex trauma patterns requiring specialist intervention.",
+        signals: ["Complex trauma indicators", "Need for specialist support"],
+        youth: { name: "needs_specialist_10", handle: "@needs_specialist_10" },
+      },
+      {
+        id: "CASE_2026_001",
+        code: "CASE_2026_001",
+        user: "@at_risk_teen_01",
+        risk: "MEDIUM",
+        riskLevel: 3,
+        score: 78.5,
+        current_risk_score: 78.5,
+        category: "Depression",
+        platform: "Instagram",
+        lastSignal: "Mar 9",
+        assignee: null,
+        mine: false,
+        work_status: "not_started",
+        ai_explanation_paragraph:
+          "Consistent low mood indicators and withdrawal from social activities.",
+        signals: ["Low mood indicators", "Social withdrawal"],
+        youth: { name: "at_risk_teen_01", handle: "@at_risk_teen_01" },
+      },
+      {
+        id: "CASE_2026_005",
+        code: "CASE_2026_005",
+        user: "@isolated_user_05",
+        risk: "MEDIUM",
+        riskLevel: 3,
+        score: 71.4,
+        current_risk_score: 71.4,
+        category: "Social Isolation",
+        platform: "TikTok",
+        lastSignal: "Mar 9",
+        assignee: user?.user_id,
+        mine: true,
+        work_status: "not_started",
+        ai_explanation_paragraph:
+          "Significant decrease in social interactions and expressions of loneliness.",
+        signals: ["Decreased social interactions", "Loneliness expressions"],
+        youth: { name: "isolated_user_05", handle: "@isolated_user_05" },
+      },
+      {
+        id: "CASE_2026_012",
+        code: "CASE_2026_012",
+        user: "@anxious_teen_12",
+        risk: "MEDIUM",
+        riskLevel: 3,
+        score: 68.2,
+        current_risk_score: 68.2,
+        category: "Anxiety",
+        platform: "X",
+        lastSignal: "Mar 8",
+        assignee: null,
+        mine: false,
+        work_status: "not_started",
+        ai_explanation_paragraph:
+          "Anxiety-related language patterns and sleep disturbance mentions.",
+        signals: ["Anxiety language patterns", "Sleep disturbance mentions"],
+        youth: { name: "anxious_teen_12", handle: "@anxious_teen_12" },
+      },
+      {
+        id: "CASE_2026_015",
+        code: "CASE_2026_015",
+        user: "@struggling_15",
+        risk: "LOW",
+        riskLevel: 2,
+        score: 45.0,
+        current_risk_score: 45.0,
+        category: "Academic Stress",
+        platform: "Reddit",
+        lastSignal: "Mar 8",
+        assignee: "helper_003",
+        mine: false,
+        work_status: "completed",
+        ai_explanation_paragraph:
+          "Academic stress expressions but maintaining positive coping strategies.",
+        signals: ["Academic stress", "Positive coping present"],
+        youth: { name: "struggling_15", handle: "@struggling_15" },
+      },
+      {
+        id: "CASE_2026_018",
+        code: "CASE_2026_018",
+        user: "@lonely_teen_18",
+        risk: "CRITICAL",
+        riskLevel: 5,
+        score: 96.2,
+        current_risk_score: 96.2,
+        category: "Self Harm",
+        platform: "TikTok",
+        lastSignal: "Mar 10",
+        assignee: "helper_002",
+        mine: false,
+        work_status: "in_progress",
+        ai_explanation_paragraph:
+          "Critical self-harm indicators requiring immediate attention.",
+        signals: [
+          "Critical self-harm indicators",
+          "Immediate attention required",
+        ],
+        youth: { name: "lonely_teen_18", handle: "@lonely_teen_18" },
+      },
     ];
     setCases(demoCases);
   };
@@ -416,7 +1317,8 @@ export default function EnhancedDashboard({ currentUser }) {
       assignedToMe: myCases.length,
       myCritical: myCases.filter((c) => c.risk === "CRITICAL").length,
       myHigh: myCases.filter((c) => c.risk === "HIGH").length,
-      myOther: myCases.filter((c) => c.risk === "MEDIUM" || c.risk === "LOW").length,
+      myOther: myCases.filter((c) => c.risk === "MEDIUM" || c.risk === "LOW")
+        .length,
     };
   }, [cases]);
 
@@ -445,16 +1347,38 @@ export default function EnhancedDashboard({ currentUser }) {
       { day: "Thu", critical: 4, high: 4, moderate: 2, low: 2 },
       { day: "Fri", critical: 3, high: 6, moderate: 4, low: 1 },
       { day: "Sat", critical: 2, high: 3, moderate: 2, low: 3 },
-      { day: "Sun", critical: stats.critical, high: stats.high, moderate: stats.medium, low: stats.low },
+      {
+        day: "Sun",
+        critical: stats.critical,
+        high: stats.high,
+        moderate: stats.medium,
+        low: stats.low,
+      },
     ];
 
     // My Cases specific data
     const myCases = cases.filter((c) => c.mine);
     const myRiskData = [
-      { name: "Critical", value: myCases.filter((c) => c.risk === "CRITICAL").length, color: CHART_COLORS.critical },
-      { name: "High", value: myCases.filter((c) => c.risk === "HIGH").length, color: CHART_COLORS.high },
-      { name: "Moderate", value: myCases.filter((c) => c.risk === "MEDIUM").length, color: CHART_COLORS.moderate },
-      { name: "Low", value: myCases.filter((c) => c.risk === "LOW").length, color: CHART_COLORS.low },
+      {
+        name: "Critical",
+        value: myCases.filter((c) => c.risk === "CRITICAL").length,
+        color: CHART_COLORS.critical,
+      },
+      {
+        name: "High",
+        value: myCases.filter((c) => c.risk === "HIGH").length,
+        color: CHART_COLORS.high,
+      },
+      {
+        name: "Moderate",
+        value: myCases.filter((c) => c.risk === "MEDIUM").length,
+        color: CHART_COLORS.moderate,
+      },
+      {
+        name: "Low",
+        value: myCases.filter((c) => c.risk === "LOW").length,
+        color: CHART_COLORS.low,
+      },
     ];
 
     const myCategoryCounts = myCases.reduce((acc, c) => {
@@ -466,25 +1390,53 @@ export default function EnhancedDashboard({ currentUser }) {
       .sort((a, b) => b.cases - a.cases);
 
     const myWorkStatusData = [
-      { name: "Not Started", value: myCases.filter((c) => c.work_status === "not_started").length, color: "#94a3b8" },
-      { name: "In Progress", value: myCases.filter((c) => c.work_status === "in_progress").length, color: "#3b82f6" },
-      { name: "To Review", value: myCases.filter((c) => c.work_status === "to_review").length, color: "#f59e0b" },
-      { name: "Completed", value: myCases.filter((c) => c.work_status === "completed").length, color: "#10b981" },
+      {
+        name: "Not Started",
+        value: myCases.filter((c) => c.work_status === "not_started").length,
+        color: "#94a3b8",
+      },
+      {
+        name: "In Progress",
+        value: myCases.filter((c) => c.work_status === "in_progress").length,
+        color: "#3b82f6",
+      },
+      {
+        name: "To Review",
+        value: myCases.filter((c) => c.work_status === "to_review").length,
+        color: "#f59e0b",
+      },
+      {
+        name: "Completed",
+        value: myCases.filter((c) => c.work_status === "completed").length,
+        color: "#10b981",
+      },
     ];
 
-    return { riskData, platformData, trendData, total: cases.length, myRiskData, myCategoryData, myWorkStatusData };
+    return {
+      riskData,
+      platformData,
+      trendData,
+      total: cases.length,
+      myRiskData,
+      myCategoryData,
+      myWorkStatusData,
+    };
   }, [cases, stats]);
 
   // ─── Open Case ─────────────────────────────────────────────────────────────
   const openCase = (c) => {
     // In "All Cases" tab, just show info - don't open detail
     if (activeTab === "all") {
-      alert(`Case ${c.id}: ${c.category} - ${c.risk} risk\n\nTo view full details, go to "Assigned to Me" tab.`);
+      alert(
+        `Case ${c.id}: ${c.category} - ${c.risk} risk\n\nTo view full details, go to "Assigned to Me" tab.`,
+      );
       return;
     }
     // In "Assigned to Me" tab, open full detail panel
     if (!c.mine && user?.role !== "Admin") {
-      alert("You can only view detailed information for cases assigned to you.");
+      alert(
+        "You can only view detailed information for cases assigned to you.",
+      );
       return;
     }
     setSelectedCase(c);
@@ -503,8 +1455,18 @@ export default function EnhancedDashboard({ currentUser }) {
     } catch (err) {
       console.error("Failed to load case history:", err);
       setCaseHistory([
-        { timestamp: new Date().toISOString(), event_type: "case_created", description: "Case created from signal detection", user: "System" },
-        { timestamp: new Date(Date.now() - 86400000).toISOString(), event_type: "signal_detected", description: "New risk signals detected", user: "AI System" },
+        {
+          timestamp: new Date().toISOString(),
+          event_type: "case_created",
+          description: "Case created from signal detection",
+          user: "System",
+        },
+        {
+          timestamp: new Date(Date.now() - 86400000).toISOString(),
+          event_type: "signal_detected",
+          description: "New risk signals detected",
+          user: "AI System",
+        },
       ]);
     } finally {
       setLoadingHistory(false);
@@ -515,16 +1477,19 @@ export default function EnhancedDashboard({ currentUser }) {
   const fetchRecommendations = async (c) => {
     setLoadingRecommendations(true);
     try {
-      const response = await fetch(`${CHATBOT_SERVICE_URL}/api/recommendations`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          case_id: c.id,
-          category: c.category,
-          risk_level: c.riskLevel,
-          risk_score: c.score,
-        }),
-      });
+      const response = await fetch(
+        `${CHATBOT_SERVICE_URL}/api/recommendations`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            case_id: c.id,
+            category: c.category,
+            risk_level: c.riskLevel,
+            risk_score: c.score,
+          }),
+        },
+      );
       if (response.ok) {
         const data = await response.json();
         setRecommendations(data.recommendations || []);
@@ -552,13 +1517,21 @@ export default function EnhancedDashboard({ currentUser }) {
     try {
       await caseAPI.updateCase(selectedCase.id, { work_status: newStatus });
       setWorkStatus(newStatus);
-      setSelectedCase(prev => ({ ...prev, work_status: newStatus }));
-      setCases(prev => prev.map(c => c.id === selectedCase.id ? { ...c, work_status: newStatus } : c));
+      setSelectedCase((prev) => ({ ...prev, work_status: newStatus }));
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === selectedCase.id ? { ...c, work_status: newStatus } : c,
+        ),
+      );
     } catch (err) {
       console.error("Failed to update work status:", err);
       setWorkStatus(newStatus);
-      setSelectedCase(prev => ({ ...prev, work_status: newStatus }));
-      setCases(prev => prev.map(c => c.id === selectedCase.id ? { ...c, work_status: newStatus } : c));
+      setSelectedCase((prev) => ({ ...prev, work_status: newStatus }));
+      setCases((prev) =>
+        prev.map((c) =>
+          c.id === selectedCase.id ? { ...c, work_status: newStatus } : c,
+        ),
+      );
     } finally {
       setWorkStatusSaving(false);
     }
@@ -571,7 +1544,10 @@ export default function EnhancedDashboard({ currentUser }) {
 
     const userMessage = chatInput.trim();
     setChatInput("");
-    setChatMessages(prev => [...prev, { role: "user", content: userMessage }]);
+    setChatMessages((prev) => [
+      ...prev,
+      { role: "user", content: userMessage },
+    ]);
     setChatLoading(true);
 
     try {
@@ -580,32 +1556,50 @@ export default function EnhancedDashboard({ currentUser }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: userMessage,
-          case_context: selectedCase ? {
-            case_id: selectedCase.id,
-            category: selectedCase.category,
-            risk_level: selectedCase.risk,
-            risk_score: selectedCase.score,
-          } : null,
+          case_context: selectedCase
+            ? {
+                case_id: selectedCase.id,
+                category: selectedCase.category,
+                risk_level: selectedCase.risk,
+                risk_score: selectedCase.score,
+              }
+            : null,
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
-        setChatMessages(prev => [...prev, { role: "assistant", content: data.response || data.message || "I'm here to help. Could you provide more context?" }]);
+        setChatMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content:
+              data.response ||
+              data.message ||
+              "I'm here to help. Could you provide more context?",
+          },
+        ]);
       } else {
         throw new Error("Failed to get response");
       }
     } catch (err) {
-      let fallbackResponse = "Thank you for your question. Based on SCS protocols, I recommend reviewing the case signals carefully. Would you like help with a specific aspect?";
+      let fallbackResponse =
+        "Thank you for your question. Based on SCS protocols, I recommend reviewing the case signals carefully. Would you like help with a specific aspect?";
       const lower = userMessage.toLowerCase();
       if (lower.includes("bully")) {
-        fallbackResponse = "**Approaching Bullying Cases:**\n\n1. **Assess severity** — Is it a single incident or repeated pattern?\n2. **Do not confront the perpetrator directly** — Focus on the youth's wellbeing first.\n3. **Reach out with warmth** — Use a non-judgmental, empathetic tone.\n4. **Document everything** — Note your outreach attempt and response.";
+        fallbackResponse =
+          "**Approaching Bullying Cases:**\n\n1. **Assess severity** — Is it a single incident or repeated pattern?\n2. **Do not confront the perpetrator directly** — Focus on the youth's wellbeing first.\n3. **Reach out with warmth** — Use a non-judgmental, empathetic tone.\n4. **Document everything** — Note your outreach attempt and response.";
       } else if (lower.includes("escalat")) {
-        fallbackResponse = "**Escalation Criteria (SCS Protocol):**\n\nEscalate if **any** of the following apply:\n- Youth expresses intent to self-harm or harm others\n- Youth mentions feeling unsafe at home\n- Risk score is 4+ AND no response within 48 hours\n- Multiple high-risk signals across platforms\n\n*When in doubt, escalate.*";
+        fallbackResponse =
+          "**Escalation Criteria (SCS Protocol):**\n\nEscalate if **any** of the following apply:\n- Youth expresses intent to self-harm or harm others\n- Youth mentions feeling unsafe at home\n- Risk score is 4+ AND no response within 48 hours\n- Multiple high-risk signals across platforms\n\n*When in doubt, escalate.*";
       } else if (lower.includes("outreach") || lower.includes("message")) {
-        fallbackResponse = "**Recommended Outreach Templates:**\n\n*General:*\n\"Hi [Name], I'm [Your Name] from YOUTH(TH)CARE. I wanted to check in with you. You don't have to share anything — I'm just here to listen if you need.\"\n\n*Always personalise these.*";
+        fallbackResponse =
+          "**Recommended Outreach Templates:**\n\n*General:*\n\"Hi [Name], I'm [Your Name] from YOUTH(TH)CARE. I wanted to check in with you. You don't have to share anything — I'm just here to listen if you need.\"\n\n*Always personalise these.*";
       }
-      setChatMessages(prev => [...prev, { role: "assistant", content: fallbackResponse }]);
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: fallbackResponse },
+      ]);
     } finally {
       setChatLoading(false);
     }
@@ -616,9 +1610,18 @@ export default function EnhancedDashboard({ currentUser }) {
   }, [chatMessages]);
 
   // ─── User initials ─────────────────────────────────────────────────────────
-  const userInitials = user?.username?.split(" ").map(n => n[0]).join("").slice(0, 2) 
-    || user?.name?.split(" ").map(n => n[0]).join("").slice(0, 2) 
-    || "YH";
+  const userInitials =
+    user?.username
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2) ||
+    user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2) ||
+    "YH";
 
   // ─── RENDER ────────────────────────────────────────────────────────────────
   return (
@@ -660,8 +1663,17 @@ export default function EnhancedDashboard({ currentUser }) {
             <Icon.Shield size={20} color="#fff" />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Singapore Children's Society</div>
-            <div style={{ fontSize: 10, color: "#94a3b8", letterSpacing: "1.2px", textTransform: "uppercase" }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>
+              Singapore Children's Society
+            </div>
+            <div
+              style={{
+                fontSize: 10,
+                color: "#94a3b8",
+                letterSpacing: "1.2px",
+                textTransform: "uppercase",
+              }}
+            >
               YOUTH<sup>TH</sup>CARE
             </div>
           </div>
@@ -725,7 +1737,10 @@ export default function EnhancedDashboard({ currentUser }) {
               >
                 <div style={{ padding: "6px 0" }}>
                   <button
-                    onClick={() => { setShowHelpMenu(false); logout && logout(); }}
+                    onClick={() => {
+                      setShowHelpMenu(false);
+                      logout && logout();
+                    }}
                     style={{
                       width: "100%",
                       textAlign: "left",
@@ -776,8 +1791,12 @@ export default function EnhancedDashboard({ currentUser }) {
               {userInitials}
             </div>
             <div>
-              <div style={{ fontSize: 13 }}>{user?.username || user?.name || "User"}</div>
-              <div style={{ fontSize: 10, color: "#94a3b8" }}>{user?.role || "Youth Helper"}</div>
+              <div style={{ fontSize: 13 }}>
+                {user?.username || user?.name || "User"}
+              </div>
+              <div style={{ fontSize: 10, color: "#94a3b8" }}>
+                {user?.role || "Youth Helper"}
+              </div>
             </div>
           </div>
         </div>
@@ -797,14 +1816,25 @@ export default function EnhancedDashboard({ currentUser }) {
           flexShrink: 0,
         }}
       >
-        <Icon.Lock size={12} color="#4338ca" /> <strong>Privacy Notice:</strong> This dashboard displays AI-generated risk assessments only. Original social media content is never stored or displayed.
+        <Icon.Lock size={12} color="#4338ca" /> <strong>Privacy Notice:</strong>{" "}
+        This dashboard displays AI-generated risk assessments only. Original
+        social media content is never stored or displayed.
       </div>
 
       {/* ── TABS ── */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "0 24px" }}>
+      <div
+        style={{
+          background: "#fff",
+          borderBottom: "1px solid #e2e8f0",
+          padding: "0 24px",
+        }}
+      >
         <div style={{ display: "flex", gap: 0 }}>
           <button
-            onClick={() => { setActiveTab("all"); setSelectedCase(null); }}
+            onClick={() => {
+              setActiveTab("all");
+              setSelectedCase(null);
+            }}
             style={{
               padding: "14px 24px",
               background: "none",
@@ -813,18 +1843,37 @@ export default function EnhancedDashboard({ currentUser }) {
               fontSize: 14,
               fontWeight: activeTab === "all" ? 700 : 500,
               color: activeTab === "all" ? T.indigo : "#64748b",
-              borderBottom: activeTab === "all" ? `3px solid ${T.indigo}` : "3px solid transparent",
+              borderBottom:
+                activeTab === "all"
+                  ? `3px solid ${T.indigo}`
+                  : "3px solid transparent",
               display: "flex",
               alignItems: "center",
               gap: 8,
             }}
           >
-            <Icon.BarChart2 size={16} color={activeTab === "all" ? T.indigo : "#94a3b8"} />
+            <Icon.BarChart2
+              size={16}
+              color={activeTab === "all" ? T.indigo : "#94a3b8"}
+            />
             All Cases Overview
-            <span style={{ background: "#e0e7ff", color: "#4338ca", borderRadius: 10, padding: "2px 10px", fontSize: 12 }}>{cases.length}</span>
+            <span
+              style={{
+                background: "#e0e7ff",
+                color: "#4338ca",
+                borderRadius: 10,
+                padding: "2px 10px",
+                fontSize: 12,
+              }}
+            >
+              {cases.length}
+            </span>
           </button>
           <button
-            onClick={() => { setActiveTab("mine"); setSelectedCase(null); }}
+            onClick={() => {
+              setActiveTab("mine");
+              setSelectedCase(null);
+            }}
             style={{
               padding: "14px 24px",
               background: "none",
@@ -833,15 +1882,31 @@ export default function EnhancedDashboard({ currentUser }) {
               fontSize: 14,
               fontWeight: activeTab === "mine" ? 700 : 500,
               color: activeTab === "mine" ? T.indigo : "#64748b",
-              borderBottom: activeTab === "mine" ? `3px solid ${T.indigo}` : "3px solid transparent",
+              borderBottom:
+                activeTab === "mine"
+                  ? `3px solid ${T.indigo}`
+                  : "3px solid transparent",
               display: "flex",
               alignItems: "center",
               gap: 8,
             }}
           >
-            <Icon.User size={16} color={activeTab === "mine" ? T.indigo : "#94a3b8"} />
+            <Icon.User
+              size={16}
+              color={activeTab === "mine" ? T.indigo : "#94a3b8"}
+            />
             Assigned to Me
-            <span style={{ background: "#ddd6fe", color: "#5b21b6", borderRadius: 10, padding: "2px 10px", fontSize: 12 }}>{myAssignedCases.length}</span>
+            <span
+              style={{
+                background: "#ddd6fe",
+                color: "#5b21b6",
+                borderRadius: 10,
+                padding: "2px 10px",
+                fontSize: 12,
+              }}
+            >
+              {myAssignedCases.length}
+            </span>
           </button>
         </div>
       </div>
@@ -849,7 +1914,15 @@ export default function EnhancedDashboard({ currentUser }) {
       {/* ── MAIN BODY ── */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
         {loading ? (
-          <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", background: "#fff" }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#fff",
+            }}
+          >
             <div style={{ textAlign: "center" }}>
               <div
                 style={{
@@ -862,7 +1935,9 @@ export default function EnhancedDashboard({ currentUser }) {
                   margin: "0 auto 16px",
                 }}
               />
-              <div style={{ fontSize: 16, fontWeight: 600, color: T.navyMid }}>Loading cases...</div>
+              <div style={{ fontSize: 16, fontWeight: 600, color: T.navyMid }}>
+                Loading cases...
+              </div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           </div>
@@ -870,21 +1945,67 @@ export default function EnhancedDashboard({ currentUser }) {
           /* ════════════════════════════════════════════════════════════════════
              ALL CASES TAB - Dashboard Overview with Charts + Youth Helper Card
              ════════════════════════════════════════════════════════════════════ */
-          <div style={{ flex: 1, display: "flex", padding: 24, gap: 24, overflow: "hidden" }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              padding: 24,
+              gap: 24,
+              overflow: "hidden",
+            }}
+          >
             {/* Left Sidebar - Youth Helper Profile */}
             <div style={{ width: 280, flexShrink: 0 }}>
               <YouthHelperCard user={user} stats={stats} />
             </div>
 
             {/* Main Content Area */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20, overflow: "auto" }}>
+            <div
+              style={{
+                flex: 1,
+                display: "flex",
+                flexDirection: "column",
+                gap: 20,
+                overflow: "auto",
+              }}
+            >
               {/* Stats Row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  gap: 16,
+                }}
+              >
                 {[
-                  { label: "Total Cases", value: stats.total, color: T.indigo, bg: "#eff6ff", icon: "📋" },
-                  { label: "Critical", value: stats.critical, color: T.danger, bg: "#fef2f2", icon: "🚨" },
-                  { label: "High Risk", value: stats.high, color: "#ea580c", bg: "#fff7ed", icon: "⚠️" },
-                  { label: "Med/Low", value: stats.medium + stats.low, color: T.success, bg: "#f0fdf4", icon: "✅" },
+                  {
+                    label: "Total Cases",
+                    value: stats.total,
+                    color: T.indigo,
+                    bg: "#eff6ff",
+                    icon: "📋",
+                  },
+                  {
+                    label: "Critical",
+                    value: stats.critical,
+                    color: T.danger,
+                    bg: "#fef2f2",
+                    icon: "🚨",
+                  },
+                  {
+                    label: "High Risk",
+                    value: stats.high,
+                    color: "#ea580c",
+                    bg: "#fff7ed",
+                    icon: "⚠️",
+                  },
+                  {
+                    label: "Med/Low",
+                    value: stats.medium + stats.low,
+                    color: T.success,
+                    bg: "#f0fdf4",
+                    icon: "✅",
+                  },
                 ].map((s, i) => (
                   <div
                     key={i}
@@ -898,85 +2019,304 @@ export default function EnhancedDashboard({ currentUser }) {
                       boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                     }}
                   >
-                    <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color }} />
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: 4,
+                        height: "100%",
+                        background: s.color,
+                      }}
+                    />
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "flex-start",
+                      }}
+                    >
                       <div>
-                        <div style={{ fontSize: 12, color: T.muted, marginBottom: 6 }}>{s.label}</div>
-                        <div style={{ fontSize: 32, fontWeight: 800, color: s.color }}>{s.value}</div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: T.muted,
+                            marginBottom: 6,
+                          }}
+                        >
+                          {s.label}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 32,
+                            fontWeight: 800,
+                            color: s.color,
+                          }}
+                        >
+                          {s.value}
+                        </div>
                       </div>
-                      <div style={{ fontSize: 28, background: s.bg, padding: "10px", borderRadius: 10 }}>{s.icon}</div>
+                      <div
+                        style={{
+                          fontSize: 28,
+                          background: s.bg,
+                          padding: "10px",
+                          borderRadius: 10,
+                        }}
+                      >
+                        {s.icon}
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
 
               {/* Charts Row */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 16,
+                }}
+              >
                 {/* Risk Distribution Pie */}
-                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>
+                <div
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 14,
+                    padding: 20,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      marginBottom: 16,
+                      color: T.navyMid,
+                    }}
+                  >
                     Risk Distribution
                   </div>
                   <ResponsiveContainer width="100%" height={160}>
                     <PieChart>
-                      <Pie data={chartData.riskData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3} dataKey="value">
-                        {chartData.riskData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                      <Pie
+                        data={chartData.riskData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={40}
+                        outerRadius={60}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {chartData.riskData.map((entry, i) => (
+                          <Cell key={i} fill={entry.color} />
+                        ))}
                       </Pie>
-                      <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
-                  <div style={{ display: "flex", justifyContent: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: 14,
+                      marginTop: 10,
+                      flexWrap: "wrap",
+                    }}
+                  >
                     {chartData.riskData.map((r, i) => (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
-                        <div style={{ width: 10, height: 10, borderRadius: 3, background: r.color }} />
-                        <span style={{ color: T.slate }}>{r.name}: {r.value}</span>
+                      <div
+                        key={i}
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 5,
+                          fontSize: 11,
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: 3,
+                            background: r.color,
+                          }}
+                        />
+                        <span style={{ color: T.slate }}>
+                          {r.name}: {r.value}
+                        </span>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* Weekly Risk Trend */}
-                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>
+                <div
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 14,
+                    padding: 20,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      marginBottom: 16,
+                      color: T.navyMid,
+                    }}
+                  >
                     Weekly Risk Trend
                   </div>
                   <ResponsiveContainer width="100%" height={160}>
                     <AreaChart data={chartData.trendData}>
-                      <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} width={28} />
-                      <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
-                      <Area type="monotone" dataKey="critical" stackId="1" stroke="#dc2626" fill="#fecaca" />
-                      <Area type="monotone" dataKey="high" stackId="1" stroke="#ea580c" fill="#fed7aa" />
-                      <Area type="monotone" dataKey="moderate" stackId="1" stroke="#ca8a04" fill="#fef08a" />
-                      <Area type="monotone" dataKey="low" stackId="1" stroke="#16a34a" fill="#bbf7d0" />
+                      <XAxis
+                        dataKey="day"
+                        tick={{ fontSize: 10, fill: T.muted }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        tick={{ fontSize: 10, fill: T.muted }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={28}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 8,
+                          fontSize: 11,
+                        }}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="critical"
+                        stackId="1"
+                        stroke="#dc2626"
+                        fill="#fecaca"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="high"
+                        stackId="1"
+                        stroke="#ea580c"
+                        fill="#fed7aa"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="moderate"
+                        stackId="1"
+                        stroke="#ca8a04"
+                        fill="#fef08a"
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="low"
+                        stackId="1"
+                        stroke="#16a34a"
+                        fill="#bbf7d0"
+                      />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
 
                 {/* Platform Breakdown */}
-                <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>
+                <div
+                  style={{
+                    background: "#fff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 14,
+                    padding: 20,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      marginBottom: 16,
+                      color: T.navyMid,
+                    }}
+                  >
                     By Platform
                   </div>
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={chartData.platformData} layout="vertical">
-                      <XAxis type="number" tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} />
-                      <YAxis type="category" dataKey="platform" tick={{ fontSize: 11, fill: T.slate }} axisLine={false} tickLine={false} width={70} />
-                      <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
-                      <Bar dataKey="cases" fill={T.indigo} radius={[0, 6, 6, 0]} />
+                      <XAxis
+                        type="number"
+                        tick={{ fontSize: 10, fill: T.muted }}
+                        axisLine={false}
+                        tickLine={false}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="platform"
+                        tick={{ fontSize: 11, fill: T.slate }}
+                        axisLine={false}
+                        tickLine={false}
+                        width={70}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          background: "#fff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                      />
+                      <Bar
+                        dataKey="cases"
+                        fill={T.indigo}
+                        radius={[0, 6, 6, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
+              {/* Case Clusters by Category */}
+              <CaseClusterPanel caseServiceUrl={CASE_SERVICE_URL} />
+
               {/* Case Cards Grid */}
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: T.navyMid,
+                    marginBottom: 14,
+                  }}
+                >
                   All Active Cases ({cases.length})
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: 16,
+                  }}
+                >
                   {cases.map((c) => (
-                    <CasePanelCard key={c.id} c={c} onClick={openCase} isSelected={false} />
+                    <CasePanelCard
+                      key={c.id}
+                      c={c}
+                      onClick={openCase}
+                      isSelected={false}
+                    />
                   ))}
                 </div>
               </div>
@@ -1004,12 +2344,43 @@ export default function EnhancedDashboard({ currentUser }) {
               {!selectedCase && (
                 <div style={{ padding: 20, overflowY: "auto" }}>
                   {/* Stats Row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 20 }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(4, 1fr)",
+                      gap: 12,
+                      marginBottom: 20,
+                    }}
+                  >
                     {[
-                      { label: "My Cases", value: stats.assignedToMe, color: T.indigo, bg: "#eff6ff", icon: "📋" },
-                      { label: "Critical", value: stats.myCritical, color: T.danger, bg: "#fef2f2", icon: "🚨" },
-                      { label: "High", value: stats.myHigh, color: "#ea580c", bg: "#fff7ed", icon: "⚠️" },
-                      { label: "Med/Low", value: stats.myOther, color: T.success, bg: "#f0fdf4", icon: "✅" },
+                      {
+                        label: "My Cases",
+                        value: stats.assignedToMe,
+                        color: T.indigo,
+                        bg: "#eff6ff",
+                        icon: "📋",
+                      },
+                      {
+                        label: "Critical",
+                        value: stats.myCritical,
+                        color: T.danger,
+                        bg: "#fef2f2",
+                        icon: "🚨",
+                      },
+                      {
+                        label: "High",
+                        value: stats.myHigh,
+                        color: "#ea580c",
+                        bg: "#fff7ed",
+                        icon: "⚠️",
+                      },
+                      {
+                        label: "Med/Low",
+                        value: stats.myOther,
+                        color: T.success,
+                        bg: "#f0fdf4",
+                        icon: "✅",
+                      },
                     ].map((s, i) => (
                       <div
                         key={i}
@@ -1023,95 +2394,346 @@ export default function EnhancedDashboard({ currentUser }) {
                           boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
                         }}
                       >
-                        <div style={{ position: "absolute", top: 0, left: 0, width: 4, height: "100%", background: s.color }} />
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: 4,
+                            height: "100%",
+                            background: s.color,
+                          }}
+                        />
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "flex-start",
+                          }}
+                        >
                           <div>
-                            <div style={{ fontSize: 11, color: T.muted, marginBottom: 4 }}>{s.label}</div>
-                            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: T.muted,
+                                marginBottom: 4,
+                              }}
+                            >
+                              {s.label}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: 28,
+                                fontWeight: 800,
+                                color: s.color,
+                              }}
+                            >
+                              {s.value}
+                            </div>
                           </div>
-                          <div style={{ fontSize: 24, background: s.bg, padding: "8px", borderRadius: 8 }}>{s.icon}</div>
+                          <div
+                            style={{
+                              fontSize: 24,
+                              background: s.bg,
+                              padding: "8px",
+                              borderRadius: 8,
+                            }}
+                          >
+                            {s.icon}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
 
                   {/* Charts Row */}
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr 1fr",
+                      gap: 16,
+                      marginBottom: 20,
+                    }}
+                  >
                     {/* My Risk Distribution */}
-                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>My Risk Distribution</div>
+                    <div
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 14,
+                        padding: 18,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          marginBottom: 14,
+                          color: T.navyMid,
+                        }}
+                      >
+                        My Risk Distribution
+                      </div>
                       <ResponsiveContainer width="100%" height={140}>
                         <PieChart>
-                          <Pie data={chartData.myRiskData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
-                            {chartData.myRiskData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                          <Pie
+                            data={chartData.myRiskData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={35}
+                            outerRadius={55}
+                            paddingAngle={3}
+                            dataKey="value"
+                          >
+                            {chartData.myRiskData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} />
+                            ))}
                           </Pie>
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{
+                              background: "#fff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 8,
+                              fontSize: 11,
+                            }}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          gap: 10,
+                          marginTop: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         {chartData.myRiskData.map((r, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
-                            <span style={{ color: T.slate }}>{r.name}: {r.value}</span>
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 10,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 2,
+                                background: r.color,
+                              }}
+                            />
+                            <span style={{ color: T.slate }}>
+                              {r.name}: {r.value}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* Work Status */}
-                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>Work Status</div>
+                    <div
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 14,
+                        padding: 18,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          marginBottom: 14,
+                          color: T.navyMid,
+                        }}
+                      >
+                        Work Status
+                      </div>
                       <ResponsiveContainer width="100%" height={140}>
                         <PieChart>
-                          <Pie data={chartData.myWorkStatusData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
-                            {chartData.myWorkStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                          <Pie
+                            data={chartData.myWorkStatusData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={35}
+                            outerRadius={55}
+                            paddingAngle={3}
+                            dataKey="value"
+                          >
+                            {chartData.myWorkStatusData.map((entry, i) => (
+                              <Cell key={i} fill={entry.color} />
+                            ))}
                           </Pie>
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                          <Tooltip
+                            contentStyle={{
+                              background: "#fff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 8,
+                              fontSize: 11,
+                            }}
+                          />
                         </PieChart>
                       </ResponsiveContainer>
-                      <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "center",
+                          gap: 10,
+                          marginTop: 8,
+                          flexWrap: "wrap",
+                        }}
+                      >
                         {chartData.myWorkStatusData.map((r, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 10 }}>
-                            <div style={{ width: 8, height: 8, borderRadius: 2, background: r.color }} />
-                            <span style={{ color: T.slate }}>{r.name}: {r.value}</span>
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 4,
+                              fontSize: 10,
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: 2,
+                                background: r.color,
+                              }}
+                            />
+                            <span style={{ color: T.slate }}>
+                              {r.name}: {r.value}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
 
                     {/* Category Breakdown */}
-                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>By Category</div>
+                    <div
+                      style={{
+                        background: "#fff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: 14,
+                        padding: 18,
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 700,
+                          marginBottom: 14,
+                          color: T.navyMid,
+                        }}
+                      >
+                        By Category
+                      </div>
                       <ResponsiveContainer width="100%" height={140}>
-                        <BarChart data={chartData.myCategoryData} layout="vertical">
-                          <XAxis type="number" tick={{ fontSize: 9, fill: T.muted }} axisLine={false} tickLine={false} />
-                          <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fill: T.slate }} axisLine={false} tickLine={false} width={80} />
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
-                          <Bar dataKey="cases" fill={T.indigo} radius={[0, 6, 6, 0]} />
+                        <BarChart
+                          data={chartData.myCategoryData}
+                          layout="vertical"
+                        >
+                          <XAxis
+                            type="number"
+                            tick={{ fontSize: 9, fill: T.muted }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            type="category"
+                            dataKey="category"
+                            tick={{ fontSize: 10, fill: T.slate }}
+                            axisLine={false}
+                            tickLine={false}
+                            width={80}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              background: "#fff",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: 8,
+                              fontSize: 11,
+                            }}
+                          />
+                          <Bar
+                            dataKey="cases"
+                            fill={T.indigo}
+                            radius={[0, 6, 6, 0]}
+                          />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
 
                   {/* Section Header */}
-                  <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-                    <Icon.User size={16} color={T.indigo} /> My Assigned Cases ({myAssignedCases.length})
+                  <div
+                    style={{
+                      fontSize: 14,
+                      fontWeight: 700,
+                      color: T.navyMid,
+                      marginBottom: 14,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <Icon.User size={16} color={T.indigo} /> My Assigned Cases (
+                    {myAssignedCases.length})
                   </div>
                 </div>
               )}
 
               {/* Case Cards */}
-              <div style={{ flex: 1, overflowY: "auto", padding: selectedCase ? 20 : "0 20px 20px 20px" }}>
+              <div
+                style={{
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: selectedCase ? 20 : "0 20px 20px 20px",
+                }}
+              >
                 {myAssignedCases.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: 60, color: T.muted }}>
+                  <div
+                    style={{ textAlign: "center", padding: 60, color: T.muted }}
+                  >
                     <Icon.User size={40} color="#e2e8f0" />
-                    <div style={{ fontSize: 16, fontWeight: 600, marginTop: 16, color: T.slate }}>No cases assigned to you yet</div>
-                    <div style={{ fontSize: 13, marginTop: 6 }}>Cases will appear here when assigned by your supervisor.</div>
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 600,
+                        marginTop: 16,
+                        color: T.slate,
+                      }}
+                    >
+                      No cases assigned to you yet
+                    </div>
+                    <div style={{ fontSize: 13, marginTop: 6 }}>
+                      Cases will appear here when assigned by your supervisor.
+                    </div>
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: selectedCase ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: selectedCase
+                        ? "1fr"
+                        : "repeat(auto-fill, minmax(280px, 1fr))",
+                      gap: 16,
+                    }}
+                  >
                     {myAssignedCases.map((c) => (
-                      <CasePanelCard key={c.id} c={c} onClick={openCase} isSelected={selectedCase?.id === c.id} />
+                      <CasePanelCard
+                        key={c.id}
+                        c={c}
+                        onClick={openCase}
+                        isSelected={selectedCase?.id === c.id}
+                      />
                     ))}
                   </div>
                 )}
@@ -1133,7 +2755,14 @@ export default function EnhancedDashboard({ currentUser }) {
                 }}
               >
                 {/* Scrollable Content */}
-                <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column" }}>
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: "auto",
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
                   {/* Case Header */}
                   <div
                     style={{
@@ -1145,7 +2774,9 @@ export default function EnhancedDashboard({ currentUser }) {
                       flexShrink: 0,
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 12 }}
+                    >
                       <button
                         onClick={() => setSelectedCase(null)}
                         style={{
@@ -1164,11 +2795,34 @@ export default function EnhancedDashboard({ currentUser }) {
                         <Icon.ArrowLeft size={18} />
                       </button>
                       <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontWeight: 700, fontSize: 16, color: "#fff" }}>{selectedCase.code}</span>
-                          <RiskBadge level={selectedCase.riskLevel} score={selectedCase.current_risk_score} />
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 16,
+                              color: "#fff",
+                            }}
+                          >
+                            {selectedCase.code}
+                          </span>
+                          <RiskBadge
+                            level={selectedCase.riskLevel}
+                            score={selectedCase.current_risk_score}
+                          />
                         </div>
-                        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.75)", marginTop: 3 }}>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: "rgba(255,255,255,0.75)",
+                            marginTop: 3,
+                          }}
+                        >
                           {selectedCase.platform} · {selectedCase.lastSignal}
                         </div>
                       </div>
@@ -1205,11 +2859,28 @@ export default function EnhancedDashboard({ currentUser }) {
                       flexWrap: "wrap",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ fontSize: 10, color: "#94a3b8", fontWeight: 600, textTransform: "uppercase" }}>Work</span>
-                      <WorkStatusBadge workStatus={workStatus || selectedCase.work_status} />
+                    <div
+                      style={{ display: "flex", alignItems: "center", gap: 6 }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "#94a3b8",
+                          fontWeight: 600,
+                          textTransform: "uppercase",
+                        }}
+                      >
+                        Work
+                      </span>
+                      <WorkStatusBadge
+                        workStatus={workStatus || selectedCase.work_status}
+                      />
                       <select
-                        value={workStatus || selectedCase.work_status || "not_started"}
+                        value={
+                          workStatus ||
+                          selectedCase.work_status ||
+                          "not_started"
+                        }
                         onChange={(e) => handleWorkStatusChange(e.target.value)}
                         disabled={workStatusSaving}
                         style={{
@@ -1227,12 +2898,25 @@ export default function EnhancedDashboard({ currentUser }) {
                         <option value="to_review">To Review</option>
                         <option value="completed">Completed</option>
                       </select>
-                      {workStatusSaving && <span style={{ fontSize: 11, color: "#94a3b8" }}>Saving…</span>}
+                      {workStatusSaving && (
+                        <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                          Saving…
+                        </span>
+                      )}
                     </div>
                   </div>
 
                   {/* Detail Tabs */}
-                  <div style={{ display: "flex", gap: 0, borderBottom: "1px solid #f1f5f9", background: "#fff", flexShrink: 0, paddingLeft: 8 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 0,
+                      borderBottom: "1px solid #f1f5f9",
+                      background: "#fff",
+                      flexShrink: 0,
+                      paddingLeft: 8,
+                    }}
+                  >
                     {[
                       { id: "overview", label: "Overview" },
                       { id: "timeline", label: "Timeline" },
@@ -1247,7 +2931,10 @@ export default function EnhancedDashboard({ currentUser }) {
                           color: detailTab === t.id ? "#1e40af" : "#64748b",
                           background: "none",
                           border: "none",
-                          borderBottom: detailTab === t.id ? "2px solid #3b82f6" : "2px solid transparent",
+                          borderBottom:
+                            detailTab === t.id
+                              ? "2px solid #3b82f6"
+                              : "2px solid transparent",
                           cursor: "pointer",
                         }}
                       >
@@ -1257,9 +2944,24 @@ export default function EnhancedDashboard({ currentUser }) {
                   </div>
 
                   {/* Detail Content */}
-                  <div style={{ flex: 1, display: "flex", flexDirection: "column", overflowY: "auto", background: "#f8fafc" }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      overflowY: "auto",
+                      background: "#f8fafc",
+                    }}
+                  >
                     {detailTab === "overview" && (
-                      <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 20 }}>
+                      <div
+                        style={{
+                          padding: "24px 28px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 20,
+                        }}
+                      >
                         {/* Privacy Notice */}
                         <div
                           style={{
@@ -1272,100 +2974,458 @@ export default function EnhancedDashboard({ currentUser }) {
                             alignItems: "flex-start",
                           }}
                         >
-                          <Icon.Shield size={16} style={{ flexShrink: 0, color: "#0284c7", marginTop: 1 }} />
-                          <div style={{ fontSize: 12, color: "#0369a1", lineHeight: 1.5 }}>
-                            <strong>Privacy:</strong> AI-generated risk signals only. No raw social media posts or personal content is stored.
+                          <Icon.Shield
+                            size={16}
+                            style={{
+                              flexShrink: 0,
+                              color: "#0284c7",
+                              marginTop: 1,
+                            }}
+                          />
+                          <div
+                            style={{
+                              fontSize: 12,
+                              color: "#0369a1",
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            <strong>Privacy:</strong> AI-generated risk signals
+                            only. No raw social media posts or personal content
+                            is stored.
                           </div>
                         </div>
 
                         {/* Youth Profile Card */}
-                        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, color: "#1e293b", borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
-                            <Icon.User size={16} color="#3b82f6" /> Youth Profile
+                        <div
+                          style={{
+                            background: "#fff",
+                            borderRadius: 12,
+                            border: "1px solid #e2e8f0",
+                            padding: 20,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 14,
+                              marginBottom: 16,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              color: "#1e293b",
+                              borderBottom: "1px solid #f1f5f9",
+                              paddingBottom: 12,
+                            }}
+                          >
+                            <Icon.User size={16} color="#3b82f6" /> Youth
+                            Profile
                           </div>
-                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                          <div
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "1fr 1fr",
+                              gap: 16,
+                            }}
+                          >
                             <div>
-                              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Handle</div>
-                              <div style={{ fontSize: 14, fontWeight: 600, color: "#1e293b" }}>{selectedCase.user}</div>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: "#94a3b8",
+                                  textTransform: "uppercase",
+                                  marginBottom: 4,
+                                }}
+                              >
+                                Handle
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: 600,
+                                  color: "#1e293b",
+                                }}
+                              >
+                                {selectedCase.user}
+                              </div>
                             </div>
                             <div>
-                              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Platform</div>
-                              <div style={{ fontSize: 14, color: "#475569" }}>{selectedCase.platform}</div>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: "#94a3b8",
+                                  textTransform: "uppercase",
+                                  marginBottom: 4,
+                                }}
+                              >
+                                Platform
+                              </div>
+                              <div style={{ fontSize: 14, color: "#475569" }}>
+                                {selectedCase.platform}
+                              </div>
                             </div>
                             <div>
-                              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Category</div>
-                              <div style={{ fontSize: 14, color: "#475569" }}>{selectedCase.category}</div>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: "#94a3b8",
+                                  textTransform: "uppercase",
+                                  marginBottom: 4,
+                                }}
+                              >
+                                Category
+                              </div>
+                              <div style={{ fontSize: 14, color: "#475569" }}>
+                                {selectedCase.category}
+                              </div>
                             </div>
                             <div>
-                              <div style={{ fontSize: 10, color: "#94a3b8", textTransform: "uppercase", marginBottom: 4 }}>Last Signal</div>
-                              <div style={{ fontSize: 14, color: "#475569" }}>{selectedCase.lastSignal}</div>
+                              <div
+                                style={{
+                                  fontSize: 10,
+                                  color: "#94a3b8",
+                                  textTransform: "uppercase",
+                                  marginBottom: 4,
+                                }}
+                              >
+                                Last Signal
+                              </div>
+                              <div style={{ fontSize: 14, color: "#475569" }}>
+                                {selectedCase.lastSignal}
+                              </div>
                             </div>
                           </div>
                         </div>
 
                         {/* Risk Assessment */}
-                        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, color: "#1e293b", borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
-                            <Icon.TrendingUp size={16} color="#dc2626" /> Risk Assessment
+                        <div
+                          style={{
+                            background: "#fff",
+                            borderRadius: 12,
+                            border: "1px solid #e2e8f0",
+                            padding: 20,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 14,
+                              marginBottom: 16,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              color: "#1e293b",
+                              borderBottom: "1px solid #f1f5f9",
+                              paddingBottom: 12,
+                            }}
+                          >
+                            <Icon.TrendingUp size={16} color="#dc2626" /> Risk
+                            Assessment
                           </div>
-                          <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                            <span style={{ fontSize: 32, fontWeight: 800, color: (RISK_COLORS[selectedCase.riskLevel] || RISK_COLORS[3]).text }}>
-                              {selectedCase.current_risk_score?.toFixed(1) ?? "—"}
-                              <span style={{ fontSize: 18, fontWeight: 400, color: "#94a3b8" }}>%</span>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 16,
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 32,
+                                fontWeight: 800,
+                                color: (
+                                  RISK_COLORS[selectedCase.riskLevel] ||
+                                  RISK_COLORS[3]
+                                ).text,
+                              }}
+                            >
+                              {selectedCase.current_risk_score?.toFixed(1) ??
+                                "—"}
+                              <span
+                                style={{
+                                  fontSize: 18,
+                                  fontWeight: 400,
+                                  color: "#94a3b8",
+                                }}
+                              >
+                                %
+                              </span>
                             </span>
                           </div>
-                          <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 6 }}>
-                            {(RISK_COLORS[selectedCase.riskLevel] || RISK_COLORS[3]).label} risk · Category: {selectedCase.category}
+                          <div
+                            style={{
+                              fontSize: 11,
+                              color: "#94a3b8",
+                              marginTop: 6,
+                            }}
+                          >
+                            {
+                              (
+                                RISK_COLORS[selectedCase.riskLevel] ||
+                                RISK_COLORS[3]
+                              ).label
+                            }{" "}
+                            risk · Category: {selectedCase.category}
                           </div>
                         </div>
 
                         {/* AI Explanation Signals */}
-                        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, color: "#1e293b", borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
-                            <Icon.Activity size={16} color={T.indigo} /> AI Explanation Signals
-                            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>(why this was flagged)</span>
+                        <div
+                          style={{
+                            background: "#fff",
+                            borderRadius: 12,
+                            border: "1px solid #e2e8f0",
+                            padding: 20,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 14,
+                              marginBottom: 16,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              color: "#1e293b",
+                              borderBottom: "1px solid #f1f5f9",
+                              paddingBottom: 12,
+                            }}
+                          >
+                            <Icon.Activity size={16} color={T.indigo} /> AI
+                            Explanation Signals
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "#94a3b8",
+                                fontWeight: 400,
+                              }}
+                            >
+                              (why this was flagged)
+                            </span>
                           </div>
                           {selectedCase.ai_explanation_paragraph && (
-                            <div style={{ background: "#f8fafc", borderLeft: `3px solid ${T.indigo}`, padding: "12px 14px", marginBottom: 14, borderRadius: "0 8px 8px 0" }}>
-                              <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{selectedCase.ai_explanation_paragraph}</p>
+                            <div
+                              style={{
+                                background: "#f8fafc",
+                                borderLeft: `3px solid ${T.indigo}`,
+                                padding: "12px 14px",
+                                marginBottom: 14,
+                                borderRadius: "0 8px 8px 0",
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 13,
+                                  color: "#475569",
+                                  lineHeight: 1.6,
+                                }}
+                              >
+                                {selectedCase.ai_explanation_paragraph}
+                              </p>
                             </div>
                           )}
-                          <div style={{ fontWeight: 500, fontSize: 12, color: "#64748b", marginBottom: 8 }}>Key Signals Detected:</div>
-                          {selectedCase.signals && selectedCase.signals.length > 0 ? (
+                          <div
+                            style={{
+                              fontWeight: 500,
+                              fontSize: 12,
+                              color: "#64748b",
+                              marginBottom: 8,
+                            }}
+                          >
+                            Key Signals Detected:
+                          </div>
+                          {selectedCase.signals &&
+                          selectedCase.signals.length > 0 ? (
                             selectedCase.signals.map((s, i) => (
-                              <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderBottom: i < selectedCase.signals.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                                <span style={{ background: "#eef2ff", color: T.indigo, borderRadius: 6, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
-                                <span style={{ fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{s}</span>
+                              <div
+                                key={i}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  gap: 10,
+                                  padding: "8px 0",
+                                  borderBottom:
+                                    i < selectedCase.signals.length - 1
+                                      ? "1px solid #f1f5f9"
+                                      : "none",
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    background: "#eef2ff",
+                                    color: T.indigo,
+                                    borderRadius: 6,
+                                    width: 22,
+                                    height: 22,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    fontSize: 11,
+                                    flexShrink: 0,
+                                    marginTop: 1,
+                                  }}
+                                >
+                                  {i + 1}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: 13,
+                                    color: "#475569",
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  {s}
+                                </span>
                               </div>
                             ))
                           ) : (
-                            <div style={{ fontSize: 13, color: "#94a3b8", fontStyle: "italic" }}>No signals detected for this case.</div>
+                            <div
+                              style={{
+                                fontSize: 13,
+                                color: "#94a3b8",
+                                fontStyle: "italic",
+                              }}
+                            >
+                              No signals detected for this case.
+                            </div>
                           )}
                         </div>
 
                         {/* Recommended Actions */}
-                        <div style={{ background: "#fff", borderRadius: 12, border: "1px solid #e2e8f0", padding: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-                          <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 16, display: "flex", alignItems: "center", gap: 8, color: "#1e293b", borderBottom: "1px solid #f1f5f9", paddingBottom: 12 }}>
-                            <Icon.Lightbulb size={16} color="#f59e0b" /> Recommended Actions
-                            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400 }}>(AI-generated from protocols)</span>
+                        <div
+                          style={{
+                            background: "#fff",
+                            borderRadius: 12,
+                            border: "1px solid #e2e8f0",
+                            padding: 20,
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              fontSize: 14,
+                              marginBottom: 16,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              color: "#1e293b",
+                              borderBottom: "1px solid #f1f5f9",
+                              paddingBottom: 12,
+                            }}
+                          >
+                            <Icon.Lightbulb size={16} color="#f59e0b" />{" "}
+                            Recommended Actions
+                            <span
+                              style={{
+                                fontSize: 11,
+                                color: "#94a3b8",
+                                fontWeight: 400,
+                              }}
+                            >
+                              (AI-generated from protocols)
+                            </span>
                           </div>
                           {selectedCase.recommended_actions_paragraph && (
-                            <div style={{ background: "#fffbeb", borderLeft: "3px solid #f59e0b", padding: "12px 14px", marginBottom: 14, borderRadius: "0 8px 8px 0" }}>
-                              <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{selectedCase.recommended_actions_paragraph}</p>
+                            <div
+                              style={{
+                                background: "#fffbeb",
+                                borderLeft: "3px solid #f59e0b",
+                                padding: "12px 14px",
+                                marginBottom: 14,
+                                borderRadius: "0 8px 8px 0",
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: 13,
+                                  color: "#475569",
+                                  lineHeight: 1.6,
+                                }}
+                              >
+                                {selectedCase.recommended_actions_paragraph}
+                              </p>
                             </div>
                           )}
                           {loadingRecommendations ? (
-                            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", color: "#94a3b8", fontSize: 13 }}>
-                              <div style={{ width: 16, height: 16, border: "2px solid #e2e8f0", borderTop: `2px solid ${T.indigo}`, borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: "12px 0",
+                                color: "#94a3b8",
+                                fontSize: 13,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 16,
+                                  height: 16,
+                                  border: "2px solid #e2e8f0",
+                                  borderTop: `2px solid ${T.indigo}`,
+                                  borderRadius: "50%",
+                                  animation: "spin 1s linear infinite",
+                                }}
+                              />
                               Generating recommendations...
                             </div>
                           ) : (
                             <>
-                              <div style={{ fontWeight: 500, fontSize: 12, color: "#64748b", marginBottom: 8 }}>Suggested Actions:</div>
+                              <div
+                                style={{
+                                  fontWeight: 500,
+                                  fontSize: 12,
+                                  color: "#64748b",
+                                  marginBottom: 8,
+                                }}
+                              >
+                                Suggested Actions:
+                              </div>
                               {recommendations.map((rec, i) => (
-                                <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "8px 0", borderBottom: i < recommendations.length - 1 ? "1px solid #f1f5f9" : "none" }}>
-                                  <span style={{ background: "#fef3c7", color: "#92400e", borderRadius: 6, width: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, marginTop: 1 }}>{i + 1}</span>
-                                  <span style={{ fontSize: 13, color: "#475569", lineHeight: 1.5 }}>{rec}</span>
+                                <div
+                                  key={i}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "flex-start",
+                                    gap: 10,
+                                    padding: "8px 0",
+                                    borderBottom:
+                                      i < recommendations.length - 1
+                                        ? "1px solid #f1f5f9"
+                                        : "none",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      background: "#fef3c7",
+                                      color: "#92400e",
+                                      borderRadius: 6,
+                                      width: 22,
+                                      height: 22,
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: 11,
+                                      flexShrink: 0,
+                                      marginTop: 1,
+                                    }}
+                                  >
+                                    {i + 1}
+                                  </span>
+                                  <span
+                                    style={{
+                                      fontSize: 13,
+                                      color: "#475569",
+                                      lineHeight: 1.5,
+                                    }}
+                                  >
+                                    {rec}
+                                  </span>
                                 </div>
                               ))}
                             </>
@@ -1391,26 +3451,94 @@ export default function EnhancedDashboard({ currentUser }) {
                             boxShadow: "0 4px 14px rgba(6,114,203,0.3)",
                           }}
                         >
-                          <Icon.MessageSquare size={16} /> Ask AI for Guidance on This Case
+                          <Icon.MessageSquare size={16} /> Ask AI for Guidance
+                          on This Case
                         </button>
                       </div>
                     )}
 
                     {detailTab === "timeline" && (
-                      <div style={{ padding: "24px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
+                      <div
+                        style={{
+                          padding: "24px 28px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 16,
+                        }}
+                      >
                         {loadingHistory ? (
-                          <div style={{ textAlign: "center", padding: 40, color: T.muted }}>Loading timeline...</div>
+                          <div
+                            style={{
+                              textAlign: "center",
+                              padding: 40,
+                              color: T.muted,
+                            }}
+                          >
+                            Loading timeline...
+                          </div>
                         ) : caseHistory.length === 0 ? (
-                          <div style={{ textAlign: "center", padding: 40, color: T.muted }}>No history available yet.</div>
+                          <div
+                            style={{
+                              textAlign: "center",
+                              padding: 40,
+                              color: T.muted,
+                            }}
+                          >
+                            No history available yet.
+                          </div>
                         ) : (
                           caseHistory.map((event, i) => (
-                            <div key={i} style={{ background: "#fff", borderRadius: 10, border: "1px solid #e2e8f0", padding: "14px 16px", display: "flex", gap: 14 }}>
-                              <div style={{ width: 10, height: 10, borderRadius: "50%", background: T.indigo, marginTop: 5, flexShrink: 0 }} />
+                            <div
+                              key={i}
+                              style={{
+                                background: "#fff",
+                                borderRadius: 10,
+                                border: "1px solid #e2e8f0",
+                                padding: "14px 16px",
+                                display: "flex",
+                                gap: 14,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: 10,
+                                  height: 10,
+                                  borderRadius: "50%",
+                                  background: T.indigo,
+                                  marginTop: 5,
+                                  flexShrink: 0,
+                                }}
+                              />
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 13, fontWeight: 600, color: T.navyMid, textTransform: "capitalize" }}>{event.event_type?.replace(/_/g, " ")}</div>
-                                <div style={{ fontSize: 13, color: T.slate, marginTop: 4, lineHeight: 1.5 }}>{event.description}</div>
-                                <div style={{ fontSize: 11, color: T.muted, marginTop: 6 }}>
-                                  {new Date(event.timestamp).toLocaleString()} · {event.user || "System"}
+                                <div
+                                  style={{
+                                    fontSize: 13,
+                                    fontWeight: 600,
+                                    color: T.navyMid,
+                                    textTransform: "capitalize",
+                                  }}
+                                >
+                                  {event.event_type?.replace(/_/g, " ")}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: 13,
+                                    color: T.slate,
+                                    marginTop: 4,
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  {event.description}
+                                </div>
+                                <div
+                                  style={{
+                                    fontSize: 11,
+                                    color: T.muted,
+                                    marginTop: 6,
+                                  }}
+                                >
+                                  {new Date(event.timestamp).toLocaleString()} ·{" "}
+                                  {event.user || "System"}
                                 </div>
                               </div>
                             </div>
@@ -1436,7 +3564,9 @@ export default function EnhancedDashboard({ currentUser }) {
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: showChatbot ? "#dc2626" : `linear-gradient(135deg, ${T.indigo}, ${T.indigoDark})`,
+          background: showChatbot
+            ? "#dc2626"
+            : `linear-gradient(135deg, ${T.indigo}, ${T.indigoDark})`,
           border: "none",
           color: "#fff",
           cursor: "pointer",
@@ -1481,25 +3611,57 @@ export default function EnhancedDashboard({ currentUser }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
               <Icon.MessageSquare size={20} />
               <div>
-                <div style={{ fontWeight: 700, fontSize: 14 }}>AI Case Assistant</div>
-                <div style={{ fontSize: 11, opacity: 0.8 }}>SCS Protocol Guidance</div>
+                <div style={{ fontWeight: 700, fontSize: 14 }}>
+                  AI Case Assistant
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.8 }}>
+                  SCS Protocol Guidance
+                </div>
               </div>
             </div>
-            <button onClick={() => setShowChatbot(false)} style={{ background: "rgba(255,255,255,0.15)", border: "none", borderRadius: 6, padding: 6, cursor: "pointer", color: "#fff" }}>
+            <button
+              onClick={() => setShowChatbot(false)}
+              style={{
+                background: "rgba(255,255,255,0.15)",
+                border: "none",
+                borderRadius: 6,
+                padding: 6,
+                cursor: "pointer",
+                color: "#fff",
+              }}
+            >
               <Icon.X size={16} />
             </button>
           </div>
 
           {/* Chat Messages */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 12 }}>
+          <div
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: 16,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+            }}
+          >
             {chatMessages.map((msg, i) => (
-              <div key={i} style={{ alignSelf: msg.role === "user" ? "flex-end" : "flex-start", maxWidth: "85%" }}>
+              <div
+                key={i}
+                style={{
+                  alignSelf: msg.role === "user" ? "flex-end" : "flex-start",
+                  maxWidth: "85%",
+                }}
+              >
                 <div
                   style={{
                     background: msg.role === "user" ? T.indigo : "#f1f5f9",
                     color: msg.role === "user" ? "#fff" : T.navyMid,
                     padding: "10px 14px",
-                    borderRadius: msg.role === "user" ? "12px 12px 0 12px" : "12px 12px 12px 0",
+                    borderRadius:
+                      msg.role === "user"
+                        ? "12px 12px 0 12px"
+                        : "12px 12px 12px 0",
                     fontSize: 13,
                     lineHeight: 1.5,
                     whiteSpace: "pre-wrap",
@@ -1511,19 +3673,51 @@ export default function EnhancedDashboard({ currentUser }) {
             ))}
             {chatLoading && (
               <div style={{ alignSelf: "flex-start", maxWidth: "85%" }}>
-                <div style={{ background: "#f1f5f9", padding: "10px 14px", borderRadius: "12px 12px 12px 0", fontSize: 13, color: T.muted }}>Thinking...</div>
+                <div
+                  style={{
+                    background: "#f1f5f9",
+                    padding: "10px 14px",
+                    borderRadius: "12px 12px 12px 0",
+                    fontSize: 13,
+                    color: T.muted,
+                  }}
+                >
+                  Thinking...
+                </div>
               </div>
             )}
             <div ref={chatEndRef} />
           </div>
 
           {/* Quick Actions */}
-          <div style={{ padding: "8px 16px", borderTop: "1px solid #e2e8f0", display: "flex", gap: 6, flexWrap: "wrap" }}>
-            {["Bullying guidance", "Escalation criteria", "Outreach templates"].map((q) => (
+          <div
+            style={{
+              padding: "8px 16px",
+              borderTop: "1px solid #e2e8f0",
+              display: "flex",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            {[
+              "Bullying guidance",
+              "Escalation criteria",
+              "Outreach templates",
+            ].map((q) => (
               <button
                 key={q}
-                onClick={() => { setChatInput(q); }}
-                style={{ background: "#f1f5f9", border: "1px solid #e2e8f0", borderRadius: 16, padding: "6px 12px", fontSize: 11, color: T.slate, cursor: "pointer" }}
+                onClick={() => {
+                  setChatInput(q);
+                }}
+                style={{
+                  background: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 16,
+                  padding: "6px 12px",
+                  fontSize: 11,
+                  color: T.slate,
+                  cursor: "pointer",
+                }}
               >
                 {q}
               </button>
@@ -1531,18 +3725,42 @@ export default function EnhancedDashboard({ currentUser }) {
           </div>
 
           {/* Chat Input */}
-          <form onSubmit={handleChatSubmit} style={{ padding: "12px 16px", borderTop: "1px solid #e2e8f0", display: "flex", gap: 8 }}>
+          <form
+            onSubmit={handleChatSubmit}
+            style={{
+              padding: "12px 16px",
+              borderTop: "1px solid #e2e8f0",
+              display: "flex",
+              gap: 8,
+            }}
+          >
             <input
               type="text"
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               placeholder="Ask about case guidance..."
-              style={{ flex: 1, padding: "10px 14px", borderRadius: 8, border: "1px solid #e2e8f0", fontSize: 13, outline: "none" }}
+              style={{
+                flex: 1,
+                padding: "10px 14px",
+                borderRadius: 8,
+                border: "1px solid #e2e8f0",
+                fontSize: 13,
+                outline: "none",
+              }}
             />
             <button
               type="submit"
               disabled={chatLoading || !chatInput.trim()}
-              style={{ background: T.indigo, border: "none", borderRadius: 8, padding: "10px 14px", color: "#fff", cursor: chatLoading || !chatInput.trim() ? "not-allowed" : "pointer", opacity: chatLoading || !chatInput.trim() ? 0.6 : 1 }}
+              style={{
+                background: T.indigo,
+                border: "none",
+                borderRadius: 8,
+                padding: "10px 14px",
+                color: "#fff",
+                cursor:
+                  chatLoading || !chatInput.trim() ? "not-allowed" : "pointer",
+                opacity: chatLoading || !chatInput.trim() ? 0.6 : 1,
+              }}
             >
               <Icon.Send size={16} />
             </button>

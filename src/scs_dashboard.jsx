@@ -61,7 +61,12 @@ const T = {
 
 // ─── RISK COLOR MAPPINGS (string keys) ───────────────────────────────
 const riskColors = {
-  CRITICAL: { bg: "#fef2f2", text: "#991b1b", border: "#fecaca", dot: "#dc2626" },
+  CRITICAL: {
+    bg: "#fef2f2",
+    text: "#991b1b",
+    border: "#fecaca",
+    dot: "#dc2626",
+  },
   HIGH: { bg: "#fff7ed", text: "#c2410c", border: "#fed7aa", dot: "#ea580c" },
   MEDIUM: { bg: "#fefce8", text: "#a16207", border: "#fef08a", dot: "#ca8a04" },
   LOW: { bg: "#f0fdf4", text: "#166534", border: "#bbf7d0", dot: "#16a34a" },
@@ -694,24 +699,38 @@ function CasePanelCard({ c, onClick, isSelected }) {
         padding: "18px 20px",
         cursor: "pointer",
         transition: "all 0.2s",
-        boxShadow: isSelected ? "0 6px 20px rgba(6,114,203,0.2)" : "0 2px 8px rgba(0,0,0,0.04)",
+        boxShadow: isSelected
+          ? "0 6px 20px rgba(6,114,203,0.2)"
+          : "0 2px 8px rgba(0,0,0,0.04)",
         display: "flex",
         flexDirection: "column",
         gap: 12,
         minHeight: 140,
       }}
       onMouseEnter={(e) => {
-        if (!isSelected) e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
+        if (!isSelected)
+          e.currentTarget.style.boxShadow = "0 4px 14px rgba(0,0,0,0.08)";
       }}
       onMouseLeave={(e) => {
-        if (!isSelected) e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
+        if (!isSelected)
+          e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.04)";
       }}
     >
       {/* Header Row */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          justifyContent: "space-between",
+        }}
+      >
         <div>
-          <div style={{ fontWeight: 700, fontSize: 14, color: T.navyMid }}>{c.id || c.code}</div>
-          <div style={{ fontSize: 13, color: T.slate, marginTop: 3 }}>{c.user || c.user_id || c.youth?.handle}</div>
+          <div style={{ fontWeight: 700, fontSize: 14, color: T.navyMid }}>
+            {c.id || c.code}
+          </div>
+          <div style={{ fontSize: 13, color: T.slate, marginTop: 3 }}>
+            {c.user || c.user_id || c.youth?.handle}
+          </div>
         </div>
         <span
           style={{
@@ -729,15 +748,56 @@ function CasePanelCard({ c, onClick, isSelected }) {
       </div>
 
       {/* Middle Info */}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-        <span style={{ background: "#f1f5f9", padding: "3px 8px", borderRadius: 6, fontSize: 11, color: T.slate }}>{c.platform}</span>
-        <span style={{ background: "#f1f5f9", padding: "3px 8px", borderRadius: 6, fontSize: 11, color: T.slate }}>{c.category}</span>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          flexWrap: "wrap",
+        }}
+      >
+        <span
+          style={{
+            background: "#f1f5f9",
+            padding: "3px 8px",
+            borderRadius: 6,
+            fontSize: 11,
+            color: T.slate,
+          }}
+        >
+          {c.platform}
+        </span>
+        <span
+          style={{
+            background: "#f1f5f9",
+            padding: "3px 8px",
+            borderRadius: 6,
+            fontSize: 11,
+            color: T.slate,
+          }}
+        >
+          {c.category}
+        </span>
       </div>
 
       {/* Footer */}
-      <div style={{ marginTop: "auto", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div
+        style={{
+          marginTop: "auto",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
         <div style={{ fontSize: 11, color: T.muted }}>
-          <Icon.Clock size={11} style={{ display: "inline", verticalAlign: "middle", marginRight: 4 }} />
+          <Icon.Clock
+            size={11}
+            style={{
+              display: "inline",
+              verticalAlign: "middle",
+              marginRight: 4,
+            }}
+          />
           {c.lastSignal}
         </div>
         {(c.mine || c.assignedToMe) && (
@@ -766,8 +826,16 @@ function CasePanelCard({ c, onClick, isSelected }) {
 // ─── YOUTH HELPER PROFILE CARD ───────────────────────────────────────────────
 function YouthHelperCard({ user, stats }) {
   const userInitials =
-    user?.username?.split(" ").map((n) => n[0]).join("").slice(0, 2) ||
-    user?.name?.split(" ").map((n) => n[0]).join("").slice(0, 2) ||
+    user?.username
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2) ||
+    user?.name
+      ?.split(" ")
+      .map((n) => n[0])
+      .join("")
+      .slice(0, 2) ||
     user?.avatar_initials ||
     "YH";
 
@@ -782,7 +850,14 @@ function YouthHelperCard({ user, stats }) {
       }}
     >
       {/* Avatar & Name */}
-      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          marginBottom: 20,
+        }}
+      >
         <div
           style={{
             width: 56,
@@ -804,30 +879,741 @@ function YouthHelperCard({ user, stats }) {
           <div style={{ fontWeight: 700, fontSize: 16, color: T.navyMid }}>
             {user?.username || user?.name || "Youth Helper"}
           </div>
-          <div style={{ fontSize: 12, color: T.muted }}>{user?.role || "Youth Helper"}</div>
+          <div style={{ fontSize: 12, color: T.muted }}>
+            {user?.role || "Youth Helper"}
+          </div>
         </div>
       </div>
 
       {/* Stats Grid */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <div style={{ background: "#fef2f2", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#dc2626" }}>{stats.myCritical}</div>
-          <div style={{ fontSize: 10, color: "#991b1b", fontWeight: 600, textTransform: "uppercase" }}>Critical</div>
+        <div
+          style={{
+            background: "#fef2f2",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#dc2626" }}>
+            {stats.myCritical}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "#991b1b",
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            Critical
+          </div>
         </div>
-        <div style={{ background: "#fff7ed", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#ea580c" }}>{stats.myHigh}</div>
-          <div style={{ fontSize: 10, color: "#c2410c", fontWeight: 600, textTransform: "uppercase" }}>High</div>
+        <div
+          style={{
+            background: "#fff7ed",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#ea580c" }}>
+            {stats.myHigh}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "#c2410c",
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            High
+          </div>
         </div>
-        <div style={{ background: "#f0fdf4", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: "#16a34a" }}>{stats.myOther}</div>
-          <div style={{ fontSize: 10, color: "#166534", fontWeight: 600, textTransform: "uppercase" }}>Med/Low</div>
+        <div
+          style={{
+            background: "#f0fdf4",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: "#16a34a" }}>
+            {stats.myOther}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: "#166534",
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            Med/Low
+          </div>
         </div>
-        <div style={{ background: "#eff6ff", borderRadius: 10, padding: "12px 14px", textAlign: "center" }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: T.indigo }}>{stats.assignedToMe}</div>
-          <div style={{ fontSize: 10, color: T.indigoDark, fontWeight: 600, textTransform: "uppercase" }}>Total Mine</div>
+        <div
+          style={{
+            background: "#eff6ff",
+            borderRadius: 10,
+            padding: "12px 14px",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 24, fontWeight: 800, color: T.indigo }}>
+            {stats.assignedToMe}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: T.indigoDark,
+              fontWeight: 600,
+              textTransform: "uppercase",
+            }}
+          >
+            Total Mine
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
 
+// ─── CASE CLUSTER PANEL ────────────────────────────────────────────────
+function CaseClusterPanel() {
+  const prototypeCases = [
+    { case_id: "CASE_PROTO_2026_001", categories: ["Academic burnout"] },
+    {
+      case_id: "CASE_PROTO_2026_002",
+      categories: ["War/conflict displacement"],
+    },
+    {
+      case_id: "CASE_PROTO_2026_003",
+      categories: ["Family pressure", "Financial stress"],
+    },
+    {
+      case_id: "CASE_PROTO_2026_004",
+      categories: ["Financial stress", "Social isolation"],
+    },
+    { case_id: "CASE_PROTO_2026_005", categories: ["Social isolation"] },
+    { case_id: "CASE_PROTO_2026_006", categories: ["Grief/loss"] },
+    {
+      case_id: "CASE_PROTO_2026_007",
+      categories: ["Academic stress", "Relationship stress"],
+    },
+    {
+      case_id: "CASE_PROTO_2026_008",
+      categories: ["War trauma", "Identity pressure"],
+    },
+  ];
+
+  const allCategories = [
+    ...new Set(prototypeCases.flatMap((c) => c.categories)),
+  ].sort();
+  const [selectedCategory, setSelectedCategory] = useState(
+    allCategories[0] || "",
+  );
+
+  const filteredCases = prototypeCases.filter((c) =>
+    c.categories.includes(selectedCategory),
+  );
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        border: "1px solid #e2e8f0",
+        borderRadius: 12,
+        padding: 16,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 700,
+          marginBottom: 12,
+          color: T.navyMid,
+        }}
+      >
+        Case Clusters by Category
+      </div>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            width: 150,
+            borderRight: "1px solid #e2e8f0",
+            paddingRight: 12,
+            overflowY: "auto",
+          }}
+        >
+          {allCategories.map((cat) => (
+            <div
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              style={{
+                padding: "6px 10px",
+                marginBottom: 3,
+                borderRadius: 6,
+                cursor: "pointer",
+                fontSize: 11,
+                fontWeight: selectedCategory === cat ? 600 : 400,
+                background: selectedCategory === cat ? T.indigo : "transparent",
+                color: selectedCategory === cat ? "#fff" : T.slate,
+              }}
+            >
+              {cat}
+            </div>
+          ))}
+        </div>
+        <div style={{ flex: 1, overflowY: "auto" }}>
+          {filteredCases.length === 0 ? (
+            <div style={{ color: T.muted, fontSize: 11 }}>
+              No cases in this category
+            </div>
+          ) : (
+            filteredCases.map((c) => {
+              const otherCategories = c.categories.filter(
+                (cat) => cat !== selectedCategory,
+              );
+              return (
+                <div
+                  key={c.case_id}
+                  style={{
+                    marginBottom: 8,
+                    padding: "8px 10px",
+                    background: "#f8fafc",
+                    borderRadius: 6,
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <div
+                    style={{ fontWeight: 600, fontSize: 11, color: T.navyMid }}
+                  >
+                    {c.case_id}
+                  </div>
+                  {otherCategories.length > 0 && (
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 4,
+                        marginTop: 4,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {otherCategories.map((tag) => (
+                        <span
+                          key={tag}
+                          style={{
+                            fontSize: 9,
+                            background: "#e0e7ff",
+                            color: "#3730a3",
+                            padding: "1px 6px",
+                            borderRadius: 8,
+                          }}
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+// Add this new component after CaseClusterPanel and before YouthHelperDashboard
+
+// ─── LIVE NEWS WIDGET ─────────────────────────────────────────────────────
+function LiveNewsWidget() {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showPlayer, setShowPlayer] = useState(false);
+  const playerRef = useRef(null);
+
+  const CNA_LIVE_URL =
+    "https://www.youtube.com/embed/XWq5kBlakcQ?autoplay=1&mute=0&modestbranding=1&rel=0";
+
+  const handlePlayClick = () => {
+    setShowPlayer(true);
+    setIsPlaying(true);
+  };
+
+  const handleStopClick = () => {
+    setShowPlayer(false);
+    setIsPlaying(false);
+    if (playerRef.current) {
+      playerRef.current.src = "";
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        padding: 14,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon.Tv size={14} color="#fff" />
+          </div>
+          <div>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 12,
+                color: "#1e293b",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              Live News
+              {showPlayer && isPlaying && (
+                <span
+                  style={{
+                    background: "#dc2626",
+                    color: "#fff",
+                    fontSize: 8,
+                    fontWeight: 700,
+                    padding: "1px 5px",
+                    borderRadius: 3,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  LIVE
+                </span>
+              )}
+            </div>
+            <div style={{ fontSize: 9, color: "#64748b" }}>
+              Channel NewsAsia
+            </div>
+          </div>
+        </div>
+        {!showPlayer ? (
+          <button
+            onClick={handlePlayClick}
+            style={{
+              background: "linear-gradient(135deg, #dc2626, #b91c1c)",
+              border: "none",
+              borderRadius: 6,
+              padding: "4px 10px",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Icon.Play size={10} color="#fff" />
+            Watch
+          </button>
+        ) : (
+          <button
+            onClick={handleStopClick}
+            style={{
+              background: "#f1f5f9",
+              border: "1px solid #e2e8f0",
+              borderRadius: 6,
+              padding: "4px 10px",
+              color: "#64748b",
+              fontSize: 10,
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            Stop
+          </button>
+        )}
+      </div>
+
+      {/* Video Player or Placeholder */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        {showPlayer ? (
+          <div
+            style={{
+              position: "relative",
+              width: "100%",
+              flex: 1,
+              background: "#0f172a",
+              borderRadius: 8,
+              overflow: "hidden",
+            }}
+          >
+            <iframe
+              ref={playerRef}
+              src={CNA_LIVE_URL}
+              title="CNA Live Stream"
+              style={{ width: "100%", height: "100%", border: "none" }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        ) : (
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#f8fafc",
+              borderRadius: 8,
+              border: "1px solid #e2e8f0",
+              padding: 12,
+            }}
+          >
+            <Icon.Tv size={32} color="#94a3b8" />
+            <div
+              style={{
+                fontSize: 10,
+                color: "#64748b",
+                marginTop: 8,
+                textAlign: "center",
+              }}
+            >
+              Click "Watch" for 24/7 Singapore news coverage
+            </div>
+          </div>
+        )}
+      </div>
+
+      <style jsx>{`
+        @keyframes pulse {
+          0% {
+            opacity: 1;
+          }
+          50% {
+            opacity: 0.4;
+          }
+          100% {
+            opacity: 1;
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── STRAITS TIMES MENTAL HEALTH NEWS WIDGET ─────────────────────────────────
+function StraitsTimesNewsWidget() {
+  const [news, setNews] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [lastRefresh, setLastRefresh] = useState(null);
+
+  const fetchNews = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `${CASE_SERVICE_URL}/rss/straits-times-mental-health?limit=5`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch news");
+      const data = await response.json();
+      setNews(data);
+      setLastRefresh(new Date());
+    } catch (err) {
+      console.error("Error fetching Straits Times news:", err);
+      setError("Unable to load news");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchNews();
+  }, [fetchNews]);
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString("en-SG", {
+        day: "numeric",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  return (
+    <div
+      style={{
+        background: "#fff",
+        borderRadius: 12,
+        border: "1px solid #e2e8f0",
+        padding: 14,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        overflow: "hidden",
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 6,
+              background: "linear-gradient(135deg, #0672CB, #0460a9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <Icon.FileText size={14} color="#fff" />
+          </div>
+          <div>
+            <div
+              style={{
+                fontWeight: 700,
+                fontSize: 12,
+                color: "#1e293b",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              Mental Health News
+              <span
+                style={{
+                  background: "#dbeafe",
+                  color: "#1e40af",
+                  fontSize: 8,
+                  fontWeight: 600,
+                  padding: "1px 5px",
+                  borderRadius: 3,
+                  textTransform: "uppercase",
+                }}
+              >
+                RSS
+              </span>
+            </div>
+            <div style={{ fontSize: 9, color: "#64748b" }}>
+              The Straits Times
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={fetchNews}
+          disabled={loading}
+          style={{
+            background: loading ? "#f1f5f9" : "#eff6ff",
+            border: "1px solid #dbeafe",
+            borderRadius: 6,
+            padding: "4px 10px",
+            color: loading ? "#94a3b8" : "#0672CB",
+            fontSize: 10,
+            fontWeight: 600,
+            cursor: loading ? "not-allowed" : "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <Icon.RefreshCw
+            size={10}
+            color={loading ? "#94a3b8" : "#0672CB"}
+            style={{ animation: loading ? "spin 1s linear infinite" : "none" }}
+          />
+          Refresh
+        </button>
+      </div>
+
+      {/* News List */}
+      <div style={{ flex: 1, overflowY: "auto" }}>
+        {loading && news.length === 0 ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "#94a3b8",
+              fontSize: 12,
+            }}
+          >
+            Loading news...
+          </div>
+        ) : error ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "#dc2626",
+              fontSize: 12,
+            }}
+          >
+            {error}
+          </div>
+        ) : news.length === 0 ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100%",
+              color: "#94a3b8",
+              fontSize: 12,
+            }}
+          >
+            No news available
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {news.map((item, index) => (
+              <a
+                key={index}
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "block",
+                  padding: "8px 10px",
+                  background: "#f8fafc",
+                  borderRadius: 6,
+                  border: "1px solid #e2e8f0",
+                  textDecoration: "none",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#eff6ff";
+                  e.currentTarget.style.borderColor = "#bfdbfe";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#f8fafc";
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                }}
+              >
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: "#1e293b",
+                    lineHeight: 1.3,
+                    marginBottom: 3,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}
+                >
+                  {item.title}
+                </div>
+                <div
+                  style={{
+                    fontSize: 9,
+                    color: "#64748b",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 3,
+                  }}
+                >
+                  <Icon.Clock size={9} color="#94a3b8" />
+                  {formatDate(item.pubDate)}
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Last refresh time */}
+      {lastRefresh && (
+        <div
+          style={{
+            marginTop: 8,
+            fontSize: 8,
+            color: "#94a3b8",
+            textAlign: "center",
+          }}
+        >
+          Updated:{" "}
+          {lastRefresh.toLocaleTimeString("en-SG", {
+            hour: "2-digit",
+            minute: "2-digit",
+          })}
+        </div>
+      )}
+
+      {/* CSS for spin animation */}
+      <style jsx>{`
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -837,10 +1623,20 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   const { logout } = useAuth();
   // Prefer the prop from the router; fall back to local const for standalone use
   const currentUser = propUser || CURRENT_USER_FALLBACK;
-  const currentUserHeaderId = (currentUser?.email || currentUser?.user_id || currentUser?.id || "")
+  const currentUserHeaderId = (
+    currentUser?.email ||
+    currentUser?.user_id ||
+    currentUser?.id ||
+    ""
+  )
     .toString()
     .trim();
-  const currentUserIdentity = (currentUser?.email || currentUser?.user_id || currentUser?.id || "")
+  const currentUserIdentity = (
+    currentUser?.email ||
+    currentUser?.user_id ||
+    currentUser?.id ||
+    ""
+  )
     .toString()
     .trim()
     .toLowerCase();
@@ -1127,13 +1923,25 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   const stats = useMemo(() => {
     return {
       total: cases.length,
-      critical: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL").length,
-      high: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH").length,
-      medium: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "MEDIUM").length,
-      low: cases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "LOW").length,
+      critical: cases.filter(
+        (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL",
+      ).length,
+      high: cases.filter(
+        (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH",
+      ).length,
+      medium: cases.filter(
+        (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "MEDIUM",
+      ).length,
+      low: cases.filter(
+        (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "LOW",
+      ).length,
       assignedToMe: myAssignedCases.length,
-      myCritical: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL").length,
-      myHigh: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH").length,
+      myCritical: myAssignedCases.filter(
+        (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL",
+      ).length,
+      myHigh: myAssignedCases.filter(
+        (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH",
+      ).length,
       myOther: myAssignedCases.filter((c) => {
         const r = c.risk || riskLevelToLabel(c.riskLevel || 3);
         return r === "MEDIUM" || r === "LOW";
@@ -1164,14 +1972,44 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
       { day: "Thu", critical: 4, high: 4, moderate: 2, low: 2 },
       { day: "Fri", critical: 3, high: 6, moderate: 4, low: 1 },
       { day: "Sat", critical: 2, high: 3, moderate: 2, low: 3 },
-      { day: "Sun", critical: stats.critical, high: stats.high, moderate: stats.medium, low: stats.low },
+      {
+        day: "Sun",
+        critical: stats.critical,
+        high: stats.high,
+        moderate: stats.medium,
+        low: stats.low,
+      },
     ];
 
     const myRiskData = [
-      { name: "Critical", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL").length, color: CHART_COLORS.critical },
-      { name: "High", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH").length, color: CHART_COLORS.high },
-      { name: "Moderate", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "MEDIUM").length, color: CHART_COLORS.moderate },
-      { name: "Low", value: myAssignedCases.filter((c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "LOW").length, color: CHART_COLORS.low },
+      {
+        name: "Critical",
+        value: myAssignedCases.filter(
+          (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "CRITICAL",
+        ).length,
+        color: CHART_COLORS.critical,
+      },
+      {
+        name: "High",
+        value: myAssignedCases.filter(
+          (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "HIGH",
+        ).length,
+        color: CHART_COLORS.high,
+      },
+      {
+        name: "Moderate",
+        value: myAssignedCases.filter(
+          (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "MEDIUM",
+        ).length,
+        color: CHART_COLORS.moderate,
+      },
+      {
+        name: "Low",
+        value: myAssignedCases.filter(
+          (c) => (c.risk || riskLevelToLabel(c.riskLevel || 3)) === "LOW",
+        ).length,
+        color: CHART_COLORS.low,
+      },
     ];
 
     const myCategoryCounts = myAssignedCases.reduce((acc, c) => {
@@ -1183,13 +2021,41 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
       .sort((a, b) => b.cases - a.cases);
 
     const myWorkStatusData = [
-      { name: "Not Started", value: myAssignedCases.filter((c) => (c.work_status || "not_started") === "not_started").length, color: "#94a3b8" },
-      { name: "In Progress", value: myAssignedCases.filter((c) => c.work_status === "in_progress").length, color: "#3b82f6" },
-      { name: "To Review", value: myAssignedCases.filter((c) => c.work_status === "to_review").length, color: "#f59e0b" },
-      { name: "Completed", value: myAssignedCases.filter((c) => c.work_status === "completed").length, color: "#10b981" },
+      {
+        name: "Not Started",
+        value: myAssignedCases.filter(
+          (c) => (c.work_status || "not_started") === "not_started",
+        ).length,
+        color: "#94a3b8",
+      },
+      {
+        name: "In Progress",
+        value: myAssignedCases.filter((c) => c.work_status === "in_progress")
+          .length,
+        color: "#3b82f6",
+      },
+      {
+        name: "To Review",
+        value: myAssignedCases.filter((c) => c.work_status === "to_review")
+          .length,
+        color: "#f59e0b",
+      },
+      {
+        name: "Completed",
+        value: myAssignedCases.filter((c) => c.work_status === "completed")
+          .length,
+        color: "#10b981",
+      },
     ];
 
-    return { riskData, platformData, trendData, myRiskData, myCategoryData, myWorkStatusData };
+    return {
+      riskData,
+      platformData,
+      trendData,
+      myRiskData,
+      myCategoryData,
+      myWorkStatusData,
+    };
   }, [cases, myAssignedCases, stats]);
 
   // Drag and drop handlers
@@ -1351,7 +2217,12 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "X-User-Id": (currentUser?.email || currentUser?.user_id || currentUser?.id || "").toString(),
+          "X-User-Id": (
+            currentUser?.email ||
+            currentUser?.user_id ||
+            currentUser?.id ||
+            ""
+          ).toString(),
           "X-User-Email": (currentUser?.email || "").toString(),
           "X-User-Role": currentUser.role,
         },
@@ -2838,68 +3709,423 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
             </div>
             {/* Case list */}
             {activeTab === "analytics" ? (
-              <div style={{ flex: 1, display: "flex", padding: 24, gap: 24, overflow: "hidden" }}>
-                <div style={{ width: 280, flexShrink: 0, overflowY: "auto" }}>
-                  <YouthHelperCard user={currentUser} stats={stats} />
-                </div>
-
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 20, overflow: "auto" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }}>
-                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>Risk Distribution</div>
-                      <ResponsiveContainer width="100%" height={160}>
-                        <PieChart>
-                          <Pie data={chartData.riskData} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={3} dataKey="value">
-                            {chartData.riskData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                          </Pie>
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div style={{ display: "flex", justifyContent: "center", gap: 14, marginTop: 10, flexWrap: "wrap" }}>
-                        {chartData.riskData.map((r, i) => (
-                          <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11 }}>
-                            <div style={{ width: 10, height: 10, borderRadius: 3, background: r.color }} />
-                            <span style={{ color: T.slate }}>{r.name}: {r.value}</span>
-                          </div>
-                        ))}
+              <div
+                style={{
+                  flex: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  padding: 20,
+                  gap: 16,
+                  overflow: "auto",
+                }}
+              >
+                {/* Top Row: 4 Charts/Stats together */}
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr 1fr",
+                    gap: 14,
+                  }}
+                >
+                  {/* Youth Helper Stats Card */}
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 12,
+                      padding: 16,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        marginBottom: 12,
+                        color: T.navyMid,
+                      }}
+                    >
+                      My Cases Summary
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "1fr 1fr",
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: "#fef2f2",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 800,
+                            color: "#dc2626",
+                          }}
+                        >
+                          {stats.myCritical}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 9,
+                            color: "#991b1b",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Critical
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: "#fff7ed",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 800,
+                            color: "#ea580c",
+                          }}
+                        >
+                          {stats.myHigh}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 9,
+                            color: "#c2410c",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          High
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: "#f0fdf4",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 800,
+                            color: "#16a34a",
+                          }}
+                        >
+                          {stats.myOther}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 9,
+                            color: "#166534",
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Med/Low
+                        </div>
+                      </div>
+                      <div
+                        style={{
+                          background: "#eff6ff",
+                          borderRadius: 8,
+                          padding: "8px 10px",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: 20,
+                            fontWeight: 800,
+                            color: T.indigo,
+                          }}
+                        >
+                          {stats.assignedToMe}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 9,
+                            color: T.indigoDark,
+                            fontWeight: 600,
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Total Mine
+                        </div>
                       </div>
                     </div>
+                  </div>
 
-                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>Weekly Risk Trend</div>
-                      <ResponsiveContainer width="100%" height={160}>
-                        <AreaChart data={chartData.trendData}>
-                          <XAxis dataKey="day" tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} width={28} />
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
-                          <Area type="monotone" dataKey="critical" stackId="1" stroke="#dc2626" fill="#fecaca" />
-                          <Area type="monotone" dataKey="high" stackId="1" stroke="#ea580c" fill="#fed7aa" />
-                          <Area type="monotone" dataKey="moderate" stackId="1" stroke="#ca8a04" fill="#fef08a" />
-                          <Area type="monotone" dataKey="low" stackId="1" stroke="#16a34a" fill="#bbf7d0" />
-                        </AreaChart>
-                      </ResponsiveContainer>
+                  {/* Risk Distribution */}
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 12,
+                      padding: 16,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        marginBottom: 10,
+                        color: T.navyMid,
+                      }}
+                    >
+                      Risk Distribution
                     </div>
+                    <ResponsiveContainer width="100%" height={120}>
+                      <PieChart>
+                        <Pie
+                          data={chartData.riskData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={30}
+                          outerRadius={45}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {chartData.riskData.map((entry, i) => (
+                            <Cell key={i} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8,
+                            fontSize: 11,
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "center",
+                        gap: 10,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      {chartData.riskData.map((r, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontSize: 10,
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 2,
+                              background: r.color,
+                            }}
+                          />
+                          <span style={{ color: T.slate }}>
+                            {r.name}: {r.value}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
 
-                    <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 20, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, color: T.navyMid }}>By Platform</div>
-                      <ResponsiveContainer width="100%" height={160}>
-                        <BarChart data={chartData.platformData} layout="vertical">
-                          <XAxis type="number" tick={{ fontSize: 10, fill: T.muted }} axisLine={false} tickLine={false} />
-                          <YAxis type="category" dataKey="platform" tick={{ fontSize: 11, fill: T.slate }} axisLine={false} tickLine={false} width={70} />
-                          <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 12 }} />
-                          <Bar dataKey="cases" fill={T.indigo} radius={[0, 6, 6, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                  {/* Weekly Risk Trend */}
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 12,
+                      padding: 16,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        marginBottom: 10,
+                        color: T.navyMid,
+                      }}
+                    >
+                      Weekly Risk Trend
                     </div>
+                    <ResponsiveContainer width="100%" height={130}>
+                      <AreaChart data={chartData.trendData}>
+                        <XAxis
+                          dataKey="day"
+                          tick={{ fontSize: 9, fill: T.muted }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          tick={{ fontSize: 9, fill: T.muted }}
+                          axisLine={false}
+                          tickLine={false}
+                          width={24}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8,
+                            fontSize: 10,
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="critical"
+                          stackId="1"
+                          stroke="#dc2626"
+                          fill="#fecaca"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="high"
+                          stackId="1"
+                          stroke="#ea580c"
+                          fill="#fed7aa"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="moderate"
+                          stackId="1"
+                          stroke="#ca8a04"
+                          fill="#fef08a"
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="low"
+                          stackId="1"
+                          stroke="#16a34a"
+                          fill="#bbf7d0"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  {/* By Platform */}
+                  <div
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: 12,
+                      padding: 16,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 700,
+                        marginBottom: 10,
+                        color: T.navyMid,
+                      }}
+                    >
+                      By Platform
+                    </div>
+                    <ResponsiveContainer width="100%" height={130}>
+                      <BarChart data={chartData.platformData} layout="vertical">
+                        <XAxis
+                          type="number"
+                          tick={{ fontSize: 9, fill: T.muted }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="platform"
+                          tick={{ fontSize: 10, fill: T.slate }}
+                          axisLine={false}
+                          tickLine={false}
+                          width={60}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 8,
+                            fontSize: 10,
+                          }}
+                        />
+                        <Bar
+                          dataKey="cases"
+                          fill={T.indigo}
+                          radius={[0, 4, 4, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Bottom Row: Case Clusters | Live News | Straits Times News */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 14,
+                    flex: 1,
+                    minHeight: 280,
+                    maxHeight: 400,
+                  }}
+                >
+                  {/* Case Clusters */}
+                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                    <CaseClusterPanel />
+                  </div>
+
+                  {/* Live News */}
+                  <div
+                    style={{ width: 280, flexShrink: 0, overflow: "hidden" }}
+                  >
+                    <LiveNewsWidget />
+                  </div>
+
+                  {/* Straits Times News */}
+                  <div
+                    style={{ width: 280, flexShrink: 0, overflow: "hidden" }}
+                  >
+                    <StraitsTimesNewsWidget />
                   </div>
                 </div>
               </div>
             ) : activeTab === "all" ? (
               <div style={{ flex: 1, padding: 24, overflowY: "auto" }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14 }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: T.navyMid,
+                    marginBottom: 14,
+                  }}
+                >
                   All Active Cases ({cases.length})
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      "repeat(auto-fill, minmax(280px, 1fr))",
+                    gap: 16,
+                  }}
+                >
                   {cases.map((c) => (
                     <CasePanelCard
                       key={c.id}
@@ -2939,7 +4165,8 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                     <div style={{ padding: 20, overflowY: "auto" }}>
                       <div
                         style={{
-                          background: "linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)",
+                          background:
+                            "linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)",
                           border: "1px solid #dbeafe",
                           borderRadius: 14,
                           padding: 12,
@@ -3032,75 +4259,288 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                         ))}
                       </div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 20 }}>
-                        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>My Risk Distribution</div>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "1fr 1fr 1fr",
+                          gap: 16,
+                          marginBottom: 20,
+                        }}
+                      >
+                        <div
+                          style={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 14,
+                            padding: 18,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              marginBottom: 14,
+                              color: T.navyMid,
+                            }}
+                          >
+                            My Risk Distribution
+                          </div>
                           <ResponsiveContainer width="100%" height={140}>
                             <PieChart>
-                              <Pie data={chartData.myRiskData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
-                                {chartData.myRiskData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                              <Pie
+                                data={chartData.myRiskData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={35}
+                                outerRadius={55}
+                                paddingAngle={3}
+                                dataKey="value"
+                              >
+                                {chartData.myRiskData.map((entry, i) => (
+                                  <Cell key={i} fill={entry.color} />
+                                ))}
                               </Pie>
-                              <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                              <Tooltip
+                                contentStyle={{
+                                  background: "#fff",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: 8,
+                                  fontSize: 11,
+                                }}
+                              />
                             </PieChart>
                           </ResponsiveContainer>
-                          <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                              gap: 10,
+                              marginTop: 8,
+                              flexWrap: "wrap",
+                            }}
+                          >
                             {chartData.myRiskData.map((r, i) => (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: T.slate }}>
-                                <div style={{ width: 9, height: 9, borderRadius: 3, background: r.color }} />
-                                <span>{r.name}: {r.value}</span>
+                              <div
+                                key={i}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  fontSize: 11,
+                                  color: T.slate,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: 9,
+                                    height: 9,
+                                    borderRadius: 3,
+                                    background: r.color,
+                                  }}
+                                />
+                                <span>
+                                  {r.name}: {r.value}
+                                </span>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>Work Status</div>
+                        <div
+                          style={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 14,
+                            padding: 18,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              marginBottom: 14,
+                              color: T.navyMid,
+                            }}
+                          >
+                            Work Status
+                          </div>
                           <ResponsiveContainer width="100%" height={140}>
                             <PieChart>
-                              <Pie data={chartData.myWorkStatusData} cx="50%" cy="50%" innerRadius={35} outerRadius={55} paddingAngle={3} dataKey="value">
-                                {chartData.myWorkStatusData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                              <Pie
+                                data={chartData.myWorkStatusData}
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={35}
+                                outerRadius={55}
+                                paddingAngle={3}
+                                dataKey="value"
+                              >
+                                {chartData.myWorkStatusData.map((entry, i) => (
+                                  <Cell key={i} fill={entry.color} />
+                                ))}
                               </Pie>
-                              <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
+                              <Tooltip
+                                contentStyle={{
+                                  background: "#fff",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: 8,
+                                  fontSize: 11,
+                                }}
+                              />
                             </PieChart>
                           </ResponsiveContainer>
-                          <div style={{ display: "flex", justifyContent: "center", gap: 10, marginTop: 8, flexWrap: "wrap" }}>
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "center",
+                              gap: 10,
+                              marginTop: 8,
+                              flexWrap: "wrap",
+                            }}
+                          >
                             {chartData.myWorkStatusData.map((s, i) => (
-                              <div key={i} style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 11, color: T.slate }}>
-                                <div style={{ width: 9, height: 9, borderRadius: 3, background: s.color }} />
-                                <span>{s.name}: {s.value}</span>
+                              <div
+                                key={i}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 5,
+                                  fontSize: 11,
+                                  color: T.slate,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: 9,
+                                    height: 9,
+                                    borderRadius: 3,
+                                    background: s.color,
+                                  }}
+                                />
+                                <span>
+                                  {s.name}: {s.value}
+                                </span>
                               </div>
                             ))}
                           </div>
                         </div>
 
-                        <div style={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 14, padding: 18, boxShadow: "0 2px 8px rgba(0,0,0,0.03)" }}>
-                          <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 14, color: T.navyMid }}>By Category</div>
+                        <div
+                          style={{
+                            background: "#fff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: 14,
+                            padding: 18,
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 700,
+                              marginBottom: 14,
+                              color: T.navyMid,
+                            }}
+                          >
+                            By Category
+                          </div>
                           <ResponsiveContainer width="100%" height={140}>
-                            <BarChart data={chartData.myCategoryData} layout="vertical">
-                              <XAxis type="number" tick={{ fontSize: 9, fill: T.muted }} axisLine={false} tickLine={false} />
-                              <YAxis type="category" dataKey="category" tick={{ fontSize: 10, fill: T.slate }} axisLine={false} tickLine={false} width={80} />
-                              <Tooltip contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, fontSize: 11 }} />
-                              <Bar dataKey="cases" fill={T.indigo} radius={[0, 6, 6, 0]} />
+                            <BarChart
+                              data={chartData.myCategoryData}
+                              layout="vertical"
+                            >
+                              <XAxis
+                                type="number"
+                                tick={{ fontSize: 9, fill: T.muted }}
+                                axisLine={false}
+                                tickLine={false}
+                              />
+                              <YAxis
+                                type="category"
+                                dataKey="category"
+                                tick={{ fontSize: 10, fill: T.slate }}
+                                axisLine={false}
+                                tickLine={false}
+                                width={80}
+                              />
+                              <Tooltip
+                                contentStyle={{
+                                  background: "#fff",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: 8,
+                                  fontSize: 11,
+                                }}
+                              />
+                              <Bar
+                                dataKey="cases"
+                                fill={T.indigo}
+                                radius={[0, 6, 6, 0]}
+                              />
                             </BarChart>
                           </ResponsiveContainer>
                         </div>
                       </div>
 
-                      <div style={{ fontSize: 14, fontWeight: 700, color: T.navyMid, marginBottom: 14, display: "flex", alignItems: "center", gap: 8 }}>
-                        <Icon.User size={16} color={T.indigo} /> My Assigned Cases ({myAssignedCases.length})
+                      <div
+                        style={{
+                          fontSize: 14,
+                          fontWeight: 700,
+                          color: T.navyMid,
+                          marginBottom: 14,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                        }}
+                      >
+                        <Icon.User size={16} color={T.indigo} /> My Assigned
+                        Cases ({myAssignedCases.length})
                       </div>
                     </div>
                   )}
 
-                  <div style={{ flex: 1, overflowY: "auto", padding: selectedCase ? 20 : "0 20px 20px 20px" }}>
+                  <div
+                    style={{
+                      flex: 1,
+                      overflowY: "auto",
+                      padding: selectedCase ? 20 : "0 20px 20px 20px",
+                    }}
+                  >
                     {myAssignedCases.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: 60, color: T.muted }}>
+                      <div
+                        style={{
+                          textAlign: "center",
+                          padding: 60,
+                          color: T.muted,
+                        }}
+                      >
                         <Icon.User size={40} color="#e2e8f0" />
-                        <div style={{ fontSize: 16, fontWeight: 600, marginTop: 16, color: T.slate }}>No cases assigned to you yet</div>
-                        <div style={{ fontSize: 13, marginTop: 6 }}>Cases will appear here when assigned by your supervisor.</div>
+                        <div
+                          style={{
+                            fontSize: 16,
+                            fontWeight: 600,
+                            marginTop: 16,
+                            color: T.slate,
+                          }}
+                        >
+                          No cases assigned to you yet
+                        </div>
+                        <div style={{ fontSize: 13, marginTop: 6 }}>
+                          Cases will appear here when assigned by your
+                          supervisor.
+                        </div>
                       </div>
                     ) : (
-                      <div style={{ display: "grid", gridTemplateColumns: selectedCase ? "1fr" : "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: selectedCase
+                            ? "1fr"
+                            : "repeat(auto-fill, minmax(280px, 1fr))",
+                          gap: 16,
+                        }}
+                      >
                         {myAssignedCases.map((c, index) => (
                           <div
                             key={c.id}
@@ -3108,9 +4548,22 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                             onDragStart={(e) => handleDragStart(index, e)}
                             onDragOver={(e) => handleDragOver(e, index)}
                             onDragEnd={handleDragEnd}
-                            style={{ cursor: isDragging ? "move" : "pointer", opacity: draggedIndex === index ? 0.5 : 1, transition: "opacity 0.2s" }}
+                            style={{
+                              cursor: isDragging ? "move" : "pointer",
+                              opacity: draggedIndex === index ? 0.5 : 1,
+                              transition: "opacity 0.2s",
+                            }}
                           >
-                            <CasePanelCard c={{ ...c, risk: c.risk || riskLevelToLabel(c.riskLevel || 3), user: c.user || c.user_id || c.youth?.handle }} onClick={handleCaseClick} isSelected={selectedCase?.id === c.id} />
+                            <CasePanelCard
+                              c={{
+                                ...c,
+                                risk:
+                                  c.risk || riskLevelToLabel(c.riskLevel || 3),
+                                user: c.user || c.user_id || c.youth?.handle,
+                              }}
+                              onClick={handleCaseClick}
+                              isSelected={selectedCase?.id === c.id}
+                            />
                           </div>
                         ))}
                       </div>
@@ -4248,7 +5701,6 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                   <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6 }}>Case Summary</div>
                   <p style={{ margin: 0, fontSize: 13, color: "#475569", lineHeight: 1.6 }}>{selectedCase.summary}</p>
                 </div> */}
-
                   </div>
                 )}
 
@@ -4446,7 +5898,6 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
             </div>
           </div>
         )}
-
       </div>
 
       {/* ── CHATBOT TOGGLE ── */}
@@ -4752,10 +6203,19 @@ function CaseTimeline({ caseId, currentUser }) {
                 }}
               >
                 <span>
-                  Latest: <strong style={{ color: "#1e293b" }}>{latestScore.toFixed(1)}%</strong>
+                  Latest:{" "}
+                  <strong style={{ color: "#1e293b" }}>
+                    {latestScore.toFixed(1)}%
+                  </strong>
                 </span>
                 <span>
-                  Change: <strong style={{ color: riskDelta >= 0 ? "#dc2626" : "#16a34a" }}>{riskDelta >= 0 ? "+" : ""}{riskDelta.toFixed(1)}%</strong>
+                  Change:{" "}
+                  <strong
+                    style={{ color: riskDelta >= 0 ? "#dc2626" : "#16a34a" }}
+                  >
+                    {riskDelta >= 0 ? "+" : ""}
+                    {riskDelta.toFixed(1)}%
+                  </strong>
                 </span>
               </div>
             </div>
@@ -5704,7 +7164,10 @@ function ChatbotPanel({
     role: "Youth Helper",
   };
   const currentUserHeaderId = (
-    currentUser?.email || currentUser?.user_id || currentUser?.id || ""
+    currentUser?.email ||
+    currentUser?.user_id ||
+    currentUser?.id ||
+    ""
   )
     .toString()
     .trim();
@@ -5788,7 +7251,8 @@ function ChatbotPanel({
         }));
 
         // Use the formatted response from backend (already user-friendly)
-        let responseText = data.response || "I've prepared some actions for you to review.";
+        let responseText =
+          data.response || "I've prepared some actions for you to review.";
 
         setMessages((prev) => [
           ...prev,
