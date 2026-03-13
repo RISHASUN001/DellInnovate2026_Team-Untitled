@@ -1,60 +1,27 @@
 INFO:     Will watch for changes in these directories: ['/Users/pandeymahi/Documents/GitHub/DellInnovate2026_Team-Untitled/case-service']
 INFO:     Uvicorn running on http://0.0.0.0:8003 (Press CTRL+C to quit)
-INFO:     Started reloader process [51066] using WatchFiles
-INFO:     Started server process [51121]
+INFO:     Started reloader process [11777] using WatchFiles
+INFO:     Started server process [11835]
 INFO:     Waiting for application startup.
-2026-03-12 12:31:12.058 | INFO     | app.main:startup:36 - SCS Case Service starting (MongoDB mode)...
-2026-03-12 12:31:12.067 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
-2026-03-12 12:31:12.067 | INFO     | app.main:startup:40 - ✅ Connected to MongoDB database: dellinnovate
+2026-03-14 01:19:35.276 | INFO     | app.main:startup:38 - SCS Case Service starting (MongoDB mode)...
+2026-03-14 01:19:35.285 | INFO     | app.database:get_db:21 - MongoDB connected to database: dellinnovate
+2026-03-14 01:19:35.285 | INFO     | app.main:startup:42 - ✅ Connected to MongoDB database: dellinnovate
 INFO:     Application startup complete.
-INFO:     127.0.0.1:52248 - "GET /health HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52343 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52345 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52343 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52345 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52345 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52345 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52406 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52406 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52427 - "OPTIONS /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52428 - "OPTIONS /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52428 - "GET /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52427 - "GET /cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52432 - "OPTIONS /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52433 - "OPTIONS /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52433 - "GET /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52432 - "GET /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52440 - "OPTIONS /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52440 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52440 - "OPTIONS /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52438 - "GET /history/cases/CASE_PROTO_2026_002 HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52440 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52586 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52586 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52588 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52588 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52752 - "OPTIONS /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52753 - "OPTIONS /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52753 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52753 - "OPTIONS /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52753 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52755 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52755 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52771 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52771 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52773 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52773 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52823 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52823 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52828 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52828 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52840 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52840 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52845 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:52845 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53014 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53014 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53033 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53033 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53035 - "GET /cases HTTP/1.1" 200 OK
-INFO:     127.0.0.1:53035 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49442 - "GET /health HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49500 - "OPTIONS /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49502 - "OPTIONS /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49502 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49502 - "OPTIONS /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49500 - "GET /cases HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49502 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49500 - "GET /users?role=youth_helper HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49502 - "OPTIONS /stress-map HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49510 - "OPTIONS /stress-map HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49502 - "GET /stress-map HTTP/1.1" 200 OK
+INFO:     127.0.0.1:49510 - "GET /stress-map HTTP/1.1" 200 OK
+2026-03-14 01:20:04.333 | WARNING  | app.routes.news_rss:get_straits_times_mental_health_news:147 - RSS fetch failed for %s: %s
+2026-03-14 01:20:04.584 | WARNING  | app.routes.news_rss:get_straits_times_mental_health_news:147 - RSS fetch failed for %s: %s
+INFO:     127.0.0.1:49500 - "GET /rss/straits-times-mental-health?limit=5 HTTP/1.1" 200 OK
+2026-03-14 01:20:05.530 | WARNING  | app.routes.news_rss:get_straits_times_mental_health_news:147 - RSS fetch failed for %s: %s
+2026-03-14 01:20:05.666 | WARNING  | app.routes.news_rss:get_straits_times_mental_health_news:147 - RSS fetch failed for %s: %s
+INFO:     127.0.0.1:49510 - "GET /rss/straits-times-mental-health?limit=5 HTTP/1.1" 200 OK

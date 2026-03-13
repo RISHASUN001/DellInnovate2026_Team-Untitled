@@ -3723,30 +3723,6 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
           <DataFreshnessIndicator highlight={highlightTarget === "tab-all"} />
-          {/* Generate LLM Summaries Button */}
-          <button
-            onClick={handleGenerateSummaries}
-            disabled={generatingSummary}
-            style={{
-              background: generatingSummary
-                ? "rgba(255,255,255,0.05)"
-                : "linear-gradient(135deg, #059669, #10b981)",
-              border: "1px solid rgba(255,255,255,0.2)",
-              color: "#fff",
-              borderRadius: 8,
-              padding: "6px 14px",
-              cursor: generatingSummary ? "not-allowed" : "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              opacity: generatingSummary ? 0.7 : 1,
-            }}
-          >
-            <Icon.Zap size={14} color="#fff" />{" "}
-            {generatingSummary ? "Generating..." : "AI Summaries"}
-          </button>
           <div style={{ position: "relative" }}>
             <button
               onClick={() => setShowHelpMenu(!showHelpMenu)}
