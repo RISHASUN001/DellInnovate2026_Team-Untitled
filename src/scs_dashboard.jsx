@@ -1688,12 +1688,34 @@ const PLANNING_AREA_TO_REGION = {
 
 // Region colors (for fallback)
 const REGION_COLORS = {
-  North: "#f1f5f9",
-  "North-East": "#f1f5f9",
-  East: "#f1f5f9",
-  West: "#f1f5f9",
-  South: "#f1f5f9",
-  Central: "#f1f5f9",
+  North: "#e2e8f0",
+  "North-East": "#e2e8f0",
+  East: "#e2e8f0",
+  West: "#e2e8f0",
+  South: "#e2e8f0",
+  Central: "#e2e8f0",
+};
+
+// Stress level → standard heatmap ramp (cool → warm)
+const getStressColor = (stressLevel) => {
+  if (stressLevel === undefined || stressLevel === null) return "#e2e8f0";
+  if (stressLevel < 20) return "#2c7bb6"; // blue
+  if (stressLevel < 40) return "#00a6ca"; // cyan
+  if (stressLevel < 60) return "#f9d057"; // yellow
+  if (stressLevel < 80) return "#f29e2e"; // orange
+  return "#d7191c"; // red
+};
+
+// Per-region label center positions (SVG coordinate space 640×560)
+// Per-region label positions re-projected for tightened GEO_BOUNDS
+// (west:103.60, east:104.03, south:1.17, north:1.48 → SVG 640×560)
+const REGION_LABEL_POSITIONS = {
+  North:        { x: 308, y: 102 },
+  "North-East": { x: 448, y: 180 },
+  East:         { x: 524, y: 268 },
+  West:         { x: 184, y: 236 },
+  Central:      { x: 336, y: 258 },
+  South:        { x: 320, y: 402 },
 };
 
 function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
@@ -1709,14 +1731,14 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
   const [geoJsonPaths, setGeoJsonPaths] = useState({});
 
   // ─── COORDINATE PROJECTION ───────────────────────────────────────
-  // Singapore bounds (approximate): North: 1.46°, South: 1.13°, West: 103.6°, East: 104.0°
+  // Tight bounds around Singapore's actual landmass to fill the SVG viewport
   const SVG_WIDTH = 640;
   const SVG_HEIGHT = 560;
   const GEO_BOUNDS = {
-    west: 103.55,
-    east: 104.05,
-    south: 1.11,
-    north: 1.47,
+    west: 103.60,
+    east: 104.03,
+    south: 1.13,
+    north: 1.48,
   };
 
   // Project lat/lng to SVG coordinates
@@ -1893,8 +1915,8 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
 
   const getRegionColor = (regionName) => {
     const regionData = getRegionData(regionName);
-    if (!regionData) return "#f1f5f9";
-    return regionData.color || "#f1f5f9";
+    if (!regionData) return "#e2e8f0";
+    return getStressColor(regionData.stress_level);
   };
 
   const overallStats = useMemo(() => {
@@ -2209,7 +2231,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.45fr) minmax(220px, 0.55fr)",
+            gridTemplateColumns: "minmax(0, 1.32fr) minmax(280px, 0.68fr)",
             gap: 24,
             alignItems: "stretch",
           }}
@@ -2219,12 +2241,15 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
             style={{
               position: "relative",
               minWidth: 0,
-              background:
-                "linear-gradient(145deg, #c8def4 0%, #b7d4f3 48%, #9ec3ea 100%)",
-              border: "1px solid #b8cfe8",
-              borderRadius: 16,
-              padding: 6,
+              background: "#dbeafe",
+              border: "1px solid #bfdbfe",
+              borderRadius: 12,
+              padding: 8,
               overflow: "hidden",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: "clamp(500px, 68vh, 780px)",
             }}
           >
             <svg
@@ -2232,26 +2257,11 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
               preserveAspectRatio="xMidYMid meet"
               style={{
                 width: "100%",
-                height: "clamp(500px, 74vh, 860px)",
+                height: "100%",
               }}
             >
               {/* Background */}
               <defs>
-                <linearGradient
-                  id="oceanGradient"
-                  x1="0%"
-                  y1="0%"
-                  x2="100%"
-                  y2="100%"
-                >
-                  <stop offset="0%" stopColor="#d8ebff" />
-                  <stop offset="45%" stopColor="#bfdcf7" />
-                  <stop offset="100%" stopColor="#9ec4ea" />
-                </linearGradient>
-                <radialGradient id="oceanGlow" cx="50%" cy="65%" r="70%">
-                  <stop offset="0%" stopColor="rgba(255,255,255,0.26)" />
-                  <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-                </radialGradient>
                 <filter
                   id="regionShadow"
                   x="-20%"
@@ -2263,7 +2273,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                     dx="0"
                     dy="2"
                     stdDeviation="3"
-                    floodOpacity="0.1"
+                    floodOpacity="0.08"
                   />
                 </filter>
                 <filter
@@ -2281,44 +2291,15 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                 </filter>
               </defs>
 
-              {/* Ocean Background */}
+              {/* Plain pale blue background */}
               <rect
                 x="0"
                 y="0"
                 width={SVG_WIDTH}
                 height={SVG_HEIGHT}
-                fill="url(#oceanGradient)"
+                fill="#dbeafe"
                 rx="10"
               />
-              <ellipse
-                cx={SVG_WIDTH * 0.5}
-                cy={SVG_HEIGHT * 0.78}
-                rx={SVG_WIDTH * 0.68}
-                ry={SVG_HEIGHT * 0.42}
-                fill="url(#oceanGlow)"
-              />
-
-              {/* Subtle wave patterns */}
-              <g opacity="0.26">
-                <path
-                  d="M-20,445 Q120,415 260,440 T560,445 T700,438"
-                  fill="none"
-                  stroke="#7ea9dc"
-                  strokeWidth="1.8"
-                />
-                <path
-                  d="M-30,480 Q150,450 330,480 T680,472"
-                  fill="none"
-                  stroke="#6b97cd"
-                  strokeWidth="1.3"
-                />
-                <path
-                  d="M-40,515 Q120,495 280,515 T620,520 T700,512"
-                  fill="none"
-                  stroke="#86b1e0"
-                  strokeWidth="1"
-                />
-              </g>
 
               {/* Render regions */}
               {["North", "North-East", "East", "West", "South", "Central"].map(
@@ -2326,19 +2307,23 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                   const regionData = getRegionData(region);
                   const isHovered = hoveredRegion === region;
                   const isSelected = selectedRegion === region;
-                  const color = regionData?.color || REGION_COLORS[region];
-                  const stressLevel = regionData?.stress_level || 0;
+                  const color = getStressColor(regionData?.stress_level);
 
                   // Use GeoJSON-generated path or fallback to pre-computed paths
                   const path = geoJsonPaths[region] || regionPaths[region];
 
                   return (
-                    <g key={region}>
+                    <g key={`path-${region}`}>
                       <path
                         d={path}
                         fill={color}
-                        stroke={isHovered || isSelected ? "#1e293b" : "#ffffff"}
-                        strokeWidth={isHovered || isSelected ? 3 : 1.5}
+                        stroke={
+                          isHovered || isSelected
+                            ? "#1e293b"
+                            : "rgba(219,234,254,0.45)"
+                        }
+                        strokeWidth={isHovered || isSelected ? 2.4 : 0.7}
+                        strokeLinejoin="round"
                         filter={
                           isHovered ? "url(#regionGlow)" : "url(#regionShadow)"
                         }
@@ -2355,116 +2340,52 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                           )
                         }
                       />
-
-                      {/* Region label - simplified positioning */}
-                      <text
-                        x={
-                          region === "East" || region === "North-East"
-                            ? 400
-                            : region === "West"
-                              ? 120
-                              : 260
-                        }
-                        y={
-                          region === "North" || region === "North-East"
-                            ? 100
-                            : region === "South"
-                              ? 360
-                              : 240
-                        }
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        style={{
-                          fontSize: region === "North-East" ? 10 : 11,
-                          fontWeight: 600,
-                          fill: stressLevel >= 50 ? "#ffffff" : "#1e293b",
-                          pointerEvents: "none",
-                        }}
-                      >
-                        {region === "North-East" ? "N-East" : region}
-                      </text>
-
-                      {/* Stress percentage */}
-                      {regionData && (
-                        <text
-                          x={
-                            region === "East" || region === "North-East"
-                              ? 400
-                              : region === "West"
-                                ? 120
-                                : 260
-                          }
-                          y={
-                            region === "North" || region === "North-East"
-                              ? 125
-                              : region === "South"
-                                ? 385
-                                : 265
-                          }
-                          textAnchor="middle"
-                          dominantBaseline="middle"
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 700,
-                            fill: stressLevel >= 50 ? "#ffffff" : "#334155",
-                            pointerEvents: "none",
-                          }}
-                        >
-                          {stressLevel}%
-                        </text>
-                      )}
                     </g>
                   );
                 },
               )}
 
-              {/* Compass */}
-              <g transform="translate(575, 52)">
-                <circle
-                  cx="0"
-                  cy="0"
-                  r="22"
-                  fill="#ffffff"
-                  stroke="#cbd5e1"
-                  strokeWidth="1"
-                />
-                <text
-                  x="0"
-                  y="-6"
-                  textAnchor="middle"
-                  style={{ fontSize: 11, fill: "#1e293b", fontWeight: 600 }}
-                >
-                  N
-                </text>
-                <path d="M0,-15 L4,-8 L0,-10 L-4,-8 Z" fill="#2563eb" />
-                <path d="M0,15 L4,8 L0,10 L-4,8 Z" fill="#94a3b8" />
-              </g>
+              {/* Labels layer (always on top) */}
+              <g style={{ pointerEvents: "none" }}>
+                {["North", "North-East", "East", "West", "South", "Central"].map(
+                  (region) => {
+                    const regionData = getRegionData(region);
+                    const stressLevel = regionData?.stress_level || 0;
 
-              {/* Scale indicator */}
-              <text
-                x="30"
-                y="530"
-                style={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }}
-              >
-                0 5km 10km
-              </text>
-              <line
-                x1="30"
-                y1="535"
-                x2="80"
-                y2="535"
-                stroke="#64748b"
-                strokeWidth="2"
-              />
-              <line
-                x1="80"
-                y1="535"
-                x2="130"
-                y2="535"
-                stroke="#64748b"
-                strokeWidth="2"
-                strokeDasharray="4 2"
-              />
+                    return (
+                      <text
+                        key={`label-${region}`}
+                        x={REGION_LABEL_POSITIONS[region]?.x ?? 280}
+                        y={REGION_LABEL_POSITIONS[region]?.y ?? 280}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 600,
+                          fill: "#1f2937",
+                          pointerEvents: "none",
+                          letterSpacing: "0.2px",
+                        }}
+                      >
+                        {region === "North-East" ? "N-East" : region}
+                        {regionData && (
+                          <tspan
+                            x={REGION_LABEL_POSITIONS[region]?.x ?? 280}
+                            dy="18"
+                            style={{
+                              fontSize: 14,
+                              fontWeight: 500,
+                              fill: "#1f2937",
+                            }}
+                          >
+                            {stressLevel}%
+                          </tspan>
+                        )}
+                      </text>
+                    );
+                  },
+                )}
+              </g>
             </svg>
           </div>
 
@@ -2499,45 +2420,37 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                 Stress Levels
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {[
-                  { color: "#00ff00", label: "Low", range: "0-24" },
-                  { color: "#ffff00", label: "Moderate", range: "25-49" },
-                  { color: "#ff9900", label: "High", range: "50-74" },
-                  { color: "#ff0000", label: "Critical", range: "75-100" },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    style={{ display: "flex", alignItems: "center", gap: 10 }}
-                  >
-                    <div
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderRadius: 4,
-                        background: item.color,
-                        border: "1px solid rgba(0,0,0,0.1)",
-                      }}
-                    />
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "#ffffff",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {item.label}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "rgba(255,255,255,0.8)",
-                        marginLeft: "auto",
-                      }}
-                    >
-                      {item.range}
-                    </span>
-                  </div>
-                ))}
+                <div
+                  style={{
+                    height: 14,
+                    width: "100%",
+                    borderRadius: 999,
+                    border: "1px solid rgba(255,255,255,0.35)",
+                    background:
+                      "linear-gradient(90deg, #2c7bb6 0%, #00a6ca 25%, #f9d057 50%, #f29e2e 75%, #d7191c 100%)",
+                  }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 11,
+                    color: "rgba(255,255,255,0.9)",
+                    fontWeight: 600,
+                  }}
+                >
+                  <span>Low (0)</span>
+                  <span>Moderate (50)</span>
+                  <span>High (100)</span>
+                </div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: "rgba(255,255,255,0.8)",
+                  }}
+                >
+                  Cooler colors indicate lower stress, warmer colors indicate higher stress.
+                </div>
               </div>
             </div>
 
