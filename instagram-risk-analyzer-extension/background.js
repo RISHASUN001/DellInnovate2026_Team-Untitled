@@ -17,6 +17,22 @@ chrome.runtime.onInstalled.addListener((details) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "ping") {
     sendResponse({ status: "ok" });
+    return;
+  }
+
+  if (request.action === "captureVisibleTab") {
+    const windowId = sender?.tab?.windowId;
+
+    chrome.tabs.captureVisibleTab(windowId, { format: "png" }, (dataUrl) => {
+      if (chrome.runtime.lastError) {
+        sendResponse({ ok: false, error: chrome.runtime.lastError.message });
+        return;
+      }
+
+      sendResponse({ ok: true, dataUrl });
+    });
+
+    return true;
   }
 });
 
@@ -28,6 +44,16 @@ chrome.runtime.onStartup.addListener(() => {
 
 // Handle extension icon click (optional - shows popup by default)
 chrome.action.onClicked.addListener((tab) => {
-  // If no popup is set, this opens the popup
-  console.log("Extension icon clicked on tab:", tab.id);
+  if (!tab?.id || !tab.url?.includes("instagram.com")) {
+    console.log("Extension clicked outside Instagram; no panel toggle");
+    return;
+  }
+
+  chrome.tabs.sendMessage(tab.id, { action: "toggleSidePanel" }, (response) => {
+    if (chrome.runtime.lastError) {
+      console.warn("Could not toggle side panel:", chrome.runtime.lastError.message);
+      return;
+    }
+    console.log("Side panel toggled:", response?.visible);
+  });
 });
