@@ -4,7 +4,7 @@ from loguru import logger
 
 from .config import settings
 from .database import get_db, close_db
-from .routes import cases_mongo, checklist, history, users
+from .routes import cases_mongo, checklist, history, users, stress_map, news_rss
 
 # Use new MongoDB-based routes
 from .routes import cases_mongo as cases
@@ -29,6 +29,8 @@ app.include_router(cases.router)
 app.include_router(checklist.router)
 app.include_router(history.router)
 app.include_router(users.router)
+app.include_router(stress_map.router)
+app.include_router(news_rss.router)
 
 
 @app.on_event("startup")
