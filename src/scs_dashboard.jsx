@@ -1994,7 +1994,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
         boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
         marginTop: 20,
         width: "100%",
-        minHeight: "78vh",
+        boxSizing: "border-box",
         transition: "all 0.2s ease",
       }}
     >
@@ -2231,9 +2231,9 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "minmax(0, 1.32fr) minmax(280px, 0.68fr)",
+            gridTemplateColumns: "minmax(0, 2.2fr) minmax(320px, 1fr)",
             gap: 24,
-            alignItems: "stretch",
+            alignItems: "start",
           }}
         >
           {/* Map Section */}
@@ -3669,7 +3669,8 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         fontSize: 14,
         color: "#1e293b",
         position: "relative",
-        overflow: "hidden",
+        overflowX: "hidden",
+        overflowY: "visible",
       }}
     >
       <style dangerouslySetInnerHTML={{ __html: globalStyles }} />
@@ -4678,7 +4679,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         })()}
 
       {/* ── MAIN BODY ── */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div style={{ flex: 1, display: "flex", overflow: "visible" }}>
         {/* Loading State */}
         {loading && (
           <div
@@ -4777,7 +4778,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
               boxShadow: "0 2px 16px rgba(0,0,0,0.06)",
               display: "flex",
               flexDirection: "column",
-              overflow: "hidden",
+              overflow: "visible",
               transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
             }}
           >
@@ -5156,7 +5157,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                     >
                       Risk Distribution
                     </div>
-                    <ResponsiveContainer width="100%" height={120}>
+                    <ResponsiveContainer width="100%" height={150}>
                       <PieChart>
                         <Pie
                           data={chartData.riskData}
@@ -5235,7 +5236,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                     >
                       Weekly Risk Trend
                     </div>
-                    <ResponsiveContainer width="100%" height={130}>
+                    <ResponsiveContainer width="100%" height={160}>
                       <AreaChart data={chartData.trendData}>
                         <XAxis
                           dataKey="day"
@@ -5309,7 +5310,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                     >
                       By Platform
                     </div>
-                    <ResponsiveContainer width="100%" height={130}>
+                    <ResponsiveContainer width="100%" height={160}>
                       <BarChart data={chartData.platformData} layout="vertical">
                         <XAxis
                           type="number"
@@ -5346,29 +5347,26 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                 {/* Bottom Row: Case Clusters | Live News | Straits Times News */}
                 <div
                   style={{
-                    display: "flex",
+                    display: "grid",
+                    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
                     gap: 14,
-                    flex: 1,
-                    minHeight: 280,
-                    maxHeight: 400,
+                    minHeight: 320,
+                    alignItems: "stretch",
+                    gridAutoRows: "1fr",
                   }}
                 >
                   {/* Case Clusters */}
-                  <div style={{ flex: 1, minWidth: 0, overflow: "hidden" }}>
+                  <div style={{ minWidth: 0, width: "100%", height: "100%" }}>
                     <CaseClusterPanel />
                   </div>
 
                   {/* Live News */}
-                  <div
-                    style={{ width: 280, flexShrink: 0, overflow: "hidden" }}
-                  >
+                  <div style={{ minWidth: 0, width: "100%", height: "100%" }}>
                     <LiveNewsWidget />
                   </div>
 
                   {/* Straits Times News */}
-                  <div
-                    style={{ width: 280, flexShrink: 0, overflow: "hidden" }}
-                  >
+                  <div style={{ minWidth: 0, width: "100%", height: "100%" }}>
                     <StraitsTimesNewsWidget />
                   </div>
                 </div>
