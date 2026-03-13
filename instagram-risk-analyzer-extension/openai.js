@@ -22,8 +22,26 @@ async function analyzeWithOpenAI(
   orgId,
 ) {
   try {
+    console.log("=== analyzeWithOpenAI started ===");
+    console.log("Screenshot Base64 length:", screenshotBase64?.length || 0);
+    console.log(
+      "Screenshot starts with:",
+      screenshotBase64?.substring(0, 50) || "MISSING",
+    );
+    console.log("Extracted content keys:", Object.keys(extractedContent || {}));
+    if (extractedContent?.posts) {
+      console.log("Number of posts:", extractedContent.posts.length);
+    }
+    if (extractedContent?.visibleComments) {
+      console.log(
+        "Number of comments:",
+        extractedContent.visibleComments.length,
+      );
+    }
+
     // Prepare content for analysis
     const analysisPrompt = buildAnalysisPrompt(extractedContent);
+    console.log("Prompt built, length:", analysisPrompt.length);
 
     // Build the request payload
     const payload = {
@@ -50,16 +68,33 @@ async function analyzeWithOpenAI(
       temperature: 0.3, // Lower temperature for consistent analysis
     };
 
+    console.log("Payload prepared, calling fetchOpenAI...");
+
     // Make API request
     const response = await fetchOpenAI(payload, apiKey, orgId);
 
+    console.log("Got response from fetchOpenAI");
+    console.log("Response structure:", {
+      hasChoices: !!response.choices,
+      choicesLength: response.choices?.length,
+      hasMessage: !!response.choices?.[0]?.message,
+      hasContent: !!response.choices?.[0]?.message?.content,
+      contentType: typeof response.choices?.[0]?.message?.content,
+    });
+
     // Parse response
     const analysisText = response.choices[0].message.content;
+    console.log("Extracted analysis text, length:", analysisText?.length || 0);
+
     const analysis = parseAnalysisResponse(analysisText);
+    console.log("=== analyzeWithOpenAI complete ===");
 
     return analysis;
   } catch (error) {
-    console.error("OpenAI analysis error:", error);
+    console.error("=== analyzeWithOpenAI ERROR ===");
+    console.error("Error type:", error.constructor.name);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     throw new Error(`Analysis failed: ${error.message}`);
   }
 }
@@ -167,20 +202,49 @@ async function fetchOpenAI(payload, apiKey, orgId) {
     headers["OpenAI-Organization"] = orgId;
   }
 
+  console.log("Sending request to OpenAI API...");
+  console.log("Payload model:", payload.model);
+  console.log("Number of messages:", payload.messages.length);
+  console.log(
+    "First message content items:",
+    payload.messages[0].content.length,
+  );
+
   const response = await fetch(OPENAI_API_URL, {
     method: "POST",
     headers: headers,
     body: JSON.stringify(payload),
   });
 
+  console.log("OpenAI response status:", response.status);
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(
-      `OpenAI API error: ${error.error?.message || response.statusText}`,
-    );
+    const errorData = await response.text();
+    console.error("OpenAI API error response:", errorData);
+    try {
+      const error = JSON.parse(errorData);
+      throw new Error(
+        `OpenAI API error (${response.status}): ${error.error?.message || response.statusText}`,
+      );
+    } catch (e) {
+      throw new Error(
+        `OpenAI API error (${response.status}): ${errorData || response.statusText}`,
+      );
+    }
   }
 
-  return await response.json();
+  const responseData = await response.json();
+  console.log(
+    "OpenAI response received. Choices:",
+    responseData.choices?.length,
+  );
+  if (responseData.choices?.[0]?.message?.content) {
+    console.log(
+      "Response content (first 200 chars):",
+      responseData.choices[0].message.content.substring(0, 200),
+    );
+  }
+  return responseData;
 }
 
 /**
@@ -190,55 +254,84 @@ async function fetchOpenAI(payload, apiKey, orgId) {
  */
 function parseAnalysisResponse(responseText) {
   try {
+    console.log("=== Starting parseAnalysisResponse ===");
+    console.log("Response text type:", typeof responseText);
+    console.log(
+      "Response text length:",
+      responseText ? responseText.length : 0,
+    );
+    console.log("Response text (full):", responseText || "[EMPTY]");
+
     // Extract JSON from response (handle various formats)
     let jsonString = responseText.trim();
 
     // Remove markdown code blocks if present
     if (jsonString.includes("```")) {
+      console.log("Found markdown code blocks, removing...");
       jsonString = jsonString
         .replace(/```json\n?/g, "")
         .replace(/```\n?/g, "")
         .trim();
+      console.log("After markdown removal:", jsonString.substring(0, 100));
     }
 
-    // Find JSON object
+    // Find JSON object using more precise regex
+    console.log("Searching for JSON object...");
     const jsonMatch = jsonString.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
+      console.error("No JSON object found. Response does not contain {...}");
       throw new Error("No JSON found in response");
     }
 
+    console.log("JSON match found, length:", jsonMatch[0].length);
+    console.log("JSON content:", jsonMatch[0]);
+
     const analysis = JSON.parse(jsonMatch[0]);
+    console.log("JSON parsed successfully");
+    console.log("Parsed object keys:", Object.keys(analysis));
 
     // Validate response structure
     if (!analysis.risk_level) {
+      console.warn("Missing risk_level in parsed response");
       throw new Error("Missing risk_level in response");
     }
 
     // Ensure arrays are present
     if (!Array.isArray(analysis.signals_detected)) {
-      analysis.signals_detected = [];
+      console.warn(
+        "signals_detected is not an array, converting",
+        analysis.signals_detected,
+      );
+      analysis.signals_detected = Array.isArray(analysis.signals_detected)
+        ? analysis.signals_detected
+        : [analysis.signals_detected].filter((x) => x);
     }
     if (!Array.isArray(analysis.flagged_comments)) {
-      analysis.flagged_comments = [];
+      console.warn("flagged_comments is not an array, converting");
+      analysis.flagged_comments = Array.isArray(analysis.flagged_comments)
+        ? analysis.flagged_comments
+        : [];
     }
 
     // Normalize risk level
     analysis.risk_level = analysis.risk_level.toUpperCase();
+    console.log("Final parsed analysis:", analysis);
+    console.log("=== parseAnalysisResponse complete ===");
 
     return analysis;
   } catch (error) {
-    console.error(
-      "Failed to parse OpenAI response:",
-      error,
-      "Response:",
-      responseText,
-    );
+    console.error("=== parseAnalysisResponse ERROR ===");
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
+    console.error("Raw response text:", responseText);
+    console.error("Response text length:", responseText?.length || 0);
+    console.error("=== RETURNING SAFE DEFAULT ===");
     // Return safe default response
     return {
       risk_level: "UNKNOWN",
       signals_detected: ["Unable to parse analysis"],
       flagged_comments: [],
-      summary: "Error processing response. Please check API key and try again.",
+      summary: "Error processing response. Check browser console for details.",
     };
   }
 }

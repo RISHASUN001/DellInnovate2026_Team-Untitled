@@ -62,24 +62,51 @@ saveSettingsBtn.addEventListener("click", () => {
 
 // Analyze current profile
 analyzeBtn.addEventListener("click", async () => {
+  console.log("=== Analyze button clicked ===");
   clearResults();
   showLoading(true);
 
   try {
+    console.log("Getting active tab...");
     const [tab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
     });
+    console.log("Active tab:", tab.url);
 
     // Capture screenshot
+    console.log("Capturing screenshot...");
     const screenshot = await chrome.tabs.captureVisibleTab(tab.windowId);
+    console.log("Screenshot captured, length:", screenshot?.length || 0);
+    console.log("Screenshot preview:", screenshot?.substring(0, 50));
 
-    // Extract content from Instagram page
-    const extractedContent = await chrome.tabs.sendMessage(tab.id, {
-      action: "extractContent",
-    });
+    // Extract content from Instagram page with fallback
+    let extractedContent = {
+      profileBio: "",
+      posts: [],
+      visibleComments: [],
+      pageUrl: tab.url,
+      extractedAt: new Date().toISOString(),
+    };
+
+    try {
+      console.log("Sending extractContent message...");
+      const result = await chrome.tabs.sendMessage(tab.id, {
+        action: "extractContent",
+      });
+      if (result) {
+        extractedContent = result;
+        console.log("Content extracted successfully");
+      }
+    } catch (e) {
+      console.log(
+        "Content extraction failed (will continue with empty content):",
+        e.message,
+      );
+    }
 
     // Get stored API key
+    console.log("Retrieving stored API key...");
     const { apiKey, orgId } = await new Promise((resolve) => {
       chrome.storage.local.get(["apiKey", "orgId"], resolve);
     });
@@ -87,6 +114,7 @@ analyzeBtn.addEventListener("click", async () => {
     if (!apiKey) {
       throw new Error("API key not configured");
     }
+    console.log("API key found, calling analyzeWithOpenAI...");
 
     // Send to OpenAI for analysis
     const analysis = await analyzeWithOpenAI(
@@ -96,6 +124,7 @@ analyzeBtn.addEventListener("click", async () => {
       orgId,
     );
 
+    console.log("Analysis result:", analysis);
     currentAnalysisData = analysis;
     displayResults(analysis);
     showLoading(false);
@@ -106,24 +135,87 @@ analyzeBtn.addEventListener("click", async () => {
   }
 });
 
-// Capture screen (for manual review)
+// Capture screen and analyze (for stories and current view)
 captureScreenBtn.addEventListener("click", async () => {
+  console.log("=== Capture screen button clicked ===");
+  clearResults();
+  showLoading(true);
+
   try {
+    console.log("Getting active tab...");
     const [tab] = await chrome.tabs.query({
       active: true,
       currentWindow: true,
     });
-    const screenshot = await chrome.tabs.captureVisibleTab(tab.windowId);
+    console.log("Active tab:", tab.url);
 
-    // Convert to blob and download
+    // Capture screenshot
+    console.log("Capturing screenshot...");
+    const screenshot = await chrome.tabs.captureVisibleTab(tab.windowId);
+    console.log("Screenshot captured, length:", screenshot?.length || 0);
+    console.log("Screenshot preview:", screenshot?.substring(0, 50));
+
+    // Save screenshot automatically
+    console.log("Saving screenshot...");
     const link = document.createElement("a");
     link.href = screenshot;
-    link.download = `instagram-profile-${Date.now()}.png`;
+    link.download = `instagram-capture-${Date.now()}.png`;
     link.click();
+    console.log("Screenshot download triggered");
 
-    showMessage(settingsMessage, "Screenshot saved", "success");
+    // Extract content from Instagram page with fallback
+    let extractedContent = {
+      profileBio: "",
+      posts: [],
+      visibleComments: [],
+      pageUrl: tab.url,
+      extractedAt: new Date().toISOString(),
+    };
+
+    try {
+      console.log("Sending extractContent message...");
+      const result = await chrome.tabs.sendMessage(tab.id, {
+        action: "extractContent",
+      });
+      if (result) {
+        extractedContent = result;
+        console.log("Content extracted successfully");
+      }
+    } catch (e) {
+      console.log(
+        "Content extraction failed (will continue with empty content):",
+        e.message,
+      );
+    }
+
+    // Get stored API key
+    console.log("Retrieving stored API key...");
+    const { apiKey, orgId } = await new Promise((resolve) => {
+      chrome.storage.local.get(["apiKey", "orgId"], resolve);
+    });
+
+    if (!apiKey) {
+      throw new Error("API key not configured");
+    }
+    console.log("API key found, calling analyzeWithOpenAI...");
+
+    // Send to OpenAI for analysis
+    const analysis = await analyzeWithOpenAI(
+      screenshot,
+      extractedContent,
+      apiKey,
+      orgId,
+    );
+
+    console.log("Analysis result:", analysis);
+    currentAnalysisData = analysis;
+    displayResults(analysis);
+    showLoading(false);
+    showMessage(settingsMessage, "Screenshot saved & analyzed", "success");
   } catch (error) {
-    showError("Failed to capture screen: " + error.message);
+    showLoading(false);
+    showError(error.message || "Failed to capture and analyze screen");
+    console.error("Capture and analysis error:", error);
   }
 });
 
