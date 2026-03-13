@@ -1710,8 +1710,8 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
 
   // ─── COORDINATE PROJECTION ───────────────────────────────────────
   // Singapore bounds (approximate): North: 1.46°, South: 1.13°, West: 103.6°, East: 104.0°
-  const SVG_WIDTH = 520;
-  const SVG_HEIGHT = 480;
+  const SVG_WIDTH = 640;
+  const SVG_HEIGHT = 560;
   const GEO_BOUNDS = {
     west: 103.55,
     east: 104.05,
@@ -1971,6 +1971,8 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
         padding: 24,
         boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
         marginTop: 20,
+        width: "100%",
+        minHeight: "78vh",
         transition: "all 0.2s ease",
       }}
     >
@@ -2103,7 +2105,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: 350,
+            height: "52vh",
             color: "#64748b",
           }}
         >
@@ -2129,7 +2131,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: 350,
+            height: "52vh",
             color: "#dc2626",
           }}
         >
@@ -2159,7 +2161,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: 350,
+            height: "52vh",
             color: "#64748b",
           }}
         >
@@ -2204,15 +2206,33 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
           </button>
         </div>
       ) : (
-        <div style={{ display: "flex", gap: 28 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1.45fr) minmax(220px, 0.55fr)",
+            gap: 24,
+            alignItems: "stretch",
+          }}
+        >
           {/* Map Section */}
-          <div style={{ flex: 1, position: "relative" }}>
+          <div
+            style={{
+              position: "relative",
+              minWidth: 0,
+              background:
+                "linear-gradient(145deg, #c8def4 0%, #b7d4f3 48%, #9ec3ea 100%)",
+              border: "1px solid #b8cfe8",
+              borderRadius: 16,
+              padding: 6,
+              overflow: "hidden",
+            }}
+          >
             <svg
               viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
+              preserveAspectRatio="xMidYMid meet"
               style={{
                 width: "100%",
-                height: "auto",
-                maxHeight: 440,
+                height: "clamp(500px, 74vh, 860px)",
               }}
             >
               {/* Background */}
@@ -2224,10 +2244,14 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                   x2="100%"
                   y2="100%"
                 >
-                  <stop offset="0%" stopColor="#e6f0fa" />
-                  <stop offset="50%" stopColor="#d6e4f0" />
-                  <stop offset="100%" stopColor="#c2d6e8" />
+                  <stop offset="0%" stopColor="#d8ebff" />
+                  <stop offset="45%" stopColor="#bfdcf7" />
+                  <stop offset="100%" stopColor="#9ec4ea" />
                 </linearGradient>
+                <radialGradient id="oceanGlow" cx="50%" cy="65%" r="70%">
+                  <stop offset="0%" stopColor="rgba(255,255,255,0.26)" />
+                  <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+                </radialGradient>
                 <filter
                   id="regionShadow"
                   x="-20%"
@@ -2264,21 +2288,34 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                 width={SVG_WIDTH}
                 height={SVG_HEIGHT}
                 fill="url(#oceanGradient)"
-                rx="12"
+                rx="10"
+              />
+              <ellipse
+                cx={SVG_WIDTH * 0.5}
+                cy={SVG_HEIGHT * 0.78}
+                rx={SVG_WIDTH * 0.68}
+                ry={SVG_HEIGHT * 0.42}
+                fill="url(#oceanGlow)"
               />
 
               {/* Subtle wave patterns */}
-              <g opacity="0.2">
+              <g opacity="0.26">
                 <path
-                  d="M0,400 Q130,380 260,400 T520,400"
+                  d="M-20,445 Q120,415 260,440 T560,445 T700,438"
                   fill="none"
-                  stroke="#2563eb"
-                  strokeWidth="1.5"
+                  stroke="#7ea9dc"
+                  strokeWidth="1.8"
                 />
                 <path
-                  d="M0,430 Q130,410 260,430 T520,430"
+                  d="M-30,480 Q150,450 330,480 T680,472"
                   fill="none"
-                  stroke="#2563eb"
+                  stroke="#6b97cd"
+                  strokeWidth="1.3"
+                />
+                <path
+                  d="M-40,515 Q120,495 280,515 T620,520 T700,512"
+                  fill="none"
+                  stroke="#86b1e0"
                   strokeWidth="1"
                 />
               </g>
@@ -2382,7 +2419,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
               )}
 
               {/* Compass */}
-              <g transform="translate(460, 50)">
+              <g transform="translate(575, 52)">
                 <circle
                   cx="0"
                   cy="0"
@@ -2406,24 +2443,24 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
               {/* Scale indicator */}
               <text
                 x="30"
-                y="450"
+                y="530"
                 style={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }}
               >
                 0 5km 10km
               </text>
               <line
                 x1="30"
-                y1="455"
+                y1="535"
                 x2="80"
-                y2="455"
+                y2="535"
                 stroke="#64748b"
                 strokeWidth="2"
               />
               <line
                 x1="80"
-                y1="455"
+                y1="535"
                 x2="130"
-                y2="455"
+                y2="535"
                 stroke="#64748b"
                 strokeWidth="2"
                 strokeDasharray="4 2"
@@ -2434,26 +2471,28 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
           {/* Info Panel */}
           <div
             style={{
-              width: 280,
               display: "flex",
               flexDirection: "column",
               gap: 16,
+              minWidth: 0,
             }}
           >
             {/* Legend */}
             <div
               style={{
-                background: "#f8fafc",
+                background: "linear-gradient(135deg, #2563eb, #7c3aed)",
                 borderRadius: 14,
                 padding: 16,
-                border: "1px solid #edf2f7",
+                color: "#ffffff",
+                boxShadow: "0 6px 16px rgba(37,99,235,0.22)",
               }}
             >
               <div
                 style={{
                   fontSize: 12,
                   fontWeight: 600,
-                  color: "#1e293b",
+                  color: "#ffffff",
+                  opacity: 0.95,
                   marginBottom: 12,
                 }}
               >
@@ -2482,8 +2521,8 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                     <span
                       style={{
                         fontSize: 12,
-                        color: "#334155",
-                        fontWeight: 500,
+                        color: "#ffffff",
+                        fontWeight: 600,
                       }}
                     >
                       {item.label}
@@ -2491,7 +2530,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                     <span
                       style={{
                         fontSize: 11,
-                        color: "#94a3b8",
+                        color: "rgba(255,255,255,0.8)",
                         marginLeft: "auto",
                       }}
                     >
@@ -2510,6 +2549,7 @@ function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
                   borderRadius: 14,
                   padding: 18,
                   color: "#ffffff",
+                  boxShadow: "0 6px 16px rgba(37,99,235,0.22)",
                 }}
               >
                 <div
@@ -4805,8 +4845,18 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
           <div
             id="workspace-panel"
             style={{
-              flex: selectedCase ? "0 0 50%" : 1,
-              minWidth: selectedCase ? 480 : undefined,
+              flex:
+                selectedCase && activeTab === "assigned"
+                  ? "0 0 42%"
+                  : selectedCase
+                    ? "0 0 50%"
+                    : 1,
+              minWidth:
+                selectedCase && activeTab === "assigned"
+                  ? 360
+                  : selectedCase
+                    ? 480
+                    : undefined,
               background: "rgba(255,255,255,0.97)",
               borderRadius: 16,
               margin: 20,
@@ -5411,7 +5461,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                 </div>
 
                 {/* Singapore Stress Heatmap */}
-                <div style={{ padding: 20 }}>
+                <div style={{ padding: "6px 4px 20px" }}>
                   <SingaporeStressHeatmap caseServiceUrl="http://localhost:8003" />
                 </div>
               </div>
@@ -5459,9 +5509,9 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
               >
                 <div
                   style={{
-                    flex: selectedCase ? "0 0 50%" : 1,
+                    flex: selectedCase ? "1 1 auto" : 1,
                     width: selectedCase ? "auto" : "100%",
-                    minWidth: selectedCase ? 460 : undefined,
+                    minWidth: selectedCase ? 0 : undefined,
                     background: "#fff",
                     borderRight: selectedCase ? "1px solid #e5e7eb" : "none",
                     display: "flex",
@@ -5927,9 +5977,9 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
           <div
             id="case-detail-area"
             style={{
-              flex: "0 0 48%",
-              maxWidth: 640,
-              minWidth: 420,
+              flex: activeTab === "assigned" ? "1 1 58%" : "0 0 48%",
+              maxWidth: activeTab === "assigned" ? "none" : 640,
+              minWidth: activeTab === "assigned" ? 0 : 420,
               background: "#fff",
               borderLeft: "1px solid #e5e7eb",
               borderRadius: 16,
@@ -7219,31 +7269,25 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
         style={{
           position: "fixed",
           bottom: 24,
-          right: showChatbot ? 404 : 24,
+          right: 24,
           width: 56,
           height: 56,
           borderRadius: "50%",
-          background: showChatbot
-            ? "#dc2626"
-            : "linear-gradient(135deg, #0672CB, #0460a9)",
+          background: "linear-gradient(135deg, #0672CB, #0460a9)",
           border: "none",
           color: "#fff",
           cursor: "pointer",
           fontSize: 22,
           boxShadow: "0 4px 18px rgba(99,102,241,0.45)",
           zIndex: 160,
-          display: "flex",
+          display: showChatbot ? "none" : "flex",
           alignItems: "center",
           justifyContent: "center",
           transition: "all 0.3s",
         }}
         id="chatbot-area"
       >
-        {showChatbot ? (
-          <Icon.X size={20} color="#fff" />
-        ) : (
-          <Icon.MessageSquare size={22} color="#fff" />
-        )}
+        <Icon.MessageSquare size={22} color="#fff" />
       </button>
 
       {/* ── CHATBOT SLIDE-OUT PANEL ── */}
@@ -8835,24 +8879,29 @@ function ChatbotPanel({
         />
       )}
 
-      {/* Slide-out panel */}
+      {/* Modal panel */}
       <div
         id="chatbot-area"
         style={{
           position: "fixed",
-          top: 0,
-          right: 0,
-          height: "100vh",
-          width: 550,
+          top: "50%",
+          left: "50%",
+          width: "min(92vw, 820px)",
+          height: "min(88vh, 820px)",
           background: "#fff",
-          boxShadow: "-8px 0 40px rgba(0,0,0,0.18)",
+          boxShadow: "0 24px 70px rgba(15,23,42,0.3)",
+          borderRadius: 16,
           border: highlight ? "2px solid #0672CB" : "none",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
           zIndex: 156,
-          transition: "transform 0.35s cubic-bezier(0.4,0,0.2,1)",
-          transform: open ? "translateX(0)" : "translateX(100%)",
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? "auto" : "none",
+          transition: "opacity 0.22s ease, transform 0.28s cubic-bezier(0.4,0,0.2,1)",
+          transform: open
+            ? "translate(-50%, -50%) scale(1)"
+            : "translate(-50%, -48%) scale(0.97)",
         }}
       >
         {/* Header */}
@@ -8893,30 +8942,26 @@ function ChatbotPanel({
           <button
             onClick={onClose}
             style={{
-              background: "rgba(255,255,255,0.15)",
+              background: "rgba(255,255,255,0.12)",
               border: "1px solid rgba(255,255,255,0.2)",
-              color: "#fff",
+              color: "#e2e8f0",
               borderRadius: 8,
-              width: 36,
-              height: 36,
+              padding: "6px 12px",
+              fontSize: 12,
+              fontWeight: 600,
               cursor: "pointer",
-              fontSize: 16,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginLeft: 16,
               transition: "all 0.2s ease",
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(239,68,68,0.9)";
-              e.currentTarget.style.transform = "scale(1.05)";
+              e.currentTarget.style.background = "rgba(255,255,255,0.2)";
+              e.currentTarget.style.color = "#ffffff";
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(255,255,255,0.15)";
-              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.background = "rgba(255,255,255,0.12)";
+              e.currentTarget.style.color = "#e2e8f0";
             }}
           >
-            <Icon.X size={18} />
+            Close
           </button>
         </div>
 
