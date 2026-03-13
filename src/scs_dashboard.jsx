@@ -15,6 +15,7 @@ import {
 import { useAuth } from "./auth/AuthContext.jsx";
 import { Icon } from "./components/Icons.jsx";
 import { caseAPI, historyAPI } from "./services/api.js";
+import { MapPin, RefreshCw, AlertCircle, MousePointer } from "lucide-react";
 
 // ─── SERVICE URLS (proxied via Vite dev server in dev; adjust for prod) ───────
 const CASE_SERVICE_URL = "http://localhost:8003";
@@ -1602,7 +1603,100 @@ function StraitsTimesNewsWidget() {
 }
 
 // ─── SINGAPORE STRESS HEATMAP ─────────────────────────────────────────────────
-function SingaporeStressHeatmap() {
+
+// Planning area to region mapping (from URA Master Plan)
+const PLANNING_AREA_TO_REGION = {
+  // North Region
+  Woodlands: "North",
+  Yishun: "North",
+  Sembawang: "North",
+  Mandai: "North",
+  Admiralty: "North",
+  Canberra: "North",
+  Simpang: "North",
+  "Sungei Kadut": "North",
+
+  // North-East Region
+  "Ang Mo Kio": "North-East",
+  Sengkang: "North-East",
+  Punggol: "North-East",
+  Hougang: "North-East",
+  Serangoon: "North-East",
+  Bishan: "North-East",
+  "Toa Payoh": "North-East",
+
+  // East Region
+  Tampines: "East",
+  Bedok: "East",
+  "Pasir Ris": "East",
+  Changi: "East",
+  "Changi Bay": "East",
+  Simei: "East",
+  Eunos: "East",
+  Geylang: "East",
+  "Marine Parade": "East",
+  Kallang: "East",
+  "Paya Lebar": "East",
+
+  // West Region
+  "Jurong East": "West",
+  "Jurong West": "West",
+  "Bukit Batok": "West",
+  "Bukit Panjang": "West",
+  "Choa Chu Kang": "West",
+  Clementi: "West",
+  "Boon Lay": "West",
+  Tuas: "West",
+  Pioneer: "West",
+  Tengah: "West",
+  "Western Islands": "West",
+  "Western Water Catchment": "West",
+
+  // South Region
+  "Marina South": "South",
+  "Marina East": "South",
+  "Straits View": "South",
+  "Shenton Way": "South",
+  "Raffles Place": "South",
+  "Telok Blangah": "South",
+  "Bukit Merah": "South",
+  "Pasir Panjang": "South",
+  HarbourFront: "South",
+  Sentosa: "South",
+  "Southern Islands": "South",
+
+  // Central Region
+  Orchard: "Central",
+  Newton: "Central",
+  Novena: "Central",
+  "River Valley": "Central",
+  Tanglin: "Central",
+  "Bukit Timah": "Central",
+  Queenstown: "Central",
+  Outram: "Central",
+  Museum: "Central",
+  Rochor: "Central",
+  "Singapore River": "Central",
+  "Downtown Core": "Central",
+  "Marina Bay": "Central",
+  " Bras Basah": "Central",
+  Bugis: "Central",
+  Chinatown: "Central",
+  "Little India": "Central",
+  "Kampong Glam": "Central",
+};
+
+// Region colors (for fallback)
+const REGION_COLORS = {
+  North: "#f1f5f9",
+  "North-East": "#f1f5f9",
+  East: "#f1f5f9",
+  West: "#f1f5f9",
+  South: "#f1f5f9",
+  Central: "#f1f5f9",
+};
+
+function SingaporeStressHeatmap({ caseServiceUrl = "/api" }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -1610,84 +1704,188 @@ function SingaporeStressHeatmap() {
   const [hoveredRegion, setHoveredRegion] = useState(null);
   const [selectedRegion, setSelectedRegion] = useState(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [geoJsonData, setGeoJsonData] = useState(null);
+  const [geoJsonLoading, setGeoJsonLoading] = useState(true);
+  const [geoJsonPaths, setGeoJsonPaths] = useState({});
+
+  // ─── COORDINATE PROJECTION ───────────────────────────────────────
+  // Singapore bounds (approximate): North: 1.46°, South: 1.13°, West: 103.6°, East: 104.0°
+  const SVG_WIDTH = 520;
+  const SVG_HEIGHT = 480;
+  const GEO_BOUNDS = {
+    west: 103.55,
+    east: 104.05,
+    south: 1.11,
+    north: 1.47,
+  };
+
+  // Project lat/lng to SVG coordinates
+  const projectCoordinate = useCallback(([lng, lat]) => {
+    const x =
+      ((lng - GEO_BOUNDS.west) / (GEO_BOUNDS.east - GEO_BOUNDS.west)) *
+      SVG_WIDTH;
+    const y =
+      ((GEO_BOUNDS.north - lat) / (GEO_BOUNDS.north - GEO_BOUNDS.south)) *
+      SVG_HEIGHT;
+    return [Math.round(x * 100) / 100, Math.round(y * 100) / 100];
+  }, []);
+
+  // Convert GeoJSON polygon to SVG path
+  const polygonToPath = useCallback(
+    (coordinates) => {
+      if (!coordinates || !coordinates[0]) return "";
+
+      let pathData = "";
+      coordinates[0].forEach((coord, idx) => {
+        const [x, y] = projectCoordinate(coord);
+        pathData += idx === 0 ? `M ${x} ${y}` : ` L ${x} ${y}`;
+      });
+      pathData += " Z";
+      return pathData;
+    },
+    [projectCoordinate],
+  );
+
+  // Load optimized GeoJSON
+  useEffect(() => {
+    const loadGeoJson = async () => {
+      try {
+        // Try to load simplified version first (21MB vs 166MB)
+        let response = await fetch(
+          "/data/singapore_regions_simplified.geojson",
+        );
+
+        if (!response.ok) {
+          // Fallback to full GeoJSON if simplified doesn't exist
+          console.warn("Simplified GeoJSON not found, trying full version...");
+          response = await fetch("/data/G_MP19_LAND_USE_PL.geojson");
+
+          if (!response.ok) {
+            throw new Error("Failed to load GeoJSON - using fallback paths");
+          }
+        }
+
+        const geojson = await response.json();
+        setGeoJsonData(geojson);
+
+        // Generate SVG paths for each region from GeoJSON
+        const paths = {};
+        const regions = [
+          "North",
+          "North-East",
+          "East",
+          "West",
+          "South",
+          "Central",
+        ];
+
+        regions.forEach((region) => {
+          let pathData = "";
+
+          if (geojson.features) {
+            geojson.features
+              .filter((f) => f.properties?.region === region)
+              .forEach((feature) => {
+                if (feature.geometry.type === "Polygon") {
+                  pathData += polygonToPath(feature.geometry.coordinates);
+                } else if (feature.geometry.type === "MultiPolygon") {
+                  feature.geometry.coordinates.forEach((poly) => {
+                    pathData += polygonToPath([poly[0]]);
+                  });
+                }
+              });
+          }
+
+          if (pathData) {
+            paths[region] = pathData;
+          }
+        });
+
+        setGeoJsonPaths(paths);
+        setGeoJsonLoading(false);
+      } catch (err) {
+        console.error("Error loading GeoJSON:", err);
+        // Will use fallback regionPaths constant
+        setGeoJsonLoading(false);
+      }
+    };
+
+    loadGeoJson();
+  }, [polygonToPath]);
 
   // Fetch cached stress data from MongoDB (on initial load)
+  // Fetch cached stress data from MongoDB
   const fetchCachedData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${CASE_SERVICE_URL}/stress-map`);
-      if (!response.ok) throw new Error("Failed to fetch cached stress data");
+      const response = await fetch(`${caseServiceUrl}/stress-map`, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        mode: "cors", // Important for CORS
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
-      
+
       if (result.cached && result.data) {
         setData(result.data);
         setLastUpdate(new Date(result.cached_at));
       } else {
-        // No cached data available - show message but don't error
         setData(null);
         setLastUpdate(null);
       }
     } catch (err) {
       console.error("Error fetching cached stress data:", err);
-      setError("Unable to load stress data");
+      setError("Unable to load stress data: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [caseServiceUrl]);
 
-  // Refresh stress data from webhook and cache to MongoDB
+  // Refresh stress data
   const refreshStressData = useCallback(async () => {
     setIsRefreshing(true);
     setError(null);
     try {
-      const response = await fetch(`${CASE_SERVICE_URL}/stress-map/refresh`, {
+      const response = await fetch(`${caseServiceUrl}/stress-map/refresh`, {
         method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        mode: "cors",
       });
-      if (!response.ok) throw new Error("Failed to refresh stress data");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const result = await response.json();
-      
+
       if (result.data) {
         setData(result.data);
         setLastUpdate(new Date(result.cached_at));
       }
     } catch (err) {
       console.error("Error refreshing stress data:", err);
-      setError("Unable to refresh stress data");
+      setError("Unable to refresh stress data: " + err.message);
     } finally {
       setIsRefreshing(false);
     }
-  }, []);
+  }, [caseServiceUrl]);
 
   // Load cached data on mount
   useEffect(() => {
     fetchCachedData();
   }, [fetchCachedData]);
 
-  // More realistic Singapore region SVG paths based on actual geography
-  const regionPaths = {
-    North:
-      "M 145,45 C 155,40 175,35 200,32 C 230,28 260,30 285,35 C 310,42 330,55 345,75 C 352,88 355,100 352,115 C 348,130 340,142 325,150 C 305,160 280,165 255,162 C 225,158 195,150 175,140 C 155,130 140,115 138,95 C 136,75 140,55 145,45 Z",
-    "North-East":
-      "M 345,75 C 365,68 385,65 405,70 C 425,78 440,92 450,112 C 458,135 460,160 455,182 C 448,205 435,220 415,230 C 395,238 375,235 358,225 C 345,215 338,200 335,180 C 332,160 335,138 340,120 C 345,102 348,88 345,75 Z",
-    East: "M 415,230 C 435,238 455,250 470,270 C 482,290 488,315 485,340 C 480,365 465,385 445,395 C 420,405 390,400 365,388 C 345,378 330,360 325,338 C 322,315 328,292 340,272 C 355,248 380,235 400,232 C 408,230 412,230 415,230 Z",
-    Central:
-      "M 255,162 C 280,165 305,160 325,150 C 340,142 348,130 352,115 C 355,100 352,88 345,75 L 340,120 C 335,138 332,160 335,180 C 338,200 345,215 358,225 C 375,235 395,238 415,230 C 400,232 380,235 365,248 L 340,272 C 328,292 322,315 325,338 C 310,350 290,355 268,352 C 245,348 225,338 210,322 C 198,308 192,290 195,270 C 200,245 215,225 235,210 C 250,198 260,180 258,165 L 255,162 Z",
-    West: "M 45,140 C 60,125 82,115 108,110 C 135,105 160,108 175,120 C 190,132 195,150 195,170 C 195,195 185,218 170,238 C 152,262 128,280 105,292 C 80,305 55,310 38,298 C 22,285 18,265 22,242 C 28,215 40,188 48,165 C 52,150 50,145 45,140 Z",
-    South:
-      "M 170,238 C 185,218 195,195 195,270 C 192,290 198,308 210,322 C 225,338 245,348 268,352 C 290,355 310,350 325,338 C 330,360 320,382 302,398 C 280,418 250,430 218,432 C 185,432 155,422 132,405 C 112,390 100,368 98,345 C 96,320 105,298 118,280 C 135,258 155,248 170,238 Z",
-  };
-
-  const regionCenters = {
-    North: { x: 245, y: 95 },
-    "North-East": { x: 395, y: 155 },
-    East: { x: 420, y: 320 },
-    Central: { x: 290, y: 250 },
-    West: { x: 95, y: 200 },
-    South: { x: 210, y: 370 },
-  };
-
-  // Match API's field names: `name` instead of `region`, `stress_level` instead of `stress_score`
   const getRegionData = (regionName) => {
     if (!data?.regions) return null;
     return data.regions.find((r) => r.name === regionName);
@@ -1695,20 +1893,12 @@ function SingaporeStressHeatmap() {
 
   const getRegionColor = (regionName) => {
     const regionData = getRegionData(regionName);
-    if (!regionData) return "#e2e8f0";
-    return regionData.color || "#e2e8f0";
-  };
-
-  const getStressLevel = (score) => {
-    if (score >= 75) return "Critical";
-    if (score >= 50) return "High";
-    if (score >= 25) return "Moderate";
-    return "Low";
+    if (!regionData) return "#f1f5f9";
+    return regionData.color || "#f1f5f9";
   };
 
   const overallStats = useMemo(() => {
     if (!data?.regions) return null;
-    // Use stress_level from API
     const avgStress =
       data.regions.reduce((sum, r) => sum + (r.stress_level || 0), 0) /
       data.regions.length;
@@ -1718,10 +1908,19 @@ function SingaporeStressHeatmap() {
       (max, r) => (r.stress_level > (max?.stress_level || 0) ? r : max),
       null,
     );
-    return { avgStress: avgStress.toFixed(0), totalArticles, highestRegion };
+    return {
+      avgStress: Math.round(avgStress),
+      totalArticles,
+      highestRegion,
+    };
   }, [data]);
 
-  // Inline keyframes for spin animation
+  // Get neighborhoods for a region from the API data
+  const getNeighborhoodData = (regionName) => {
+    const regionData = getRegionData(regionName);
+    return regionData?.neighborhoods || {};
+  };
+
   const spinKeyframes = `
     @keyframes stressMapSpin {
       from { transform: rotate(0deg); }
@@ -1729,15 +1928,50 @@ function SingaporeStressHeatmap() {
     }
   `;
 
+  // Loading state while GeoJSON loads
+  if (geoJsonLoading) {
+    return (
+      <div
+        style={{
+          background: "#ffffff",
+          borderRadius: 20,
+          border: "1px solid #edf2f7",
+          padding: 40,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: 400,
+        }}
+      >
+        <div
+          style={{
+            width: 44,
+            height: 44,
+            border: "3px solid #e2e8f0",
+            borderTopColor: "#2563eb",
+            borderRadius: "50%",
+            animation: "stressMapSpin 1s linear infinite",
+            marginBottom: 16,
+          }}
+        />
+        <div style={{ fontSize: 14, color: "#64748b" }}>
+          Loading Singapore map boundaries...
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
-        background: "#fff",
-        borderRadius: 16,
-        border: "1px solid #e2e8f0",
-        padding: 20,
-        boxShadow: "0 4px 20px rgba(0,0,0,0.06)",
-        marginTop: 16,
+        background: "#ffffff",
+        borderRadius: 20,
+        border: "1px solid #edf2f7",
+        padding: 24,
+        boxShadow: "0 8px 30px rgba(0,0,0,0.06)",
+        marginTop: 20,
+        transition: "all 0.2s ease",
       }}
     >
       <style dangerouslySetInnerHTML={{ __html: spinKeyframes }} />
@@ -1748,61 +1982,74 @@ function SingaporeStressHeatmap() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 16,
+          marginBottom: 20,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
           <div
             style={{
-              width: 40,
-              height: 40,
-              borderRadius: 10,
-              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              width: 44,
+              height: 44,
+              borderRadius: 12,
+              background: "linear-gradient(135deg, #2563eb, #7c3aed)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              boxShadow: "0 4px 12px rgba(99,102,241,0.3)",
+              boxShadow: "0 6px 14px rgba(37,99,235,0.25)",
             }}
           >
-            <Icon.MapPin size={20} color="#fff" />
+            <MapPin size={22} color="#ffffff" />
           </div>
           <div>
             <div
               style={{
-                fontWeight: 700,
-                fontSize: 16,
-                color: "#1e293b",
+                fontWeight: 600,
+                fontSize: 18,
+                color: "#0f172a",
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
+                gap: 10,
               }}
             >
               Singapore Stress Heatmap
               <span
                 style={{
-                  background: loading ? "#f1f5f9" : isRefreshing ? "#fef3c7" : "#dcfce7",
-                  color: loading ? "#64748b" : isRefreshing ? "#92400e" : "#166534",
-                  fontSize: 9,
-                  fontWeight: 700,
-                  padding: "3px 8px",
-                  borderRadius: 12,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.5px",
+                  background: loading
+                    ? "#f1f5f9"
+                    : isRefreshing
+                      ? "#fef9c3"
+                      : "#dcfce7",
+                  color: loading
+                    ? "#475569"
+                    : isRefreshing
+                      ? "#854d0e"
+                      : "#166534",
+                  fontSize: 10,
+                  fontWeight: 600,
+                  padding: "4px 10px",
+                  borderRadius: 30,
+                  letterSpacing: "0.3px",
                 }}
               >
-                {loading ? "LOADING" : isRefreshing ? "REFRESHING" : data ? "CACHED" : "NO DATA"}
+                {loading
+                  ? "LOADING"
+                  : isRefreshing
+                    ? "REFRESHING"
+                    : data
+                      ? "LIVE"
+                      : "NO DATA"}
               </span>
             </div>
-            <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
-              Regional stress analysis •{" "}
-              {data?.time_range || "Click refresh to load data"}
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
+              Based on {data?.articles_analyzed || 0} articles from last 24
+              hours
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {lastUpdate && (
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>
-              Cached:{" "}
+            <span style={{ fontSize: 11, color: "#94a3b8" }}>
+              Updated{" "}
               {lastUpdate.toLocaleTimeString("en-SG", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -1813,33 +2060,37 @@ function SingaporeStressHeatmap() {
             onClick={refreshStressData}
             disabled={loading || isRefreshing}
             style={{
-              background: (loading || isRefreshing)
-                ? "#f1f5f9"
-                : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              background:
+                loading || isRefreshing
+                  ? "#f1f5f9"
+                  : "linear-gradient(135deg, #2563eb, #7c3aed)",
               border: "none",
-              borderRadius: 8,
-              padding: "8px 14px",
-              color: (loading || isRefreshing) ? "#94a3b8" : "#fff",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: (loading || isRefreshing) ? "not-allowed" : "pointer",
+              borderRadius: 30,
+              padding: "8px 16px",
+              color: loading || isRefreshing ? "#94a3b8" : "#ffffff",
+              fontSize: 12,
+              fontWeight: 500,
+              cursor: loading || isRefreshing ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 6,
-              boxShadow: (loading || isRefreshing) ? "none" : "0 2px 8px rgba(99,102,241,0.3)",
+              gap: 8,
+              boxShadow:
+                loading || isRefreshing
+                  ? "none"
+                  : "0 4px 10px rgba(37,99,235,0.25)",
               transition: "all 0.2s",
             }}
           >
-            <Icon.RefreshCw
-              size={12}
-              color={(loading || isRefreshing) ? "#94a3b8" : "#fff"}
+            <RefreshCw
+              size={14}
+              color={loading || isRefreshing ? "#94a3b8" : "#ffffff"}
               style={{
                 animation: isRefreshing
                   ? "stressMapSpin 1s linear infinite"
                   : "none",
               }}
             />
-            {isRefreshing ? "Refreshing..." : "Refresh"}
+            {isRefreshing ? "Refreshing" : "Refresh"}
           </button>
         </div>
       </div>
@@ -1852,23 +2103,23 @@ function SingaporeStressHeatmap() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: 300,
+            height: 350,
             color: "#64748b",
           }}
         >
           <div
             style={{
-              width: 40,
-              height: 40,
+              width: 44,
+              height: 44,
               border: "3px solid #e2e8f0",
-              borderTopColor: "#6366f1",
+              borderTopColor: "#2563eb",
               borderRadius: "50%",
               animation: "stressMapSpin 1s linear infinite",
-              marginBottom: 12,
+              marginBottom: 16,
             }}
           />
-          <div style={{ fontSize: 13, fontWeight: 500 }}>
-            Loading cached stress data...
+          <div style={{ fontSize: 14, fontWeight: 500 }}>
+            Loading stress data...
           </div>
         </div>
       ) : error ? (
@@ -1878,27 +2129,23 @@ function SingaporeStressHeatmap() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: 300,
+            height: 350,
             color: "#dc2626",
           }}
         >
-          <Icon.AlertCircle
-            size={40}
-            color="#dc2626"
-            style={{ marginBottom: 12 }}
-          />
+          <AlertCircle size={44} color="#dc2626" style={{ marginBottom: 16 }} />
           <div style={{ fontSize: 14, fontWeight: 600 }}>{error}</div>
           <button
             onClick={refreshStressData}
             style={{
-              marginTop: 12,
+              marginTop: 16,
               background: "#fee2e2",
               border: "none",
-              borderRadius: 6,
-              padding: "8px 16px",
+              borderRadius: 30,
+              padding: "8px 20px",
               color: "#dc2626",
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 500,
               cursor: "pointer",
             }}
           >
@@ -1912,57 +2159,63 @@ function SingaporeStressHeatmap() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            height: 300,
+            height: 350,
             color: "#64748b",
           }}
         >
-          <Icon.MapPin
-            size={48}
-            color="#94a3b8"
-            style={{ marginBottom: 12 }}
-          />
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>No cached data available</div>
-          <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 16 }}>Click refresh to fetch stress map data</div>
+          <MapPin size={52} color="#cbd5e1" style={{ marginBottom: 16 }} />
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>
+            No data available
+          </div>
+          <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 20 }}>
+            Click refresh to fetch stress map data
+          </div>
           <button
             onClick={refreshStressData}
             disabled={isRefreshing}
             style={{
-              background: isRefreshing ? "#f1f5f9" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              background: isRefreshing
+                ? "#f1f5f9"
+                : "linear-gradient(135deg, #2563eb, #7c3aed)",
               border: "none",
-              borderRadius: 8,
-              padding: "10px 20px",
-              color: isRefreshing ? "#94a3b8" : "#fff",
+              borderRadius: 30,
+              padding: "10px 24px",
+              color: isRefreshing ? "#94a3b8" : "#ffffff",
               fontSize: 12,
-              fontWeight: 600,
+              fontWeight: 500,
               cursor: isRefreshing ? "not-allowed" : "pointer",
               display: "flex",
               alignItems: "center",
-              gap: 8,
-              boxShadow: isRefreshing ? "none" : "0 2px 8px rgba(99,102,241,0.3)",
+              gap: 10,
+              boxShadow: isRefreshing
+                ? "none"
+                : "0 4px 12px rgba(37,99,235,0.3)",
             }}
           >
-            <Icon.RefreshCw
+            <RefreshCw
               size={14}
               style={{
-                animation: isRefreshing ? "stressMapSpin 1s linear infinite" : "none",
+                animation: isRefreshing
+                  ? "stressMapSpin 1s linear infinite"
+                  : "none",
               }}
             />
             {isRefreshing ? "Fetching..." : "Fetch Data"}
           </button>
         </div>
       ) : (
-        <div style={{ display: "flex", gap: 24 }}>
+        <div style={{ display: "flex", gap: 28 }}>
           {/* Map Section */}
           <div style={{ flex: 1, position: "relative" }}>
             <svg
-              viewBox="0 0 520 480"
+              viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
               style={{
                 width: "100%",
                 height: "auto",
-                maxHeight: 420,
+                maxHeight: 440,
               }}
             >
-              {/* Background - Ocean */}
+              {/* Background */}
               <defs>
                 <linearGradient
                   id="oceanGradient"
@@ -1971,9 +2224,9 @@ function SingaporeStressHeatmap() {
                   x2="100%"
                   y2="100%"
                 >
-                  <stop offset="0%" stopColor="#e0f2fe" />
-                  <stop offset="50%" stopColor="#bae6fd" />
-                  <stop offset="100%" stopColor="#7dd3fc" />
+                  <stop offset="0%" stopColor="#e6f0fa" />
+                  <stop offset="50%" stopColor="#d6e4f0" />
+                  <stop offset="100%" stopColor="#c2d6e8" />
                 </linearGradient>
                 <filter
                   id="regionShadow"
@@ -1986,15 +2239,15 @@ function SingaporeStressHeatmap() {
                     dx="0"
                     dy="2"
                     stdDeviation="3"
-                    floodOpacity="0.15"
+                    floodOpacity="0.1"
                   />
                 </filter>
                 <filter
                   id="regionGlow"
-                  x="-50%"
-                  y="-50%"
-                  width="200%"
-                  height="200%"
+                  x="-30%"
+                  y="-30%"
+                  width="160%"
+                  height="160%"
                 >
                   <feGaussianBlur stdDeviation="4" result="coloredBlur" />
                   <feMerge>
@@ -2008,191 +2261,173 @@ function SingaporeStressHeatmap() {
               <rect
                 x="0"
                 y="0"
-                width="520"
-                height="480"
+                width={SVG_WIDTH}
+                height={SVG_HEIGHT}
                 fill="url(#oceanGradient)"
-                rx="16"
+                rx="12"
               />
 
-              {/* Wave patterns for ocean effect */}
-              <g opacity="0.3">
+              {/* Subtle wave patterns */}
+              <g opacity="0.2">
                 <path
-                  d="M0,420 Q130,400 260,420 T520,420"
+                  d="M0,400 Q130,380 260,400 T520,400"
                   fill="none"
-                  stroke="#0ea5e9"
-                  strokeWidth="1"
+                  stroke="#2563eb"
+                  strokeWidth="1.5"
                 />
                 <path
-                  d="M0,440 Q130,420 260,440 T520,440"
+                  d="M0,430 Q130,410 260,430 T520,430"
                   fill="none"
-                  stroke="#0ea5e9"
-                  strokeWidth="1"
-                />
-                <path
-                  d="M0,460 Q130,440 260,460 T520,460"
-                  fill="none"
-                  stroke="#0ea5e9"
+                  stroke="#2563eb"
                   strokeWidth="1"
                 />
               </g>
 
-              {/* Singapore Title */}
-              <text
-                x="260"
-                y="25"
-                textAnchor="middle"
-                style={{
-                  fontSize: 14,
-                  fill: "#0c4a6e",
-                  fontWeight: 700,
-                  letterSpacing: "1px",
-                }}
-              >
-                SINGAPORE
-              </text>
+              {/* Render regions */}
+              {["North", "North-East", "East", "West", "South", "Central"].map(
+                (region) => {
+                  const regionData = getRegionData(region);
+                  const isHovered = hoveredRegion === region;
+                  const isSelected = selectedRegion === region;
+                  const color = regionData?.color || REGION_COLORS[region];
+                  const stressLevel = regionData?.stress_level || 0;
 
-              {/* Region paths */}
-              {Object.entries(regionPaths).map(([region, path]) => {
-                const regionData = getRegionData(region);
-                const isHovered = hoveredRegion === region;
-                const isSelected = selectedRegion === region;
-                const color = regionData?.color || "#e2e8f0";
-                const stressLevel = regionData?.stress_level || 0;
+                  // Use GeoJSON-generated path or fallback to pre-computed paths
+                  const path = geoJsonPaths[region] || regionPaths[region];
 
-                return (
-                  <g key={region}>
-                    <path
-                      d={path}
-                      fill={color}
-                      stroke={
-                        isHovered || isSelected
-                          ? "#1e293b"
-                          : "rgba(255,255,255,0.8)"
-                      }
-                      strokeWidth={isHovered || isSelected ? 3 : 2}
-                      filter={
-                        isHovered ? "url(#regionGlow)" : "url(#regionShadow)"
-                      }
-                      style={{
-                        cursor: "pointer",
-                        transition: "all 0.3s ease",
-                        opacity: isHovered ? 1 : 0.92,
-                      }}
-                      onMouseEnter={() => setHoveredRegion(region)}
-                      onMouseLeave={() => setHoveredRegion(null)}
-                      onClick={() =>
-                        setSelectedRegion(
-                          selectedRegion === region ? null : region,
-                        )
-                      }
-                    />
-                    {/* Region label */}
-                    <text
-                      x={regionCenters[region].x}
-                      y={regionCenters[region].y - 8}
-                      textAnchor="middle"
-                      dominantBaseline="middle"
-                      style={{
-                        fontSize: region === "North-East" ? 10 : 11,
-                        fontWeight: 700,
-                        fill: stressLevel >= 50 ? "#fff" : "#1e293b",
-                        pointerEvents: "none",
-                        textShadow:
-                          stressLevel >= 50
-                            ? "0 1px 3px rgba(0,0,0,0.4)"
-                            : "0 1px 2px rgba(255,255,255,0.8)",
-                        letterSpacing: "0.5px",
-                      }}
-                    >
-                      {region}
-                    </text>
-                    {/* Stress percentage */}
-                    {regionData && (
+                  return (
+                    <g key={region}>
+                      <path
+                        d={path}
+                        fill={color}
+                        stroke={isHovered || isSelected ? "#1e293b" : "#ffffff"}
+                        strokeWidth={isHovered || isSelected ? 3 : 1.5}
+                        filter={
+                          isHovered ? "url(#regionGlow)" : "url(#regionShadow)"
+                        }
+                        style={{
+                          cursor: "pointer",
+                          transition: "all 0.2s ease",
+                          opacity: isHovered ? 1 : 0.95,
+                        }}
+                        onMouseEnter={() => setHoveredRegion(region)}
+                        onMouseLeave={() => setHoveredRegion(null)}
+                        onClick={() =>
+                          setSelectedRegion(
+                            selectedRegion === region ? null : region,
+                          )
+                        }
+                      />
+
+                      {/* Region label - simplified positioning */}
                       <text
-                        x={regionCenters[region].x}
-                        y={regionCenters[region].y + 8}
+                        x={
+                          region === "East" || region === "North-East"
+                            ? 400
+                            : region === "West"
+                              ? 120
+                              : 260
+                        }
+                        y={
+                          region === "North" || region === "North-East"
+                            ? 100
+                            : region === "South"
+                              ? 360
+                              : 240
+                        }
                         textAnchor="middle"
                         dominantBaseline="middle"
                         style={{
-                          fontSize: 12,
-                          fontWeight: 800,
-                          fill:
-                            stressLevel >= 50
-                              ? "rgba(255,255,255,0.95)"
-                              : "#374151",
+                          fontSize: region === "North-East" ? 10 : 11,
+                          fontWeight: 600,
+                          fill: stressLevel >= 50 ? "#ffffff" : "#1e293b",
                           pointerEvents: "none",
-                          textShadow:
-                            stressLevel >= 50
-                              ? "0 1px 2px rgba(0,0,0,0.3)"
-                              : "none",
                         }}
                       >
-                        {stressLevel}%
+                        {region === "North-East" ? "N-East" : region}
                       </text>
-                    )}
-                    {/* Status badge */}
-                    {regionData && isHovered && (
-                      <g>
-                        <rect
-                          x={regionCenters[region].x - 25}
-                          y={regionCenters[region].y + 20}
-                          width="50"
-                          height="16"
-                          rx="8"
-                          fill="rgba(0,0,0,0.7)"
-                        />
+
+                      {/* Stress percentage */}
+                      {regionData && (
                         <text
-                          x={regionCenters[region].x}
-                          y={regionCenters[region].y + 30}
+                          x={
+                            region === "East" || region === "North-East"
+                              ? 400
+                              : region === "West"
+                                ? 120
+                                : 260
+                          }
+                          y={
+                            region === "North" || region === "North-East"
+                              ? 125
+                              : region === "South"
+                                ? 385
+                                : 265
+                          }
                           textAnchor="middle"
                           dominantBaseline="middle"
                           style={{
-                            fontSize: 8,
-                            fontWeight: 600,
-                            fill: "#fff",
+                            fontSize: 14,
+                            fontWeight: 700,
+                            fill: stressLevel >= 50 ? "#ffffff" : "#334155",
                             pointerEvents: "none",
-                            textTransform: "uppercase",
                           }}
                         >
-                          {regionData.status}
+                          {stressLevel}%
                         </text>
-                      </g>
-                    )}
-                  </g>
-                );
-              })}
+                      )}
+                    </g>
+                  );
+                },
+              )}
 
               {/* Compass */}
-              <g transform="translate(470, 60)">
+              <g transform="translate(460, 50)">
                 <circle
                   cx="0"
                   cy="0"
-                  r="18"
-                  fill="rgba(255,255,255,0.9)"
-                  stroke="#94a3b8"
+                  r="22"
+                  fill="#ffffff"
+                  stroke="#cbd5e1"
                   strokeWidth="1"
                 />
                 <text
                   x="0"
-                  y="-5"
+                  y="-6"
                   textAnchor="middle"
-                  style={{ fontSize: 10, fill: "#1e293b", fontWeight: 700 }}
+                  style={{ fontSize: 11, fill: "#1e293b", fontWeight: 600 }}
                 >
                   N
                 </text>
-                <path d="M0,-12 L3,-6 L0,-8 L-3,-6 Z" fill="#dc2626" />
-                <path d="M0,12 L3,6 L0,8 L-3,6 Z" fill="#64748b" />
+                <path d="M0,-15 L4,-8 L0,-10 L-4,-8 Z" fill="#2563eb" />
+                <path d="M0,15 L4,8 L0,10 L-4,8 Z" fill="#94a3b8" />
               </g>
 
-              {/* Footer instruction */}
+              {/* Scale indicator */}
               <text
-                x="260"
-                y="465"
-                textAnchor="middle"
+                x="30"
+                y="450"
                 style={{ fontSize: 10, fill: "#64748b", fontWeight: 500 }}
               >
-                Click on a region for detailed analysis
+                0 5km 10km
               </text>
+              <line
+                x1="30"
+                y1="455"
+                x2="80"
+                y2="455"
+                stroke="#64748b"
+                strokeWidth="2"
+              />
+              <line
+                x1="80"
+                y1="455"
+                x2="130"
+                y2="455"
+                stroke="#64748b"
+                strokeWidth="2"
+                strokeDasharray="4 2"
+              />
             </svg>
           </div>
 
@@ -2202,54 +2437,52 @@ function SingaporeStressHeatmap() {
               width: 280,
               display: "flex",
               flexDirection: "column",
-              gap: 12,
+              gap: 16,
             }}
           >
             {/* Legend */}
             <div
               style={{
                 background: "#f8fafc",
-                borderRadius: 10,
-                padding: 14,
-                border: "1px solid #e2e8f0",
+                borderRadius: 14,
+                padding: 16,
+                border: "1px solid #edf2f7",
               }}
             >
               <div
                 style={{
-                  fontSize: 11,
-                  fontWeight: 700,
+                  fontSize: 12,
+                  fontWeight: 600,
                   color: "#1e293b",
-                  marginBottom: 10,
+                  marginBottom: 12,
                 }}
               >
-                Stress Level Legend
+                Stress Levels
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {[
-                  { color: "#00ff00", label: "Low", range: "0-24%" },
-                  { color: "#ffff00", label: "Moderate", range: "25-49%" },
-                  { color: "#ff9900", label: "High", range: "50-74%" },
-                  { color: "#ff0000", label: "Critical", range: "75-100%" },
+                  { color: "#00ff00", label: "Low", range: "0-24" },
+                  { color: "#ffff00", label: "Moderate", range: "25-49" },
+                  { color: "#ff9900", label: "High", range: "50-74" },
+                  { color: "#ff0000", label: "Critical", range: "75-100" },
                 ].map((item) => (
                   <div
                     key={item.label}
-                    style={{ display: "flex", alignItems: "center", gap: 8 }}
+                    style={{ display: "flex", alignItems: "center", gap: 10 }}
                   >
                     <div
                       style={{
-                        width: 16,
-                        height: 16,
+                        width: 18,
+                        height: 18,
                         borderRadius: 4,
                         background: item.color,
-                        border: "1px solid rgba(0,0,0,0.15)",
-                        boxShadow:
-                          "inset 0 1px 2px rgba(255,255,255,0.3), 0 1px 3px rgba(0,0,0,0.1)",
+                        border: "1px solid rgba(0,0,0,0.1)",
                       }}
                     />
                     <span
                       style={{
-                        fontSize: 11,
-                        color: "#475569",
+                        fontSize: 12,
+                        color: "#334155",
                         fontWeight: 500,
                       }}
                     >
@@ -2257,7 +2490,7 @@ function SingaporeStressHeatmap() {
                     </span>
                     <span
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         color: "#94a3b8",
                         marginLeft: "auto",
                       }}
@@ -2273,53 +2506,55 @@ function SingaporeStressHeatmap() {
             {overallStats && (
               <div
                 style={{
-                  background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                  borderRadius: 10,
-                  padding: 14,
-                  color: "#fff",
+                  background: "linear-gradient(135deg, #2563eb, #7c3aed)",
+                  borderRadius: 14,
+                  padding: 18,
+                  color: "#ffffff",
                 }}
               >
                 <div
                   style={{
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 600,
                     opacity: 0.9,
-                    marginBottom: 10,
+                    marginBottom: 14,
                   }}
                 >
-                  Summary Statistics
+                  Summary
                 </div>
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
-                    gap: 10,
+                    gap: 12,
                   }}
                 >
                   <div>
-                    <div style={{ fontSize: 22, fontWeight: 800 }}>
+                    <div style={{ fontSize: 28, fontWeight: 700 }}>
                       {overallStats.avgStress}%
                     </div>
-                    <div style={{ fontSize: 9, opacity: 0.8 }}>Avg Stress</div>
+                    <div style={{ fontSize: 11, opacity: 0.8 }}>
+                      Average Stress
+                    </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 22, fontWeight: 800 }}>
+                    <div style={{ fontSize: 28, fontWeight: 700 }}>
                       {overallStats.totalArticles}
                     </div>
-                    <div style={{ fontSize: 9, opacity: 0.8 }}>Articles</div>
+                    <div style={{ fontSize: 11, opacity: 0.8 }}>Articles</div>
                   </div>
                 </div>
                 {overallStats.highestRegion && (
                   <div
                     style={{
-                      marginTop: 10,
-                      padding: "8px 10px",
+                      marginTop: 14,
+                      padding: "10px 12px",
                       background: "rgba(255,255,255,0.15)",
-                      borderRadius: 6,
-                      fontSize: 10,
+                      borderRadius: 10,
+                      fontSize: 12,
                     }}
                   >
-                    <span style={{ opacity: 0.8 }}>Highest:</span>{" "}
+                    <span style={{ opacity: 0.8 }}>Highest stress:</span>{" "}
                     <strong>{overallStats.highestRegion.name}</strong> (
                     {overallStats.highestRegion.stress_level}%)
                   </div>
@@ -2328,227 +2563,244 @@ function SingaporeStressHeatmap() {
             )}
 
             {/* Selected Region Details */}
-            {selectedRegion &&
-              getRegionData(selectedRegion) &&
-              (() => {
-                const rd = getRegionData(selectedRegion);
-                return (
+            {selectedRegion && getRegionData(selectedRegion) && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  borderRadius: 14,
+                  padding: 18,
+                  border: `2px solid ${getRegionColor(selectedRegion)}`,
+                  boxShadow: "0 6px 20px rgba(0,0,0,0.06)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 12,
+                  }}
+                >
                   <div
                     style={{
-                      background: "#fff",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      color: "#1e293b",
+                    }}
+                  >
+                    {selectedRegion} Region
+                  </div>
+                  <span
+                    style={{
+                      background: getRegionColor(selectedRegion),
+                      color: "#1e293b",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      padding: "4px 12px",
+                      borderRadius: 30,
+                    }}
+                  >
+                    {getRegionData(selectedRegion)?.status}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10,
+                    marginBottom: 16,
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "#f8fafc",
                       borderRadius: 10,
-                      padding: 14,
-                      border: `2px solid ${rd.color}`,
-                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+                      padding: 10,
+                      textAlign: "center",
                     }}
                   >
                     <div
                       style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        marginBottom: 10,
+                        fontSize: 22,
+                        fontWeight: 700,
+                        color: "#1e293b",
                       }}
                     >
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "#1e293b",
-                        }}
-                      >
-                        {selectedRegion} Region
-                      </div>
-                      <span
-                        style={{
-                          background: rd.color,
-                          color: rd.stress_level >= 50 ? "#fff" : "#1e293b",
-                          fontSize: 10,
-                          fontWeight: 700,
-                          padding: "3px 8px",
-                          borderRadius: 12,
-                        }}
-                      >
-                        {rd.status}
-                      </span>
+                      {getRegionData(selectedRegion)?.stress_level}%
                     </div>
-
+                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                      Stress Level
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      background: "#f8fafc",
+                      borderRadius: 10,
+                      padding: 10,
+                      textAlign: "center",
+                    }}
+                  >
                     <div
                       style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: 8,
-                        marginBottom: 10,
+                        fontSize: 22,
+                        fontWeight: 700,
+                        color: "#1e293b",
                       }}
                     >
-                      <div
-                        style={{
-                          background: "#f8fafc",
-                          borderRadius: 6,
-                          padding: 8,
-                          textAlign: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 800,
-                            color: "#1e293b",
-                          }}
-                        >
-                          {rd.stress_level}%
-                        </div>
-                        <div style={{ fontSize: 9, color: "#64748b" }}>
-                          Stress Level
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          background: "#f8fafc",
-                          borderRadius: 6,
-                          padding: 8,
-                          textAlign: "center",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 18,
-                            fontWeight: 800,
-                            color: "#1e293b",
-                          }}
-                        >
-                          {rd.article_count || 0}
-                        </div>
-                        <div style={{ fontSize: 9, color: "#64748b" }}>
-                          Articles
-                        </div>
-                      </div>
+                      {getRegionData(selectedRegion)?.article_count || 0}
                     </div>
-
-                    {rd.top_keywords?.length > 0 && (
-                      <div style={{ marginBottom: 10 }}>
-                        <div
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: "#64748b",
-                            marginBottom: 6,
-                          }}
-                        >
-                          Top Keywords
-                        </div>
-                        <div
-                          style={{ display: "flex", flexWrap: "wrap", gap: 4 }}
-                        >
-                          {rd.top_keywords.slice(0, 5).map((kw, i) => (
-                            <span
-                              key={i}
-                              style={{
-                                background: "#eff6ff",
-                                color: "#1e40af",
-                                fontSize: 9,
-                                padding: "3px 6px",
-                                borderRadius: 4,
-                                fontWeight: 500,
-                              }}
-                            >
-                              {kw}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {rd.main_stressors?.length > 0 && (
-                      <div>
-                        <div
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: "#64748b",
-                            marginBottom: 6,
-                          }}
-                        >
-                          Main Stressors
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 4,
-                          }}
-                        >
-                          {rd.main_stressors.slice(0, 3).map((stressor, i) => (
-                            <div
-                              key={i}
-                              style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 6,
-                                fontSize: 10,
-                                color: "#475569",
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: 6,
-                                  height: 6,
-                                  borderRadius: "50%",
-                                  background: "#f59e0b",
-                                  flexShrink: 0,
-                                }}
-                              />
-                              {stressor}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {rd.recent_articles?.length > 0 && (
-                      <div
-                        style={{
-                          marginTop: 10,
-                          paddingTop: 10,
-                          borderTop: "1px solid #e2e8f0",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            color: "#64748b",
-                            marginBottom: 6,
-                          }}
-                        >
-                          Recent Articles
-                        </div>
-                        <div style={{ fontSize: 9, color: "#475569" }}>
-                          {rd.recent_articles.length} article(s) analyzed
-                        </div>
-                      </div>
-                    )}
+                    <div style={{ fontSize: 11, color: "#64748b" }}>
+                      Articles
+                    </div>
                   </div>
-                );
-              })()}
+                </div>
+
+                {/* Neighborhoods */}
+                {Object.keys(getNeighborhoodData(selectedRegion)).length >
+                  0 && (
+                  <div style={{ marginBottom: 16 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Neighborhoods
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {Object.entries(getNeighborhoodData(selectedRegion))
+                        .slice(0, 5)
+                        .map(([hood, stress]) => (
+                          <span
+                            key={hood}
+                            style={{
+                              background: "#f1f5f9",
+                              color: "#1e293b",
+                              fontSize: 11,
+                              padding: "4px 10px",
+                              borderRadius: 20,
+                              fontWeight: 500,
+                              border: "1px solid #e2e8f0",
+                            }}
+                          >
+                            {hood}: {stress}%
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Keywords */}
+                {getRegionData(selectedRegion)?.top_keywords?.length > 0 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Keywords
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {getRegionData(selectedRegion)
+                        .top_keywords.slice(0, 5)
+                        .map((kw, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              background: "#eff6ff",
+                              color: "#1e40af",
+                              fontSize: 11,
+                              padding: "4px 10px",
+                              borderRadius: 20,
+                              fontWeight: 500,
+                            }}
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Main Stressors */}
+                {getRegionData(selectedRegion)?.main_stressors?.length > 0 && (
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "#475569",
+                        marginBottom: 8,
+                      }}
+                    >
+                      Stressors
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 6,
+                      }}
+                    >
+                      {getRegionData(selectedRegion)
+                        .main_stressors.slice(0, 3)
+                        .map((stressor, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              fontSize: 12,
+                              color: "#334155",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: "50%",
+                                background: "#f97316",
+                                flexShrink: 0,
+                              }}
+                            />
+                            {stressor}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {!selectedRegion && (
               <div
                 style={{
                   background: "#f8fafc",
-                  borderRadius: 10,
-                  padding: 20,
+                  borderRadius: 14,
+                  padding: 24,
                   border: "1px dashed #cbd5e1",
                   textAlign: "center",
                 }}
               >
-                <Icon.MousePointer
-                  size={24}
+                <MousePointer
+                  size={36}
                   color="#94a3b8"
-                  style={{ marginBottom: 8 }}
+                  style={{ marginBottom: 12 }}
                 />
-                <div style={{ fontSize: 11, color: "#64748b" }}>
-                  Click on a region to view detailed stress analysis
+                <div
+                  style={{ fontSize: 13, color: "#475569", fontWeight: 500 }}
+                >
+                  Select a region
+                </div>
+                <div style={{ fontSize: 12, color: "#94a3b8", marginTop: 6 }}>
+                  Click on any region to view detailed stress analysis
                 </div>
               </div>
             )}
@@ -2558,6 +2810,20 @@ function SingaporeStressHeatmap() {
     </div>
   );
 }
+
+// Fallback simplified paths (used if GeoJSON fails to load)
+const regionPaths = {
+  North:
+    "M 160,45 C 180,35 210,30 240,32 C 270,35 295,45 315,62 C 330,78 338,98 335,118 C 330,138 318,155 298,168 C 275,182 245,188 215,182 C 185,175 160,160 148,140 C 136,118 138,88 148,65 C 155,52 158,48 160,45 Z",
+  "North-East":
+    "M 315,62 C 340,45 370,40 400,50 C 425,60 445,80 455,105 C 462,128 460,155 448,178 C 435,200 415,215 390,222 C 365,228 340,220 322,205 C 308,190 302,170 305,148 C 308,125 312,105 318,88 C 322,75 320,68 315,62 Z",
+  East: "M 390,222 C 410,225 430,238 445,260 C 458,282 462,310 455,335 C 448,358 432,378 410,390 C 385,402 355,405 330,395 C 308,385 292,368 285,345 C 278,322 282,298 295,278 C 310,255 332,238 355,230 C 370,225 380,222 390,222 Z",
+  Central:
+    "M 215,182 C 245,188 275,182 298,168 C 318,155 330,138 335,118 C 338,98 330,78 315,62 C 322,75 318,88 315,108 C 312,130 308,150 305,168 C 302,185 308,198 322,205 C 340,220 365,228 390,222 C 380,222 365,230 350,245 C 330,265 315,290 312,315 C 308,340 315,360 330,375 C 342,388 358,395 375,395 C 352,402 325,400 305,390 C 282,380 265,362 258,338 C 252,315 260,290 278,268 C 295,248 315,235 332,230 C 322,218 298,205 275,202 C 255,200 235,198 220,192 C 210,188 215,184 215,182 Z",
+  West: "M 45,120 C 65,95 95,78 128,70 C 160,62 190,65 210,82 C 228,98 235,122 232,145 C 228,168 218,188 202,205 C 182,225 158,240 135,250 C 112,260 90,262 72,250 C 55,238 48,218 50,195 C 52,172 58,148 65,130 C 72,115 65,120 45,120 Z",
+  South:
+    "M 210,82 C 228,98 235,122 232,145 C 228,168 218,188 202,205 C 182,225 158,240 135,250 C 148,260 158,275 162,292 C 168,315 162,340 145,360 C 125,382 98,395 70,398 C 45,400 22,388 12,365 C 2,342 5,318 18,298 C 32,278 52,262 75,250 C 98,240 112,260 135,250 C 158,240 182,225 202,205 C 218,188 228,168 232,145 C 235,122 235,110 242,95 C 248,80 262,68 280,62 C 295,58 302,65 310,75 C 295,65 280,62 265,65 C 250,68 235,78 225,90 C 215,100 212,90 210,82 Z",
+};
 
 // ─── MAIN APP (Youth Helper Dashboard) ──────────────────────────────
 export default function YouthHelperDashboard({ currentUser: propUser }) {
@@ -5145,7 +5411,9 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                 </div>
 
                 {/* Singapore Stress Heatmap */}
-                <SingaporeStressHeatmap />
+                <div style={{ padding: 20 }}>
+                  <SingaporeStressHeatmap caseServiceUrl="http://localhost:8003" />
+                </div>
               </div>
             ) : activeTab === "all" ? (
               <div style={{ flex: 1, padding: 24, overflowY: "auto" }}>
