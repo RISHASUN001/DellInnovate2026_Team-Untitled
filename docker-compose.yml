@@ -22,7 +22,7 @@ services:
     environment:
       OAUTH_AUTHORIZE_URL: https://accounts.google.com/o/oauth2/v2/auth
       OAUTH_TOKEN_URL: https://oauth2.googleapis.com/token
-      OAUTH_REDIRECT_URI: http://localhost:8000/callback
+      OAUTH_REDIRECT_URI: http://localhost:8001/callback
       OAUTH_CLIENT_ID_FILE: /run/secrets/oauth_client_id
       OAUTH_CLIENT_SECRET_FILE: /run/secrets/oauth_client_secret
     secrets:

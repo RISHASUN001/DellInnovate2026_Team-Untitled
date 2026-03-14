@@ -43,6 +43,7 @@ DEFAULT_INSTAGRAM_DB_NAME="instagram_scraper"
 DEFAULT_SCS_DB_NAME="dellinnovate"
 DEFAULT_CASE_SERVICE_PORT="8003"
 DEFAULT_IMAGE_SERVICE_PORT="8004"
+DEFAULT_AUTH_SERVICE_URL="http://localhost:8001"
 
 INSTAGRAM_DB_NAME=""
 SCS_DB_NAME=""
@@ -51,6 +52,16 @@ IMAGE_SERVICE_PORT=""
 SYNC_WITH_LLM=true
 SYNC_TIMEOUT_SECONDS=1200
 MAX_POSTS_PER_USER=2
+AUTH_SERVICE_URL=""
+JWT_TOKEN=""
+JWT_TOKEN_FILE=""
+REQUIRE_JWT=false
+
+AUTHENTICATED_USER_ID="pipeline_script"
+AUTHENTICATED_USER_ROLE="Admin"
+AUTHENTICATED_USER_EMAIL=""
+
+CASE_AUTH_HEADERS=()
 
 # Create log directory if needed
 mkdir -p "$LOG_DIR"
@@ -94,9 +105,114 @@ load_env() {
     SCS_DB_NAME="${SCS_DB_NAME:-$DEFAULT_SCS_DB_NAME}"
     CASE_SERVICE_PORT="${CASE_SERVICE_PORT:-$DEFAULT_CASE_SERVICE_PORT}"
     IMAGE_SERVICE_PORT="${IMAGE_SERVICE_PORT:-$DEFAULT_IMAGE_SERVICE_PORT}"
+    AUTH_SERVICE_URL="${AUTH_SERVICE_URL:-$DEFAULT_AUTH_SERVICE_URL}"
+    AUTH_SERVICE_URL="${AUTH_SERVICE_URL%/}"
 
     log_step "Source DB (scrape/NLP/features/images): $INSTAGRAM_DB_NAME"
     log_step "Target DB (synced cases): $SCS_DB_NAME"
+    log_step "Auth service URL: $AUTH_SERVICE_URL"
+}
+
+load_jwt_token_from_file() {
+    if [ -z "$JWT_TOKEN_FILE" ]; then
+        return 0
+    fi
+
+    if [ ! -f "$JWT_TOKEN_FILE" ]; then
+        log_error "JWT token file not found: $JWT_TOKEN_FILE"
+        return 1
+    fi
+
+    JWT_TOKEN=$(tr -d '\r\n' < "$JWT_TOKEN_FILE")
+    if [ -z "$JWT_TOKEN" ]; then
+        log_error "JWT token file is empty: $JWT_TOKEN_FILE"
+        return 1
+    fi
+}
+
+build_case_auth_headers() {
+    CASE_AUTH_HEADERS=(
+        -H "X-User-Id: $AUTHENTICATED_USER_ID"
+        -H "X-User-Role: $AUTHENTICATED_USER_ROLE"
+    )
+
+    if [ -n "$AUTHENTICATED_USER_EMAIL" ]; then
+        CASE_AUTH_HEADERS+=( -H "X-User-Email: $AUTHENTICATED_USER_EMAIL" )
+    fi
+
+    if [ -n "$JWT_TOKEN" ]; then
+        CASE_AUTH_HEADERS+=( -H "Authorization: Bearer $JWT_TOKEN" )
+    fi
+}
+
+validate_jwt_token() {
+    if [ -z "$JWT_TOKEN" ]; then
+        if [ "$REQUIRE_JWT" = true ]; then
+            log_error "JWT token is required. Pass --jwt-token or --jwt-token-file"
+            return 1
+        fi
+        log_warn "No JWT token supplied; continuing with default pipeline identity headers"
+        return 0
+    fi
+
+    log_step "Validating JWT against auth-service (/me)"
+
+    local auth_tmp
+    local auth_status
+    auth_tmp=$(mktemp)
+    auth_status=$(curl -sS -o "$auth_tmp" -w "%{http_code}" "${AUTH_SERVICE_URL}/me" \
+        -H "Authorization: Bearer ${JWT_TOKEN}")
+
+    if [ "$auth_status" != "200" ]; then
+        log_error "JWT validation failed (HTTP $auth_status)"
+        cat "$auth_tmp" | tee -a "$PIPELINE_LOG"
+        rm -f "$auth_tmp"
+        return 1
+    fi
+
+    local parsed_user_id
+    local parsed_email
+    
+    # Parse JWT response (compatible with bash and zsh)
+    parsed_user_id=$(python3 - "$auth_tmp" <<'PY'
+import json
+import sys
+
+payload = {}
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    payload = json.load(f)
+
+user_id = str(payload.get("sub") or payload.get("id") or payload.get("email") or "pipeline_script")
+print(user_id)
+PY
+)
+    
+    parsed_email=$(python3 - "$auth_tmp" <<'PY'
+import json
+import sys
+
+payload = {}
+with open(sys.argv[1], "r", encoding="utf-8") as f:
+    payload = json.load(f)
+
+email = str(payload.get("email") or "")
+print(email)
+PY
+)
+
+    rm -f "$auth_tmp"
+    
+    parsed_user_id="${parsed_user_id:-pipeline_script}"
+    parsed_email="${parsed_email:-}"
+
+AUTHENTICATED_USER_ID="$parsed_user_id"
+AUTHENTICATED_USER_EMAIL="$parsed_email"
+
+if [ -n "$AUTHENTICATED_USER_EMAIL" ]; then
+        log_success "JWT validated for ${AUTHENTICATED_USER_EMAIL} (sub=${AUTHENTICATED_USER_ID})"
+    else
+        log_success "JWT validated (sub=${AUTHENTICATED_USER_ID})"
+    fi
 }
 
 resolve_image_service_port() {
@@ -294,9 +410,21 @@ sync_to_scs() {
     # Check if case-service is running
     if ! curl -s "http://localhost:${CASE_SERVICE_PORT}/health" > /dev/null 2>&1; then
         log_warn "Case service not running. Starting it..."
-        cd "$CASE_SERVICE_DIR"
-        MONGODB_DB_NAME="$INSTAGRAM_DB_NAME" SCS_DB_NAME="$SCS_DB_NAME" python -m uvicorn app.main:app --host 0.0.0.0 --port "$CASE_SERVICE_PORT" &
-        sleep 5
+        cd "$CASE_SERVICE_DIR" || { log_error "Cannot cd to case-service"; return 1; }
+        
+        # Start service in background and capture output
+        MONGODB_DB_NAME="$INSTAGRAM_DB_NAME" SCS_DB_NAME="$SCS_DB_NAME" python -m uvicorn app.main:app --host 0.0.0.0 --port "$CASE_SERVICE_PORT" > /tmp/case_service.log 2>&1 &
+        local case_service_pid=$!
+        
+        sleep 3
+        
+        # Check if service started successfully
+        if ! curl -s "http://localhost:${CASE_SERVICE_PORT}/health" > /dev/null 2>&1; then
+            log_error "Case service failed to start. Check logs:"
+            cat /tmp/case_service.log | tee -a "$PIPELINE_LOG"
+            log_error "To fix pydantic issue, run: pip install --upgrade pydantic pydantic-settings"
+            return 1
+        fi
     fi
     
     local sync_endpoint
@@ -309,8 +437,7 @@ sync_to_scs() {
     fi
 
     RESPONSE=$(curl -sS --max-time "$SYNC_TIMEOUT_SECONDS" -X POST "http://localhost:${CASE_SERVICE_PORT}/cases/${sync_endpoint}" \
-        -H "X-User-Id: pipeline_script" \
-        -H "X-User-Role: Admin" \
+        "${CASE_AUTH_HEADERS[@]}" \
         -H "Content-Type: application/json")
 
     local curl_status=$?
@@ -318,8 +445,7 @@ sync_to_scs() {
         if [ "$SYNC_WITH_LLM" = true ]; then
             log_warn "LLM sync timed out or failed (curl exit $curl_status). Falling back to non-LLM sync..."
             RESPONSE=$(curl -sS --max-time 300 -X POST "http://localhost:${CASE_SERVICE_PORT}/cases/sync-risk-profiles" \
-                -H "X-User-Id: pipeline_script" \
-                -H "X-User-Role: Admin" \
+                "${CASE_AUTH_HEADERS[@]}" \
                 -H "Content-Type: application/json")
             curl_status=$?
         fi
@@ -352,8 +478,7 @@ verify_data() {
     
     # Get case count from API
     CASES=$(curl -s "http://localhost:${CASE_SERVICE_PORT}/cases" \
-        -H "X-User-Id: pipeline_script" \
-        -H "X-User-Role: Admin" 2>/dev/null)
+        "${CASE_AUTH_HEADERS[@]}" 2>/dev/null)
     
     CASE_COUNT=$(echo "$CASES" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo "0")
     
@@ -435,12 +560,42 @@ main() {
                 SCS_DB_NAME="$2"
                 shift 2
                 ;;
+            --jwt-token)
+                JWT_TOKEN="$2"
+                shift 2
+                ;;
+            --jwt-token-file)
+                JWT_TOKEN_FILE="$2"
+                shift 2
+                ;;
+            --auth-service-url)
+                AUTH_SERVICE_URL="$2"
+                AUTH_SERVICE_URL="${AUTH_SERVICE_URL%/}"
+                shift 2
+                ;;
+            --user-role)
+                AUTHENTICATED_USER_ROLE="$2"
+                shift 2
+                ;;
+            --require-jwt)
+                REQUIRE_JWT=true
+                shift
+                ;;
             *)
                 USERNAMES+=("$1")
                 shift
                 ;;
         esac
     done
+
+    if [ "$AUTHENTICATED_USER_ROLE" != "Admin" ] && [ "$AUTHENTICATED_USER_ROLE" != "Youth Helper" ]; then
+        log_error "Invalid --user-role value: $AUTHENTICATED_USER_ROLE (allowed: Admin, Youth Helper)"
+        return 1
+    fi
+
+    load_jwt_token_from_file
+    validate_jwt_token
+    build_case_auth_headers
 
     # Run pipeline steps
     if [ "$SKIP_SCRAPING" = false ]; then
@@ -495,6 +650,11 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     echo "  --max-posts <n>    Max scraped posts per username (default: 2)"
     echo "  --instagram-db <name>  Source DB for scraping/NLP/features/images"
     echo "  --scs-db <name>        Target DB for synced cases"
+    echo "  --jwt-token <token>    Google OAuth JWT/access token for auth validation"
+    echo "  --jwt-token-file <f>   Read JWT token from file"
+    echo "  --auth-service-url <u> Auth service base URL (default: http://localhost:8000)"
+    echo "  --user-role <role>     Identity role for case-service headers (default: Admin)"
+    echo "  --require-jwt          Fail if JWT token is missing/invalid"
     echo "  -h, --help         Show this help message"
     echo ""
     echo "Examples:"
@@ -504,6 +664,8 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     echo "  $0 --sync-only --sync-no-llm     # Fast sync only"
     echo "  $0 --max-posts 2 jin             # Scrape max 2 posts for @jin"
     echo "  $0 --instagram-db instagram_scraper --scs-db dellinnovate"
+    echo "  $0 --sync-only --jwt-token \"<JWT>\" --require-jwt"
+    echo "  $0 --sync-only --jwt-token-file ./token.txt --require-jwt"
     echo ""
     exit 0
 fi

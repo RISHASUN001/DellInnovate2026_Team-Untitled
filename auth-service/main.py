@@ -4,7 +4,11 @@ from fastapi import FastAPI, Request, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
 import httpx
-from urllib.parse import urlencode
+from urllib.parse import urlencode, unquote
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = FastAPI()
 
@@ -46,6 +50,7 @@ OAUTH_CLIENT_ID = read_secret(os.getenv("OAUTH_CLIENT_ID_FILE", "/run/secrets/oa
 OAUTH_CLIENT_SECRET = read_secret(os.getenv("OAUTH_CLIENT_SECRET_FILE", "/run/secrets/oauth_client_secret")) or os.getenv("OAUTH_CLIENT_SECRET")
 
 GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo"
+GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo"
 
 
 def missing_oauth_config() -> list[str]:
@@ -135,7 +140,7 @@ async def token(code: str = Body(..., embed=True)):
     return {"tokens": tokens, "userinfo": userinfo}
 
 @app.get("/login")
-def login(frontend_redirect: str | None = None):
+def login(frontend_redirect: str | None = None, mode: str | None = None):
     missing = missing_oauth_config()
     if missing:
         return JSONResponse(
@@ -146,7 +151,14 @@ def login(frontend_redirect: str | None = None):
             },
         )
 
-    state = frontend_redirect or FRONTEND_REDIRECT_URL
+    # Encode state to pass through OAuth and back to callback
+    # Format: "redirect_url|mode" where mode can be "json" or empty
+    state_data = {
+        "redirect": frontend_redirect or FRONTEND_REDIRECT_URL,
+        "mode": mode or "web"
+    }
+    state = urlencode(state_data)
+    
     params = {
         "response_type": "code",
         "client_id": OAUTH_CLIENT_ID,
@@ -161,10 +173,35 @@ def login(frontend_redirect: str | None = None):
 
 @app.get("/callback")
 async def callback(code: str, state: str | None = None):
-    redirect_base = state or FRONTEND_REDIRECT_URL
+    # Parse state parameter (contains redirect URL and mode)
+    state_data = {}
+    if state:
+        try:
+            from urllib.parse import parse_qs
+            parsed = parse_qs(unquote(state))
+            # parse_qs returns lists, get first value
+            state_data = {k: v[0] if isinstance(v, list) and v else v for k, v in parsed.items()}
+        except Exception:
+            state_data = {"redirect": state, "mode": "web"}
+    
+    if not state_data:
+        state_data = {"redirect": FRONTEND_REDIRECT_URL, "mode": "web"}
+    
+    redirect_base = state_data.get("redirect", FRONTEND_REDIRECT_URL)
+    mode = state_data.get("mode", "web")
+    
+    # Validate redirect URL
     if not redirect_base.startswith("http://") and not redirect_base.startswith("https://"):
         redirect_base = FRONTEND_REDIRECT_URL
 
+    # For CLI/script mode, return JSON with authorization code
+    if mode == "json":
+        return JSONResponse({
+            "code": code,
+            "message": "Authorization code received. Exchange it for a token using POST /token"
+        })
+    
+    # For web mode, redirect to frontend with code
     redirect_url = f"{redirect_base}?{urlencode({'code': code})}"
     return RedirectResponse(redirect_url)
 
@@ -174,12 +211,26 @@ async def me(request: Request):
     auth = request.headers.get("Authorization")
     if not auth or not auth.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-    access_token = auth.split(" ", 1)[1]
-    async with httpx.AsyncClient() as client:
-        resp = await client.get(
-            GOOGLE_USERINFO_URL,
-            headers={"Authorization": f"Bearer {access_token}"}
-        )
-        if resp.status_code != 200:
-            raise HTTPException(status_code=401, detail="Invalid or expired token")
-        return resp.json()
+    bearer_token = auth.split(" ", 1)[1]
+
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            # Path 1: OAuth access token
+            resp = await client.get(
+                GOOGLE_USERINFO_URL,
+                headers={"Authorization": f"Bearer {bearer_token}"},
+            )
+            if resp.status_code == 200:
+                return resp.json()
+
+            # Path 2: JWT id_token
+            tokeninfo_resp = await client.get(
+                GOOGLE_TOKENINFO_URL,
+                params={"id_token": bearer_token},
+            )
+            if tokeninfo_resp.status_code == 200:
+                return tokeninfo_resp.json()
+    except httpx.RequestError as exc:
+        raise HTTPException(status_code=502, detail=f"Unable to reach Google token validation endpoints: {exc}") from exc
+
+    raise HTTPException(status_code=401, detail="Invalid or expired token")
