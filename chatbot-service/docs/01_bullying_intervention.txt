@@ -1,0 +1,114 @@
+SCHOOL OF CHILD SAFEGUARDING (SCS) — PROTOCOL DOCUMENT
+Title: Bullying and Peer Aggression Intervention Guide
+Category: Cyberbullying / Peer Conflict
+Version: 3.1 | Last Updated: January 2025
+Classification: Internal Use — Social Workers and Case Helpers
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 1: SCOPE AND PURPOSE
+───────────────────────────────────────────────────────────────────────────────
+
+This protocol applies to all cases involving youth who are identified as victims of bullying (physical, verbal, relational, or online) or perpetrators of bullying behaviour. The goal is to ensure timely intervention, victim safety, accountability for perpetrators, and systemic school engagement.
+
+Bullying is defined as repeated, intentional behaviour that causes harm, distress, or exclusion and involves an imbalance of power between the parties. A single incident of aggression does not constitute bullying unless it is part of a sustained pattern.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 2: RISK STRATIFICATION
+───────────────────────────────────────────────────────────────────────────────
+
+Risk Level 1 (Low): Isolated verbal conflict, no physical harm, first occurrence.
+  → Action: Monitor, document, notify school counsellor within 5 business days.
+
+Risk Level 2 (Medium): Repeated verbal or relational aggression, emerging isolation of victim.
+  → Action: Immediate referral to school counsellor. Parent notification within 48 hours.
+
+Risk Level 3 (High): Physical aggression, online harassment with evidence, emotional trauma visible in digital behaviour.
+  → Action: Same-day school notification. Parent conference within 24 hours. Possible SPF (Singapore Police Force) referral.
+
+Risk Level 4 (Critical): Coordinated group harassment, threats of harm, victim self-harm risk elevated.
+  → Action: Mandatory SPF report if threats involve bodily harm. Clinical referral. 24-hour follow-up cycle.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 3: CYBERBULLYING SPECIFIC PROCEDURES
+───────────────────────────────────────────────────────────────────────────────
+
+When cyberbullying is confirmed through social media monitoring or youth report:
+
+3.1 Evidence Preservation
+- Take screenshots of all offending content before requesting removal.
+- Document platform, URL, timestamp, and account handles of perpetrators.
+- Save copies in the case management system under the youth's case file.
+
+3.2 Platform Reporting
+- Use official platform reporting tools (Instagram, TikTok, Twitter/X) to report harassment.
+- For coordinated attacks involving multiple accounts, escalate to platform trust and safety teams.
+- Expected platform response: 24–72 hours. If urgent, flag as "imminent harm."
+
+3.3 School Coordination
+- Contact the school's Student Development Team (SDT) or Student Welfare Officer (SWO) directly.
+- Provide evidence documentation. Do not share youth's personal details without consent unless there is immediate risk.
+- Request school to convene a bullying review within 3 school days.
+
+3.4 Victim Support
+- Assign an empathetic helper with appropriate language/cultural competency.
+- Conduct a safety assessment using the Youth Distress Indicator (YDI) tool.
+- Explore support options: peer support group, student counsellor, external psychologist.
+- Safety plan: advise youth to block perpetrators, restrict account privacy.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 4: PERPETRATOR INTERVENTION
+───────────────────────────────────────────────────────────────────────────────
+
+Perpetrators of bullying also require intervention, not only punitive responses.
+
+4.1 First Offence
+- Mandatory meeting with school counsellor.
+- SCS helper may facilitate a restorative conversation if both parties consent.
+- Parental notification and engagement session within 48 hours.
+
+4.2 Repeat Offence
+- School disciplinary process formally initiated.
+- SCS files a formal case under "Cyberbullying Perpetrator" category.
+- If victim distress is high, consider separation measures (class change, temporary suspension).
+
+4.3 Ringleaders and Coordinated Attacks
+- Treat as high-risk case.
+- Identify all co-perpetrators and document their involvement.
+- Mandatory SPF referral if content constitutes criminal harassment under Protection from Harassment Act (POHA).
+- Perpetrators may be referred to youth programmes focused on empathy and digital citizenship.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 5: DOCUMENTATION REQUIREMENTS
+───────────────────────────────────────────────────────────────────────────────
+
+All actions taken must be logged in the SCS case management system within 24 hours:
+- Date/time of each intervention
+- Names and roles of professionals involved
+- Youth's response to intervention
+- Follow-up actions and deadlines
+- Any mandatory reporting submissions made
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 6: MANDATORY REPORTING TRIGGERS
+───────────────────────────────────────────────────────────────────────────────
+
+Under the Children and Young Persons Act (CYPA) and POHA, report to SPF if:
+- Threats to physical safety are present
+- Victim is showing signs of serious emotional harm
+- Criminal conduct is evident (stalking, doxxing, sexual harassment)
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 7: REVIEW AND CLOSURE
+───────────────────────────────────────────────────────────────────────────────
+
+Cases may be considered for closure when:
+- No new bullying incidents in 60 days
+- Youth reports improved wellbeing and social functioning
+- School confirms situation is resolved
+- Parent/guardian satisfied with outcome
+
+Final review must be documented with helper sign-off and supervisor approval.
+
+───────────────────────────────────────────────────────────────────────────────
+END OF DOCUMENT — SCS Protocol 01 — Bullying and Peer Aggression
+───────────────────────────────────────────────────────────────────────────────

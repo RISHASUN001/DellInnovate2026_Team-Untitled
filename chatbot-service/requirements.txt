@@ -1,0 +1,22 @@
+# Core FastAPI - use compatible versions
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# LLM — OpenAI-compatible client for OpenRouter
+openai>=1.0.0
+
+# Embeddings + ChromaDB - simplified
+chromadb>=0.4.0
+sentence-transformers>=2.0.0
+
+# Database
+pymongo>=4.0.0
+
+# HTTP client for inter-service calls
+httpx>=0.24.0
+
+# Utilities
+loguru>=0.7.0

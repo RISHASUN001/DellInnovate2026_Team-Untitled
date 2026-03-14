@@ -1,0 +1,107 @@
+[
+  {
+    "username": "chrishemsworth",
+    "riskLevel": 2,
+    "riskScore": 28.6,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "Thor\u2620\ufe0f",
+      "I\u2019ll fight you big guy",
+      "Te invito a mi casa, no tengo mucho, pero descansaras. Chile"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 14.8,
+      "sentimentScore": 0.68,
+      "volatility": 0.44
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-02-28T13:02:53.216000"
+  },
+  {
+    "username": "markruffalo",
+    "riskLevel": 2,
+    "riskScore": 23.6,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.64",
+      "Elevated distress emotions: 33.3%"
+    ],
+    "concerningComments": [
+      "I will never understand how people can be against something, then go ahead and support a company ...",
+      "free iran",
+      "Please talk about #iran \ud83c\udd98"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 33.3,
+      "sentimentScore": 0.24,
+      "volatility": 0.64
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-02-28T13:02:53.678000"
+  },
+  {
+    "username": "crime101film",
+    "riskLevel": 2,
+    "riskScore": 22.7,
+    "priority": "Low",
+    "signals": [
+      "High sentiment volatility: \u03c3=0.64"
+    ],
+    "concerningComments": [
+      "Just came back from seeing the movie.  My Gawd!! Chris' hair and eyebrows were dyed dark brown!!!...",
+      "I love acting but unfortunately I'm a Zimbabwean",
+      "Oh my look out !!!! where's my gun and badge !\ud83d\ude02\ud83d\ude02\ud83d\ude02"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 25.0,
+      "sentimentScore": 0.44,
+      "volatility": 0.64
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-02-28T13:02:53.388000"
+  },
+  {
+    "username": "hollywoodauthentic",
+    "riskLevel": 1,
+    "riskScore": 14.9,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "N\u00e3o pega ningu\u00e9m \ud83d\ude02\ud83d\ude02\ud83d\ude02",
+      "The Australian actor is about to break new ground with his role as an introverted jewel thief wor...",
+      "Am. bigbig.Fan"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 25.0,
+      "sentimentScore": 0.41,
+      "volatility": 0.43
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-02-28T13:02:53.531000"
+  },
+  {
+    "username": "mrbeast",
+    "riskLevel": 1,
+    "riskScore": 5.9,
+    "priority": "Low",
+    "signals": [],
+    "concerningComments": [
+      "I can\u2019t tell the difference",
+      "Hlep",
+      "Hlep"
+    ],
+    "metrics": {
+      "distortionRate": 0.0,
+      "distressRate": 0.0,
+      "sentimentScore": 0.15,
+      "volatility": 0.21
+    },
+    "analysisWindow": "30 days",
+    "lastUpdated": "2026-02-28T13:02:53.831000"
+  }
+]

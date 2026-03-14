@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Youth Profile Risk Analyzer",
+  "version": "1.0.0",
+  "description": "Assists youth outreach volunteers in assessing potential mental health risk signals on Instagram profiles",
+  "permissions": ["activeTab", "scripting", "tabs", "storage"],
+  "host_permissions": ["https://www.instagram.com/*"],
+  "action": {
+    "default_icons": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.instagram.com/*"],
+      "js": ["openai.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
