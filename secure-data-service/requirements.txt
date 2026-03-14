@@ -1,6 +1,0 @@
-fastapi
-uvicorn
-pydantic
-pymongo
-pyjwt
-cryptography
