@@ -2993,7 +2993,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
             updated_at: c.updated_at,
             user_id: c.user_id,
             youth: {
-              name: c.user_id || "Unknown Youth",
+              name: `@${normalizedUsername}`,
               age: "—",
               avatar: "U",
               handle: `@${normalizedUsername}`,
