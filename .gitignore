@@ -1,5 +1,0 @@
-node_modules
-dist
-.env
-.DS_Store
-case-service/app/__pycache__/main.cpython-313.pyc
