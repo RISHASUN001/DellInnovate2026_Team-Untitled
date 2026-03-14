@@ -2966,6 +2966,10 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
             const tagMatch = c.llm_summary.match(/category\s*:\s*([\w\s-]+)/i);
             if (tagMatch) llmTag = tagMatch[1].trim();
           }
+          const rawUsername = (c.user_id || "unknown").toString().trim();
+          const normalizedUsername =
+            rawUsername.replace(/^@+/, "").replace(/^case_/i, "") || "unknown";
+
           return {
             id: c.case_id,
             code: c.case_id,
@@ -2992,8 +2996,8 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
               name: c.user_id || "Unknown Youth",
               age: "—",
               avatar: "U",
-              handle: `@${c.user_id || "unknown"}`,
-              instagramUrl: `https://instagram.com/${c.user_id || "unknown"}`,
+              handle: `@${normalizedUsername}`,
+              instagramUrl: `https://instagram.com/${encodeURIComponent(normalizedUsername)}`,
             },
             signals: c.ai_explanation_signals
               ? c.ai_explanation_signals
