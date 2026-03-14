@@ -1,0 +1,170 @@
+SCHOOL OF CHILD SAFEGUARDING (SCS) — PROTOCOL DOCUMENT
+Title: Emergency Escalation Thresholds, Mandatory Reporting, and SCS Case Closure
+Category: Cross-Cutting Operational Protocols
+Version: 4.0 | Last Updated: March 2025
+Classification: Internal — All SCS Staff
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 1: EMERGENCY ESCALATION THRESHOLDS
+───────────────────────────────────────────────────────────────────────────────
+
+The following conditions trigger IMMEDIATE escalation regardless of case risk score:
+
+E1 — Immediate Physical Danger:
+- Youth has expressed intent to harm self or others within the next 24 hours
+- Youth has taken a harmful action (ingested substances, inflicted injury requiring medical attention)
+- Youth is in an unsafe physical location (missing, homeless, with a dangerous individual)
+ACTION: Call 995 immediately. Notify SCS supervisor within 30 minutes. Complete Critical Incident Report (CIR) within 24 hours.
+
+E2 — Active Suicidal Crisis:
+- Youth has a specific plan, means, and timeline for suicide
+- Youth is uncontactable after making suicidal statements
+- A peer has contacted SCS reporting imminent risk
+ACTION: Follow Suicidal Ideation Protocol (03). Call police welfare check. Parent notification within 15 minutes if possible.
+
+E3 — Active Child Abuse:
+- Youth reports current physical, sexual, or severe emotional abuse in the home
+- Physical evidence of abuse is visible (bruises, burns, injuries)
+- Youth is being kept home against their will by an abusive guardian
+ACTION: Do not wait. Call MSF CPS at 1800-111-2222. Document evidence immediately. Do not confront abuser.
+
+E4 — Sexual Exploitation:
+- Evidence that youth is being sexually exploited online or offline
+- Youth has shared sexual content with an adult under coercion
+- Suspected trafficking situation
+ACTION: Report to SPF immediately. Contact Internet Crimes Against Children (ICAC) for online cases. Preserve all evidence without forwarding. Involve SCS supervisor immediately.
+
+E5 — Serious Mental Health Decompensation:
+- Youth appears to be experiencing psychosis (hallucinations, delusions, disorganised behaviour)
+- Youth has severe dissociation or is unable to care for themselves
+ACTION: Refer to IMH A&E at Buangkok immediately. Parent notification. Accompany youth if possible and safe.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 2: MANDATORY REPORTING FRAMEWORK
+───────────────────────────────────────────────────────────────────────────────
+
+Under Singapore law, specific categories of professionals are mandatory reporters for child abuse. SCS social workers and helpers fall under this obligation.
+
+2.1 Child Abuse Reporting (CYPA)
+Report to: MSF Child Protective Service — 1800-111-2222
+When: Reasonable suspicion of abuse, neglect, or exploitation (certainty is NOT required)
+Timeline: Immediately upon identifying concern
+
+2.2 Sexual Offences Against Minors (Penal Code)
+Report to: Singapore Police Force — 999
+When: Any disclosure or evidence of sexual offence against a person under 16 years old
+Timeline: Same day
+
+2.3 Protection from Harassment Act (POHA)
+Report to: Singapore Police Force — 999 or Magistrates' Courts
+When: Harassment involves criminal threats, stalking, or coordinated harassment
+Timeline: Within 48 hours for non-imminent situations
+
+2.4 Trafficking in Persons
+Report to: SPF or National Crime Prevention Council human trafficking hotline — 1800-325-1234
+When: Evidence of trafficking indicators
+
+2.5 Platform Reporting
+All cases with evidence of illegal content (CSAM, grooming) on social media must also report directly to platform Trust and Safety teams and to the Internet Watch Foundation (for CSAM).
+
+Documentation Requirement:
+All mandatory reports must be logged in the SCS case management system with:
+- Date and time of report
+- Report reference number (if provided)
+- Name of officer/caseworker at receiving agency
+- Copy of any written report submitted
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 3: CASE RISK SCORE REVIEW TRIGGERS
+───────────────────────────────────────────────────────────────────────────────
+
+Risk scores are automatically reviewed by the SCS monitoring system. Manual review is required when:
+- Risk score increases by 2+ points in a single monitoring cycle
+- New signal type not previously detected appears
+- Youth's case status changes (new school, new living situation, new relationship)
+- Helper closes a contact and documents significant change
+
+Risk score changes must be documented with:
+- Previous score
+- New score
+- Specific signals driving the change
+- Actions taken in response
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 4: CASE ASSIGNMENT GUIDELINES
+───────────────────────────────────────────────────────────────────────────────
+
+4.1 Workload Limits
+Standard caseload: maximum 10 active cases per helper.
+High-complexity caseload (risk 4–5 cases): maximum 6 active cases.
+After caseload limit reached: reassignment of new cases to other helpers.
+
+4.2 Assignment Criteria
+Consider:
+- Language and cultural match (e.g., Malay-speaking helper for Malay-speaking youth)
+- Existing relationship (continuity of care where safe)
+- Specialisation (some helpers certified for crisis work only)
+- Gender preference (particularly for SOGI or sexual exploitation cases)
+- Geographic proximity (for in-person visits)
+
+4.3 Reassignment Protocol
+A helper may request reassignment if:
+- They have a pre-existing relationship with the youth or family (conflict of interest)
+- The case requires specialist skills the helper does not have
+- Caseload is at maximum capacity
+- There is a personal safety concern for the helper
+
+All reassignment requests must be approved by the SCS supervisor.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 5: CASE CLOSURE CRITERIA
+───────────────────────────────────────────────────────────────────────────────
+
+A case may be closed when ALL of the following conditions are met:
+1. No new risk signals in the past 60 days (30 days for low-risk cases)
+2. Youth reports satisfactory wellbeing on final assessment
+3. Protective factors are in place (support network, clinical care if needed)
+4. School or community reports stability
+5. Parent/guardian satisfied or engaged with ongoing community support
+6. No pending mandatory reports or follow-up actions
+7. Helper has written a case closure summary and obtained supervisor sign-off
+
+Note: Closure does not mean monitoring ends entirely. Youth may be placed in "passive monitoring" mode for 90 days post-closure.
+
+Cases may NOT be closed when:
+- Youth is still engaged with a clinical service for the presenting issue
+- A mandatory report has been filed and outcome is unknown
+- Youth is in a shelter or protective custody
+- Risk score was 4 or 5 within the last 30 days
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 6: RECURRENCE MANAGEMENT
+───────────────────────────────────────────────────────────────────────────────
+
+Definition: Recurrence = the same risk category flagging in a new monitoring cycle after a previous case for the same youth was closed or de-escalated.
+
+Protocol for recurrence:
+- 1st recurrence: Re-open case. Review what changed. Update intervention plan.
+- 2nd recurrence: Case conference with supervisor. Review whether current approach is working.
+- 3rd recurrence: Mandatory clinical review. Consider intensive case management.
+- 4th+ recurrence: Multi-agency case conference. Consider residential programme or intensive community intervention.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 7: CRITICAL CONTACT DIRECTORY
+───────────────────────────────────────────────────────────────────────────────
+
+Emergency (Police / Fire / Ambulance): 995
+Non-Emergency Police: 1800-255-0000
+MSF Child Protective Service: 1800-111-2222 (24/7)
+Institute of Mental Health (A&E): 6389 2222
+Samaritans of Singapore: 1-767 (24/7)
+IMH Mental Health Helpline: 6389 2222
+AWARE Women's Helpline: 1800-777-5555
+National Addictions Management Service (NAMS): 6732 6837
+TOUCH Youth Services: 6709 4500
+Oogachaga LGBTQ+ Counselling: 3138-0366
+Internet Watch Foundation (CSAM reporting): www.iwf.org.uk
+
+───────────────────────────────────────────────────────────────────────────────
+END OF DOCUMENT — SCS Protocol 10 — Emergency Escalation, Mandatory Reporting, Closure
+───────────────────────────────────────────────────────────────────────────────

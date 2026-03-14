@@ -1,0 +1,127 @@
+SCHOOL OF CHILD SAFEGUARDING (SCS) — PROTOCOL DOCUMENT
+Title: Family Conflict and Domestic Distress Intervention Protocol
+Category: Family Conflict
+Version: 2.8 | Last Updated: January 2025
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 1: SCOPE
+───────────────────────────────────────────────────────────────────────────────
+
+This protocol covers cases where youth are experiencing significant distress related to family conflict, including parental discord, domestic violence, parent-child conflict, sibling aggression, and neglect indicators.
+
+Family conflict in youth is associated with: increased self-harm risk, academic disengagement, running away, substance use, and poor mental health outcomes. Early intervention is critical.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 2: RISK STRATIFICATION
+───────────────────────────────────────────────────────────────────────────────
+
+Level 1 — Low: Occasional parental argument. Youth venting. No physical conflict. Youth feels safe.
+→ Monitor. Provide general family communication resources.
+
+Level 2 — Moderate: Regular conflict affecting youth's wellbeing. Parent-child communication breakdown. Youth staying away from home.
+→ Refer to Family Service Centre (FSC) within 1 week. Assess youth's safety plan at home.
+
+Level 3 — High: Physical altercations involving youth (either witnessing or participating). Threats of harm. Evidence of emotional abuse. Youth expressing desire to run away.
+→ Assess for immediate safety. If youth at imminent risk at home, consider referral to youth shelter. Contact MSF Child Protective Service (CPS) if abuse suspected.
+
+Level 4 — Critical: Confirmed physical abuse, domestic violence involving youth, neglect (food/shelter insecurity), or abandonment.
+→ Mandatory report to MSF CPS (1800-111-2222). Police report if physical harm occurred. Youth may be placed in protective custody.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 3: ASSESSMENT APPROACH
+───────────────────────────────────────────────────────────────────────────────
+
+3.1 Youth Interview
+Conduct separately from family (privacy is essential). Key questions:
+- "How would you describe the situation at home?"
+- "Do you feel safe at home?"
+- "Has anyone at home ever hurt you physically?"
+- "Do you have enough food, clothing, and a safe place to sleep?"
+- "Who do you go to when things are difficult at home?"
+
+3.2 Family Interview (where safe and appropriate)
+- Conduct with parent or guardian.
+- Be neutral, non-accusatory.
+- Explore stressors: financial, employment, housing, health.
+- Provide resources for parental support.
+
+3.3 Digital Signal Assessment
+Social media posts indicating family conflict risk:
+- References to physical conflict at home
+- Expressing desire to run away or never return home
+- References to food insecurity or homelessness
+- Staying out late or overnight to avoid home
+- References to parental addiction, mental health, or domestic violence
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 4: INTERVENTION PATHWAYS
+───────────────────────────────────────────────────────────────────────────────
+
+4.1 Family Service Centres (FSCs)
+- Refer family to nearest FSC for counselling and casework.
+- FSCs offer family therapy, financial assistance guidance, and community programmes.
+- List of FSCs: www.msf.gov.sg/FSCLocator
+
+4.2 Youth Emergency Shelters
+If youth cannot safely return home:
+- Boys Town (boys): 6858 7900
+- SHINE Children and Youth Services: 6709 4500
+- Covenant Family Centre: 6388 4747
+- Refer through MSF SafeConnect portal.
+
+4.3 Mediation Services
+- Community Mediation Centre (CMC): suitable for non-violent family disputes.
+- Refer parent and youth jointly if relationship is recoverable.
+
+4.4 Parent Support
+- Family Life Champions Programme (MCCY)
+- Financial counselling through ComCare
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 5: CULTURAL CONSIDERATIONS
+───────────────────────────────────────────────────────────────────────────────
+
+Singapore's diverse population means family conflict may be shaped by cultural norms around:
+- Parental authority and filial piety (especially in Chinese, Malay, Indian contexts)
+- Corporal punishment as discipline (legally permissible in limited forms under Singapore law)
+- Shame around seeking help outside the family
+
+Helpers should:
+- Not impose Western family norms.
+- Acknowledge cultural context while assessing safety.
+- Use a strength-based approach: identify protective cultural factors.
+- Engage bilingual helpers where needed (Mandarin, Malay, Tamil).
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 6: MANDATORY REPORTING — CHILD ABUSE
+───────────────────────────────────────────────────────────────────────────────
+
+Under the CYPA, all registered social workers and professionals have a duty to report suspected child abuse to the Director of Social Welfare (MSF). This includes:
+- Physical abuse
+- Sexual abuse
+- Emotional/psychological abuse
+- Neglect (inadequate food, shelter, supervision, medical care)
+
+To make a report: Call MSF CPS at 1800-111-2222 (24/7). Provide:
+- Youth's full name, age, school, address (if known)
+- Nature of concerns
+- Your name and contact number
+
+You do not need certainty to report — a reasonable suspicion is sufficient.
+
+───────────────────────────────────────────────────────────────────────────────
+SECTION 7: RUNNING AWAY — PROTOCOL
+───────────────────────────────────────────────────────────────────────────────
+
+If youth has run away or expressed intent to:
+1. Contact parents to confirm youth's whereabouts.
+2. If missing: file a police report immediately (999 or nearest station).
+3. Contact youth's known peer network.
+4. Check known gathering spots (social media may provide clues).
+5. If youth makes contact with SCS, prioritise safety and offer shelter.
+
+Do not pressure youth to return home if the home is assessed as unsafe.
+
+───────────────────────────────────────────────────────────────────────────────
+END OF DOCUMENT — SCS Protocol 05 — Family Conflict and Domestic Distress
+───────────────────────────────────────────────────────────────────────────────

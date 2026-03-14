@@ -1,0 +1,20 @@
+version: '3.9'
+
+services:
+  auth-service:
+    build: ./auth-service
+    ports:
+      - "8001:8000"
+    environment:
+      OAUTH_AUTHORIZE_URL: https://accounts.google.com/o/oauth2/auth
+      OAUTH_TOKEN_URL: https://oauth2.googleapis.com/token
+      OAUTH_REDIRECT_URI: http://localhost:8001/callback
+      FRONTEND_REDIRECT_URL: http://localhost:5174
+      OAUTH_CLIENT_ID: ${OAUTH_CLIENT_ID}
+      OAUTH_CLIENT_SECRET: ${OAUTH_CLIENT_SECRET}
+    networks:
+      - scs-network
+
+networks:
+  scs-network:
+    driver: bridge
