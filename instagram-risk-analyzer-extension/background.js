@@ -6,7 +6,7 @@
 // Initialize extension on install
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === "install") {
-    console.log("Youth Profile Risk Analyzer extension installed");
+    console.log(" CaptchaGram! extension installed");
     // Could open a setup page here if needed
   } else if (details.reason === "update") {
     console.log("Extension updated");

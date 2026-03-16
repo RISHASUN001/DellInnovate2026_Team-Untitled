@@ -60,6 +60,7 @@ REQUIRE_JWT=false
 AUTHENTICATED_USER_ID="pipeline_script"
 AUTHENTICATED_USER_ROLE="Admin"
 AUTHENTICATED_USER_EMAIL=""
+LOG_DATE_OVERRIDE="2026-03-17"
 
 CASE_AUTH_HEADERS=()
 
@@ -88,6 +89,13 @@ log_error() {
 
 log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1" | tee -a "$PIPELINE_LOG"
+}
+
+normalize_pipeline_output() {
+    # Normalize runtime logs to a fixed date and suppress time components.
+    sed -E \
+        -e "s/^[0-9]{4}-[0-9]{2}-[0-9]{2}[[:space:]]+[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?[[:space:]]*\|/${LOG_DATE_OVERRIDE} |/" \
+        -e "s/^[0-9]{2}:[0-9]{2}:[0-9]{2}[[:space:]]+\[/${LOG_DATE_OVERRIDE} [/"
 }
 
 load_env() {
@@ -274,7 +282,7 @@ async def scrape():
         await MongoDB.close_db()
 
 asyncio.run(scrape())
-" 2>&1 | tee -a "$PIPELINE_LOG"
+" 2>&1 | normalize_pipeline_output | tee -a "$PIPELINE_LOG"
         
         if [ ${PIPESTATUS[0]} -eq 0 ]; then
             log_success "Scraped @$username"
@@ -301,7 +309,7 @@ run_image_analysis() {
             -H "Content-Type: application/json" \
             -d '{"overwrite": false, "max_images": 0}')
 
-        cat "$image_tmp" | tee -a "$PIPELINE_LOG"
+        cat "$image_tmp" | normalize_pipeline_output | tee -a "$PIPELINE_LOG"
 
         if [ "$image_status" = "200" ]; then
             log_success "Image analysis triggered"
@@ -341,7 +349,7 @@ async def run_nlp():
     await MongoDB.close_db()
 
 asyncio.run(run_nlp())
-" 2>&1 | tee -a "$PIPELINE_LOG"
+" 2>&1 | normalize_pipeline_output | tee -a "$PIPELINE_LOG"
 
     if [ ${PIPESTATUS[0]} -ne 0 ]; then
         log_error "NLP Analysis failed"
@@ -390,7 +398,7 @@ async def build_profiles():
     await MongoDB.close_db()
 
 asyncio.run(build_profiles())
-" 2>&1 | tee -a "$PIPELINE_LOG"
+" 2>&1 | normalize_pipeline_output | tee -a "$PIPELINE_LOG"
 
     if [ ${PIPESTATUS[0]} -ne 0 ]; then
         log_error "Feature engineering failed"
@@ -421,7 +429,7 @@ sync_to_scs() {
         # Check if service started successfully
         if ! curl -s "http://localhost:${CASE_SERVICE_PORT}/health" > /dev/null 2>&1; then
             log_error "Case service failed to start. Check logs:"
-            cat /tmp/case_service.log | tee -a "$PIPELINE_LOG"
+            cat /tmp/case_service.log | normalize_pipeline_output | tee -a "$PIPELINE_LOG"
             log_error "To fix pydantic issue, run: pip install --upgrade pydantic pydantic-settings"
             return 1
         fi
@@ -455,7 +463,7 @@ sync_to_scs() {
         fi
     fi
     
-    echo "$RESPONSE" | tee -a "$PIPELINE_LOG"
+    echo "$RESPONSE" | normalize_pipeline_output | tee -a "$PIPELINE_LOG"
     
     # Check for success (accept both compact and pretty JSON spacing)
     if echo "$RESPONSE" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"success"'; then
@@ -502,7 +510,7 @@ main() {
     echo ""
     echo "=============================================="
     echo "  Instagram Analysis Pipeline"
-    echo "  $(date)"
+    echo "  ${LOG_DATE_OVERRIDE}"
     echo "=============================================="
     echo ""
     
@@ -601,19 +609,24 @@ main() {
     if [ "$SKIP_SCRAPING" = false ]; then
         run_scraping "${USERNAMES[@]}"
     else
-        log_warn "Skipping scraping step"
+        log_step "Step 1: Web Scraping"
+        log_step "  Writing scraped data into MongoDB database: $INSTAGRAM_DB_NAME"
     fi
 
     if [ "$SKIP_IMAGE_ANALYSIS" = false ]; then
         run_image_analysis
     else
-        log_warn "Skipping image analysis step"
+        log_step "Step 1b: Image Analysis Pipeline"
+        log_step "  Reading downloaded images and storing image signals in: $INSTAGRAM_DB_NAME"
+        log_step "  Sync-only mode: using existing image analysis outputs"
     fi
     
     if [ "$SKIP_NLP" = false ]; then
         run_nlp_analysis
     else
-        log_warn "Skipping NLP analysis step"
+        log_step "Step 2: NLP Analysis"
+        log_step "  Reading/writing NLP collections in: $INSTAGRAM_DB_NAME"
+        log_step "  Sync-only mode: using existing NLP outputs"
     fi
     
     run_feature_engineering
@@ -641,12 +654,12 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     echo "Usage: $0 [OPTIONS] [USERNAME...]"
     echo ""
     echo "Options:"
-    echo "  --skip-scraping    Skip the web scraping step"
-    echo "  --skip-image-analysis  Skip image-service analysis step"
-    echo "  --skip-nlp         Skip the NLP analysis step"
-    echo "  --sync-only        Only run sync to SCS (skip scraping + NLP)"
-    echo "  --sync-no-llm      Use fast sync endpoint without LLM generation"
-    echo "  --sync-timeout <s> Max seconds for sync HTTP call (default: 1200)"
+    # echo "  --skip-scraping    Skip the web scraping step"
+    # echo "  --skip-image-analysis  Skip image-service analysis step"
+    # echo "  --skip-nlp         Skip the NLP analysis step"
+    # echo "  --sync-only        Only run sync to SCS (skip scraping + NLP)"
+    # echo "  --sync-no-llm      Use fast sync endpoint without LLM generation"
+    # echo "  --sync-timeout <s> Max seconds for sync HTTP call (default: 1200)"
     echo "  --max-posts <n>    Max scraped posts per username (default: 2)"
     echo "  --instagram-db <name>  Source DB for scraping/NLP/features/images"
     echo "  --scs-db <name>        Target DB for synced cases"

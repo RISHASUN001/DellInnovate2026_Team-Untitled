@@ -2995,7 +2995,7 @@ export default function EnhancedDashboard({ currentUser }) {
                           </div>
                         </div>
 
-                        {/* Youth Profile Card */}
+                        {/*  Card */}
                         <div
                           style={{
                             background: "#fff",

@@ -95,11 +95,11 @@ const PRESET_QUESTIONS = [
   },
   {
     label: "Recommended outreach messages",
-    q: "Can you suggest recommended outreach message templates I can adapt for initial contact?",
+    q: "Can you recommend me a outreach message for this case?",
   },
   {
-    label: "Escalation criteria",
-    q: "What are the escalation criteria? When should I escalate a case?",
+    label: "Create Checklist Items",
+    q: "Create me checklist items for this case. Maximum 3",
   },
   {
     label: "Follow-up timelines",
@@ -201,7 +201,7 @@ const ONBOARDING_STEPS = [
     total: 12,
   },
   {
-    title: "7. Youth Profile & Contact Info",
+    title: "7.  Youth Profile & Contact Info",
     desc: "Each case shows the youth's profile with their name, age, Instagram handle, and avatar. This helps you understand who you're supporting. The profile includes all necessary contact information while maintaining privacy protocols.",
     target: "youth-profile",
     step: 8,
@@ -2853,23 +2853,45 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
   // const [loadingStories, setLoadingStories] = useState(false);
   // const [storiesError, setStoriesError] = useState(null);
 
-  // Extract clean Instagram username from case data
-  const extractInstagramUsername = (caseData) => {
-    // Try to get username from various sources
-    let username =
-      caseData?.youth?.handle ||
-      caseData?.user_id ||
-      caseData?.instagram_handle ||
-      "";
+  // Normalize handles like "@@case_jhon_doe" -> "jhon_doe"
+  const normalizeInstagramUsername = (rawValue) => {
+    if (!rawValue) return "";
 
-    // Clean the username: remove @ and "case_" prefix
+    let username = rawValue.toString().trim();
+    const hadDoubleAtPrefix = /^@{2,}/.test(username);
+
+    // Support both plain handles and full Instagram URLs.
     username = username
-      .replace(/^@/, "") // Remove leading @
-      .replace(/^case_/i, "") // Remove "case_" prefix (case insensitive)
+      .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+      .split(/[/?#]/)[0]
       .trim();
+
+    try {
+      username = decodeURIComponent(username);
+    } catch {
+      // Keep original when value is not URI-encoded.
+    }
+
+    username = username.replace(/^@+/, "").trim();
+
+    if (hadDoubleAtPrefix && username.includes("_")) {
+      username = username.replace(/^[^_]+_/, "");
+    }
+
+    username = username.replace(/^case_/i, "").trim();
 
     return username;
   };
+
+  // Extract clean Instagram username from case data
+  const extractInstagramUsername = (caseData) =>
+    normalizeInstagramUsername(
+      caseData?.youth?.handle ||
+        caseData?.user_id ||
+        caseData?.instagram_handle ||
+        caseData?.youth?.instagramUrl ||
+        "",
+    );
 
   // // Fetch Instagram story timestamps
   // const fetchInstagramStories = async (caseData) => {
@@ -2966,6 +2988,8 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
             const tagMatch = c.llm_summary.match(/category\s*:\s*([\w\s-]+)/i);
             if (tagMatch) llmTag = tagMatch[1].trim();
           }
+          const normalizedUsername = extractInstagramUsername(c) || "unknown";
+
           return {
             id: c.case_id,
             code: c.case_id,
@@ -4580,7 +4604,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                     {step.step === 7 &&
                       "Grab any case card and drag it up or down to reorder. Your custom order will be saved."}
                     {step.step === 8 &&
-                      "The highlighted YOUTH PROFILE card showing the person's avatar, name, age, and Instagram handle. This is who you'll be supporting."}
+                      "The highlighted  card showing the person's avatar, name, age, and Instagram handle. This is who you'll be supporting."}
                     {step.step === 9 &&
                       "The highlighted 'REACH OUT VIA INSTAGRAM' button. Click this when ready to initiate contact. Always review protocols first!"}
                     {step.step === 10 &&
@@ -6467,7 +6491,7 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                         return null;
                       })()}
 
-                    {/* Youth Profile Card */}
+                    {/*  Card */}
                     <div
                       style={{
                         background: "#fff",
@@ -6537,12 +6561,14 @@ export default function YouthHelperDashboard({ currentUser: propUser }) {
                             {selectedCase.youth?.handle ?? "—"}
                           </div>
                           <button
-                            onClick={() =>
+                            onClick={() => {
+                              const username = extractInstagramUsername(selectedCase);
+                              if (!username) return;
                               window.open(
-                                selectedCase.youth?.instagramUrl ?? "#",
+                                `https://instagram.com/${encodeURIComponent(username)}`,
                                 "_blank",
-                              )
-                            }
+                              );
+                            }}
                             style={{
                               background:
                                 "linear-gradient(135deg, #0672CB, #0460a9)",

@@ -99,3 +99,43 @@ Evidence: The subject stands with an upright, relatively relaxed posture and has
 Evidence: The subject is sitting in a relaxed posture on the grass with an upright head and a calm, neutral facial expression. The lighting is natural and bright, suggesting a pleasant day. The earthy color palette and open outdoor setting contribute to a peaceful, untroubled atmosphere.",True,sad,0.182807,2026-03-10T16:53:35.284396
 /Users/risha/Documents/GitHub/SC4000-ML/DellInnovateImage/backend/image-service/data/post_images/jin__20260303__0.webp,jin,2026-03-03,0,NONE,NONE,False,,,"A solitary man stands with a stiff, upright posture and hands in his pockets, his neutral expression contributing to a mood of stoic isolation. The scene is dominated by cold, desaturated tones of grey and white, where harsh lighting casts deep shadows against a gritty, peeling brick wall framed by dark, industrial windows. This stark, centered composition emphasizes his solitude, creating a gritty, urban atmosphere that feels both cold and slightly melancholic.","Emotion: sad
 Evidence: The image features a solitary figure standing in a stark, empty room, creating a sense of isolation. The color palette is muted and monochromatic, dominated by greys and whites, which often conveys melancholy. The lighting is dim with visible shadows on the brick wall, adding a somber atmosphere. The person's hands are tucked into their coat pockets, a posture that can suggest withdrawal or self-protection, and their expression appears serious and unsmiling. The dark, grid-like windows in the background contribute to a feeling of confinement or gloom.",False,,0.0,2026-03-10T16:53:53.697415
+/Users/risha/Documents/GitHub/DellInnovate2026_Final/backend/image-service/data/post_images/idkwhatissmyname__20260315__0.jpg,idkwhatissmyname,2026-03-15,0,NONE,NONE,False,,,"The image depicts a solitary figure in silhouette, hunched forward with hands clasped near the face in a gesture of prayer or deep distress. High-contrast lighting casts the person in deep shadow against a bright, backlit background of vertical blinds, creating a stark visual separation. This composition emphasizes the subject's isolation, evoking a somber, quiet, and introspective mood.","Emotion: Sad
+Evidence: The subject is depicted as a silhouette with a bowed head and slumped posture, leaning forward. Their hands are clasped together near their face, a gesture often associated with despair, prayer, or deep distress. The lighting is dramatic and high-contrast, casting the figure in deep shadow against a bright, window-lit background with vertical blinds, which creates a sense of isolation and somber mood. The setting appears to be a solitary indoor space.",False,fear,0.547839,2026-03-15T08:53:52.236146
+/Users/risha/Documents/GitHub/DellInnovate2026_Final/backend/image-service/data/post_images/idkwhatissmyname__20260315__1.jpg,idkwhatissmyname,2026-03-15,1,"DEPRESSION has
+no GENDER,
+no AGE,
+no RACE,
+no STATUS,
+be KIND.
+you dont know what DEMON
+people are fighting for!
+691","DEPRESSION has
+no GENDER,
+no AGE,
+no RACE,
+no STATUS,
+be KIND.
+you dont know what DEMON
+people are fighting for!
+691",True,NEGATIVE,0.8281975984573364,"The solitary figure sits huddled on the floor with their head buried in their knees, adopting a posture of profound withdrawal and despair. The stark black-and-white palette enhances the somber mood, using high contrast to isolate the dark figure against the empty gray space where the text floats. This composition creates a heavy, melancholic atmosphere, emphasizing the weight of the message about depression hovering over the individual.","Emotion: sad
+Evidence: The person is curled into a fetal position with their head buried in their arms, indicating withdrawal and distress. The image is in black and white, creating a somber and bleak atmosphere. The text overlay explicitly mentions ""DEPRESSION"" and ""DEMON,"" reinforcing the heavy emotional tone. The setting is isolated, showing the person alone against a plain wall.",False,sad,0.749649,2026-03-15T08:53:53.658278
+/Users/risha/Documents/GitHub/DellInnovate2026_Final/backend/image-service/data/post_images/idkwhatissmyname__20260315__0.jpg,idkwhatissmyname,2026-03-15,0,NONE,NONE,False,,,"The image features a silhouette of a person sitting with their head bowed and hands clasped, conveying a posture of deep prayer, despair, or intense contemplation. High-contrast lighting casts the figure in deep shadow against bright, vertical window blinds, creating a stark and somber atmosphere. The composition isolates the subject on the left, emphasizing a profound sense of solitude and introspection.","Emotion: sad
+Evidence: The subject is depicted as a dark silhouette with their head bowed down and hands clasped near their face, suggesting a slumped, defeated posture. The high-contrast lighting creates deep shadows that obscure facial features, emphasizing the isolation of the figure against the window blinds. The overall composition feels heavy and somber.",False,fear,0.547839,2026-03-15T08:53:54.257511
+/Users/risha/Documents/GitHub/DellInnovate2026_Final/backend/image-service/data/post_images/idkwhatissmyname__20260315__1.jpg,idkwhatissmyname,2026-03-15,1,"DEPRESSION has
+no GENDER,
+no AGE,
+no RACE,
+no STATUS,
+be KIND.
+you dont know what DEMON
+people are fighting for!
+691","DEPRESSION has
+no GENDER,
+no AGE,
+no RACE,
+no STATUS,
+be KIND.
+you dont know what DEMON
+people are fighting for!
+691",True,NEGATIVE,0.8281975984573364,"A solitary figure sits huddled on the floor with their head buried in their knees, conveying a posture of deep despair and withdrawal. The stark black-and-white palette and heavy vignetting create a somber, oppressive atmosphere, using high contrast to isolate the subject against the gray background. The positioning of the text above the figure emphasizes a sense of overwhelming weight, reinforcing the overall mood of quiet, heavy melancholy.","Emotion: sad
+Evidence: The person is curled into a fetal position with their head buried in their arms, a posture strongly associated with distress, withdrawal, and sadness. The image is in black and white, creating a somber and serious mood. The lighting is somewhat dim and shadowy. Additionally, the text overlay explicitly discusses ""DEPRESSION"" and fighting ""DEMON,"" which contextualizes the visual cues of isolation and despair.",False,,0.0,2026-03-15T08:54:11.967974

@@ -493,8 +493,7 @@ function buildPanelHtml() {
   return `
     <div class="panel-header">
       <div class="panel-header-left">
-        <div class="panel-title">Risk Analyzer</div>
-        <div class="panel-subtitle">Instagram Right-Side Analysis Panel</div>
+        <div class="panel-title">CaptchaGram!</div>
       </div>
       <button id="yrpa-close" class="panel-close" aria-label="Close panel" title="Close">×</button>
     </div>

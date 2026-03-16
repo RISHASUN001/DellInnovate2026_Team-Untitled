@@ -1,4 +1,4 @@
-# Youth Profile Risk Analyzer Chrome Extension
+#  CaptchaGram! Chrome Extension
 
 A Chrome Extension to assist youth outreach volunteers in identifying potential mental health risk signals on Instagram profiles they are viewing.
 

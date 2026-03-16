@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Youth Profile Risk Analyzer",
+  "name": " CaptchaGram!",
   "version": "1.0.0",
   "description": "Assists youth outreach volunteers in assessing potential mental health risk signals on Instagram profiles",
   "permissions": ["activeTab", "scripting", "tabs", "storage"],
